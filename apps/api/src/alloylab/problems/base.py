@@ -52,6 +52,7 @@ class Problem(Protocol):
 
 def get_problem(campaign: Campaign) -> Problem:
     from .alloy import AlloyProblem
+    from .dft import DftProblem
     from .fcc import FccProblem
     from .ising import IsingProblem
     from .phase import PhaseProblem
@@ -61,6 +62,7 @@ def get_problem(campaign: Campaign) -> Problem:
         "alloy_v1": AlloyProblem,
         "fcc_v2": FccProblem,
         "phase_v2": PhaseProblem,
+        "dft_v3": DftProblem,
     }
     if campaign.problem_type not in problems:
         raise ValueError(f"unknown problem type {campaign.problem_type!r}")

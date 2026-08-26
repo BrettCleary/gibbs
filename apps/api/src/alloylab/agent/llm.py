@@ -39,6 +39,12 @@ class LLMDecisionOutput(BaseModel):
     max_scf_iterations_factor: float | None = Field(
         default=None, description="Multiplier on max SCF iterations when retrying."
     )
+    electron_maxstep_factor: float | None = Field(
+        default=None, description="Multiplier on electron_maxstep for a DFT SCF retry."
+    )
+    mixing_beta_factor: float | None = Field(
+        default=None, description="Multiplier on mixing_beta for a DFT SCF retry (<1 = gentler)."
+    )
     reason_for_change: str | None = None
     expected_information_gain: str = ""
     stopping_rationale: str | None = None
@@ -107,6 +113,10 @@ class LLMDecider:
             adjusted["n_equilibration_sweeps_factor"] = out.equilibration_sweeps_factor
         if out.max_scf_iterations_factor:
             adjusted["max_scf_iterations_factor"] = out.max_scf_iterations_factor
+        if out.electron_maxstep_factor:
+            adjusted["electron_maxstep_factor"] = out.electron_maxstep_factor
+        if out.mixing_beta_factor:
+            adjusted["mixing_beta_factor"] = out.mixing_beta_factor
 
         return ScientificDecision(
             hypothesis=out.hypothesis,

@@ -34,13 +34,42 @@ class AlloyAcquisitionState:
     def unmeasured_indices(self) -> list[int]:
         return [i for i in range(len(self.pool)) if i not in self.measured_energies]
 
+    def endpoint_energies(self) -> tuple[float, float] | None:
+        try:
+            idx_a = next(i for i, s in enumerate(self.pool) if s.x == 0.0)
+            idx_b = next(i for i, s in enumerate(self.pool) if s.x == 1.0)
+        except StopIteration:
+            return None
+        if idx_a not in self.measured_energies or idx_b not in self.measured_energies:
+            return None
+        return self.measured_energies[idx_a], self.measured_energies[idx_b]
+
     def surrogate(self, seed: int = 0) -> ClusterExpansionSurrogate | None:
+        """CE fit over measured structures.
+
+        Once both endpoints are measured the fit targets EXCESS energies
+        (raw minus the composition-weighted endpoint reference). Pair and
+        higher coefficients are invariant under this linear-in-x shift, but
+        conditioning improves enormously when raw energies are large (real
+        DFT totals are O(10^3) eV/atom while formation energies are O(0.1)) —
+        without it, bootstrap members that drop a composition extrapolate
+        absurdly. The returned surrogate carries `referenced=True` and then
+        predicts formation-energy-like excess values directly.
+        """
         if len(self.measured_energies) < ClusterExpansionSurrogate.MIN_POINTS:
             return None
         idx = sorted(self.measured_energies)
         features = np.stack([self.pool[i].feature_vector() for i in idx])
         energies = np.array([self.measured_energies[i] for i in idx])
-        return ClusterExpansionSurrogate(features, energies, seed=seed)
+        endpoints = self.endpoint_energies()
+        referenced = endpoints is not None
+        if referenced:
+            e_a, e_b = endpoints
+            xs = np.array([self.pool[i].x for i in idx])
+            energies = energies - ((1.0 - xs) * e_a + xs * e_b)
+        surrogate = ClusterExpansionSurrogate(features, energies, seed=seed)
+        surrogate.referenced = referenced
+        return surrogate
 
 
 def propose_structure(state: AlloyAcquisitionState, strategy: str, rng: np.random.Generator) -> int:
@@ -92,15 +121,22 @@ def predicted_hull_from_state(
     features = np.stack([s.feature_vector() for s in pool])
     if surrogate is not None:
         mean, std = surrogate.predict(features)
+        referenced = getattr(surrogate, "referenced", False)
     else:
         mean = np.zeros(len(pool))
         std = np.full(len(pool), np.inf)
+        referenced = False
 
     e_form: dict[str, float] = {}
     e_form_std: dict[str, float] = {}
     for i, s in enumerate(pool):
-        e_site = state.measured_energies.get(i, float(mean[i]))
-        e_form[s.label] = float(e_site - (1.0 - s.x) * e_a - s.x * e_b)
+        reference = (1.0 - s.x) * e_a + s.x * e_b
+        if i in state.measured_energies:
+            e_form[s.label] = float(state.measured_energies[i] - reference)
+        elif referenced:
+            e_form[s.label] = float(mean[i])  # excess energy IS the formation energy
+        else:
+            e_form[s.label] = float(mean[i] - reference)
         e_form_std[s.label] = 0.0 if i in state.measured_energies else float(std[i])
 
     hull = lower_convex_hull([s.x for s in pool], [e_form[s.label] for s in pool])

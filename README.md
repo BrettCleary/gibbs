@@ -1,11 +1,11 @@
 # AlloyLab — Autonomous Alloy Scientist
 
 An autonomous computational materials-science platform (see `project_description.md`
-for the full plan). This repository currently implements **Milestones 1–5**: the
+for the full plan). This repository currently implements **Milestones 1–6**: the
 complete product loop — agent decisions, typed simulation jobs, surrogate models
 with uncertainty, failure recovery, live mission-control UI, and strategy
-benchmarks — on four synthetic problems, exactly as the plan prescribes
-("DO THIS BEFORE REAL DFT"):
+benchmarks — built on synthetic problems first (as the plan prescribes) and now
+running against **real first-principles calculations**:
 
 - **Ising V0** — autonomously locate the critical-temperature region of the 2D
   Ising model with a finite Monte Carlo budget.
@@ -31,6 +31,18 @@ benchmarks — on four synthetic problems, exactly as the plan prescribes
   max-std chases range edges — the benchmark caught exactly that pathology).
   The dashboard draws the T-x diagram with uncertainty bars, the ordered
   region, per-run SRO coloring, and a per-slice C(T) inspector.
+- **Real DFT (Milestone 6, ASE + Quantum ESPRESSO)** — the same hull campaign
+  with a real energy engine behind the plan's `EnergyCalculator` boundary
+  (`alloyscience.calculators`): `emt` (ASE's classical potential with volume
+  optimisation and curvature-derived bulk moduli — Milestone 8's seed) or
+  `espresso` (pw.x single-point SCF at the Vegard-scaled lattice). Espresso
+  runs execute in per-calculation artifact directories; the `.pwo` log is
+  stored on the job record and served at `/calculations/{id}/log`; SCF
+  non-convergence is detected from the log, categorised, and retried by the
+  agent with doubled `electron_maxstep` and halved `mixing_beta` — a failure
+  mode that occurs for real in elongated metallic cells. Physics settings are
+  demo-grade (non-spin-polarised, modest k-mesh): ordered Ni-Al compounds come
+  out stable, but numbers are not publication-quality.
 
 Benchmark mode scores strategies against the exact hidden Hamiltonian: hull
 RMSE and missed/false stable phases for the hull problems, mean |Tc error|
@@ -94,6 +106,21 @@ Heuristic strategies (`random`, `grid`, `uncertainty`) run fully offline. The
 `agent` strategy uses the OpenAI Agents SDK and requires `OPENAI_API_KEY` in the
 API's environment (model configurable via `ALLOYLAB_AGENT_MODEL`, default `gpt-5`).
 
+### Real DFT (Quantum ESPRESSO)
+
+The `espresso` engine needs a `pw.x` binary and the PAW pseudopotentials in
+`infra/pseudopotentials/` (Ni.pbe-spn-kjpaw and Al.pbe-n-kjpaw, PSlibrary 1.0.0).
+Point the API at your binary:
+
+```bash
+export ALLOYLAB_PW_COMMAND=$HOME/.local/qe/bin/pw.x   # built from source (cmake, serial+OpenMP)
+export ALLOYLAB_PSEUDO_DIR=$PWD/infra/pseudopotentials
+```
+
+The env-gated science test `test_espresso_real_scf_on_pure_ni` runs a real SCF
+when `ALLOYLAB_PW_COMMAND` is set. Espresso campaigns take minutes per
+structure — Milestone 7 (Temporal) is where these long jobs become durable.
+
 ### Database
 
 SQLite by default (`alloylab.db` in the API working directory). For PostgreSQL:
@@ -116,10 +143,10 @@ refits, injected failure → diagnose → retry → succeed — per plan section
 
 ## What's next (per the plan)
 
-- Milestone 6: ASE + Quantum ESPRESSO behind the same `STRUCTURE_ENERGY` job type
 - Milestone 7: swap the async executor for Temporal without touching the agent
-- Milestone 8: property search (bulk modulus) subject to finite-temperature
-  stability from the Milestone 5 boundary machinery
+  (worker restarts, retry policies, timeouts for the minutes-long pw.x jobs)
+- Milestone 8: property search (bulk modulus — the EMT engine already computes
+  it per structure) subject to finite-temperature stability from Milestone 5
 
 Note: the dev database schema is created with `create_all` (no migrations yet);
 after pulling schema changes, delete the local `alloylab.db` file.

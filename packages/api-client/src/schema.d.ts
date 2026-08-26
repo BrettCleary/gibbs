@@ -221,6 +221,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/calculations/{calculation_id}/log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Calculation Log
+         * @description Raw engine log artifact (e.g. the pw.x output) for the run inspector.
+         */
+        get: operations["get_calculation_log_calculations__calculation_id__log_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/calculations/{calculation_id}": {
         parameters: {
             query?: never;
@@ -485,6 +505,10 @@ export interface components {
             reason_for_change: string | null;
             /** Resolution */
             resolution: string | null;
+            /** Stdout Artifact */
+            stdout_artifact?: string | null;
+            /** Stderr Artifact */
+            stderr_artifact?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -518,6 +542,11 @@ export interface components {
             composition_slices?: number[] | null;
             /** @default agent */
             strategy: components["schemas"]["StrategyName"];
+            /**
+             * @description Energy engine for dft_v3 campaigns: 'emt' (fast classical potential) or 'espresso' (real Quantum ESPRESSO DFT; needs pw.x + pseudos).
+             * @default emt
+             */
+            dft_engine: components["schemas"]["DftEngine"];
             /**
              * Temperature Min
              * @default 1.5
@@ -622,6 +651,11 @@ export interface components {
             /** Tc Std */
             tc_std: number | null;
         };
+        /**
+         * DftEngine
+         * @enum {string}
+         */
+        DftEngine: "emt" | "espresso";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -717,7 +751,7 @@ export interface components {
          * ProblemType
          * @enum {string}
          */
-        ProblemType: "ising_v0" | "alloy_v1" | "fcc_v2" | "phase_v2";
+        ProblemType: "ising_v0" | "alloy_v1" | "fcc_v2" | "phase_v2" | "dft_v3";
         /** StartResponse */
         StartResponse: {
             /** Campaign Id */
@@ -1196,6 +1230,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_calculation_log_calculations__calculation_id__log_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                calculation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
             /** @description Validation Error */

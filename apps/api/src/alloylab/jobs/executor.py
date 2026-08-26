@@ -25,7 +25,7 @@ from alloyscience.errors import SimulationFailure
 from alloyscience.ising import IsingSimulator
 
 from ..db.base import get_session_factory
-from ..db.models import Calculation, Campaign
+from ..db.models import Calculation, Campaign, Structure
 from ..events import emit_agent_event
 
 
@@ -49,6 +49,20 @@ class JobExecutor:
                 ).scalar_one()
                 campaign = await session.get(Campaign, calc.campaign_id)
                 problem_config = (campaign.problem_config or {}) if campaign else {}
+                structure_data = None
+                if calc.structure_id:
+                    row = await session.get(Structure, calc.structure_id)
+                    if row is not None:
+                        structure_data = {
+                            "label": row.label,
+                            "x": float(row.composition),
+                            "n_sites": int(row.n_sites),
+                            "chemical_formula": row.chemical_formula,
+                            "cluster_vector": [float(f) for f in row.features],
+                            "cell": row.lattice,
+                            "positions": row.positions,
+                            "atomic_numbers": row.atomic_numbers,
+                        }
                 calc.status = "RUNNING"
                 calc.started_at = _now()
                 await session.commit()
@@ -63,11 +77,17 @@ class JobExecutor:
                 params = dict(calc.input_parameters)
                 try:
                     output, provenance = await asyncio.to_thread(
-                        _execute, calc.calculation_type, calc.id, params, problem_config
+                        _execute,
+                        calc.calculation_type,
+                        calc.id,
+                        params,
+                        problem_config,
+                        structure_data,
                     )
                     calc.status = "SUCCEEDED"
                     calc.completed_at = _now()
                     calc.output = output
+                    calc.stdout_artifact = provenance.get("log_path")
                     calc.provenance = {
                         **provenance,
                         "engine": calc.engine,
@@ -88,6 +108,7 @@ class JobExecutor:
                     calc.completed_at = _now()
                     calc.failure_category = failure.category
                     calc.failure_metadata = failure.metadata
+                    calc.stdout_artifact = failure.metadata.get("log_path")
                     await session.commit()
                     await emit_agent_event(
                         session,
@@ -101,7 +122,11 @@ class JobExecutor:
 
 
 def _execute(
-    calculation_type: str, calculation_id: str, params: dict, problem_config: dict
+    calculation_type: str,
+    calculation_id: str,
+    params: dict,
+    problem_config: dict,
+    structure_data: dict | None = None,
 ) -> tuple[dict, dict]:
     """Runs in a worker thread; returns (output, provenance)."""
     if calculation_type == "MONTE_CARLO":
@@ -109,6 +134,8 @@ def _execute(
             return _execute_phase_mc(calculation_id, params, problem_config)
         return _execute_monte_carlo(calculation_id, params)
     if calculation_type == "STRUCTURE_ENERGY":
+        if problem_config.get("kind") == "ase_calculator":
+            return _execute_ase_calculator(calculation_id, params, problem_config, structure_data)
         return _execute_structure_energy(params, problem_config)
     raise SimulationFailure(
         category="UNSUPPORTED_CALCULATION",
@@ -163,6 +190,82 @@ def _execute_phase_mc(calculation_id: str, params: dict, problem_config: dict) -
         "wall_time_s": result.wall_time_s,
     }
     return result.to_dict(), provenance
+
+
+def _execute_ase_calculator(
+    calculation_id: str, params: dict, problem_config: dict, structure_data: dict | None
+) -> tuple[dict, dict]:
+    """Real energy engines behind the EnergyCalculator boundary (Milestone 6)."""
+    import os
+    from pathlib import Path
+
+    from alloyscience.calculators import (
+        EmtFccCalculator,
+        EspressoConfig,
+        EspressoFccCalculator,
+    )
+    from alloyscience.fcc import FccStructure
+
+    from ..config import get_settings
+
+    if structure_data is None:
+        raise SimulationFailure(
+            category="INVALID_STRUCTURE",
+            message="calculation has no associated structure record",
+            metadata={},
+        )
+    # Injected failures remain available for demos (EMT never fails naturally).
+    _roll_injected_failure(
+        calculation_id,
+        params,
+        metadata={
+            "structure": structure_data["label"],
+            "hint": "adjust SCF settings and retry",
+        },
+    )
+    structure = FccStructure(
+        label=structure_data["label"],
+        x=float(structure_data["x"]),
+        n_sites=int(structure_data["n_sites"]),
+        chemical_formula=structure_data.get("chemical_formula", ""),
+        cluster_vector=tuple(structure_data["cluster_vector"]),
+        cell=tuple(tuple(float(v) for v in row) for row in structure_data["cell"]),
+        positions=tuple(tuple(float(v) for v in p) for p in structure_data["positions"]),
+        atomic_numbers=tuple(int(z) for z in structure_data["atomic_numbers"]),
+    )
+    settings = get_settings()
+    os.environ.setdefault("OMP_NUM_THREADS", str(settings.omp_num_threads))
+    engine = problem_config.get("engine", "emt")
+    if engine == "espresso":
+        config = EspressoConfig.from_dict(problem_config.get("espresso", {}))
+        overrides = {
+            k: params[k] for k in ("electron_maxstep", "mixing_beta") if k in params
+        }
+        calculator = EspressoFccCalculator(config, overrides=overrides)
+        engine_detail = "Quantum ESPRESSO pw.x, single-point SCF at Vegard-scaled lattice"
+    else:
+        calculator = EmtFccCalculator()
+        engine_detail = "ASE EMT classical potential, isotropic volume optimisation"
+
+    workdir = Path(settings.artifacts_dir) / "calcs" / calculation_id
+    result = calculator.compute(structure, workdir=workdir)
+    output = {
+        "energy_per_site": result.energy_per_atom,
+        "structure_label": structure.label,
+        "composition": structure.x,
+        "lattice_scale": result.lattice_scale,
+        **{
+            k: v
+            for k, v in result.details.items()
+            if k in ("optimal_lattice_constant", "bulk_modulus_gpa", "scf_iterations")
+        },
+    }
+    provenance = {
+        "engine_detail": engine_detail,
+        "calculator_details": result.details,
+        "log_path": result.log_path,
+    }
+    return output, provenance
 
 
 def _execute_monte_carlo(calculation_id: str, params: dict) -> tuple[dict, dict]:

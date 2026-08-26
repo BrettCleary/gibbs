@@ -278,14 +278,24 @@ def _endpoint_decision(state: AlloyState) -> ScientificDecision:
 class AlloyHeuristicDecider:
     """Baselines: random / composition-coverage ('grid') / uncertainty sampling."""
 
-    def __init__(self, strategy_name: str, seed: int = 0):
+    def __init__(
+        self,
+        strategy_name: str,
+        seed: int = 0,
+        retry_adjustment: dict | None = None,
+        retry_reason: str | None = None,
+    ):
         self.name = strategy_name
         self._rng = np.random.default_rng(seed)
+        self._retry_adjustment = (
+            retry_adjustment if retry_adjustment is not None else ALLOY_RETRY_ADJUSTMENT
+        )
+        self._retry_reason = retry_reason or ALLOY_RETRY_REASON
 
     async def decide(self, state: AlloyState) -> ScientificDecision:
         # Budget is a hard ceiling: stopping outranks even failure recovery.
         decision = check_stopping(state) or handle_failures(
-            state, ALLOY_RETRY_ADJUSTMENT, ALLOY_RETRY_REASON
+            state, self._retry_adjustment, self._retry_reason
         )
         if decision is not None:
             return decision

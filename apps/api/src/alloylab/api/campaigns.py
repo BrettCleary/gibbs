@@ -40,7 +40,7 @@ async def _get_campaign(session: AsyncSession, campaign_id: str) -> Campaign:
 
 @router.post("", response_model=CampaignRead, status_code=201)
 async def create_campaign(body: CampaignCreate, session: AsyncSession = Depends(get_session)):
-    is_alloy = body.problem_type.value in ("alloy_v1", "fcc_v2")
+    is_alloy = body.problem_type.value in ("alloy_v1", "fcc_v2", "dft_v3")
     is_phase = body.problem_type.value == "phase_v2"
     t_min, t_max = body.temperature_min, body.temperature_max
     if is_phase and t_max <= 10.0:
@@ -68,6 +68,7 @@ async def create_campaign(body: CampaignCreate, session: AsyncSession = Depends(
             "alloy_v1": ["A", "B"],
             "fcc_v2": ["Ni", "Al"],
             "phase_v2": ["Ni", "Al"],
+            "dft_v3": ["Ni", "Al"],
         }.get(body.problem_type.value, ["Ising spin"]),
     )
     session.add(campaign)
@@ -88,6 +89,32 @@ async def create_campaign(body: CampaignCreate, session: AsyncSession = Depends(
             "slices": body.composition_slices or [0.25, 0.5, 0.75],
             "oracle_seed": seed % 1_000_000,
         }
+    elif body.problem_type.value == "dft_v3":
+        # No hidden physics here — a real energy engine answers the queries.
+        engine = body.dft_engine.value
+        config: dict = {"kind": "ase_calculator", "engine": engine}
+        if engine == "espresso":
+            from alloyscience.calculators import EspressoConfig, espresso_available
+
+            espresso_config = EspressoConfig(
+                pw_command=get_settings().pw_command,
+                pseudo_dir=get_settings().pseudo_dir,
+                # Demo-grade k-mesh: qualitatively correct formation energies
+                # (ordered Ni-Al compounds come out stable) at minutes/structure.
+                kspacing=0.35,
+            )
+            ok, reason = espresso_available(espresso_config)
+            if not ok:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Quantum ESPRESSO engine unavailable: {reason}. "
+                    "Set ALLOYLAB_PW_COMMAND / ALLOYLAB_PSEUDO_DIR or use the emt engine.",
+                )
+            config["espresso"] = espresso_config.to_dict()
+            config["max_size"] = 4  # real DFT: keep enumerated cells small
+        else:
+            config["max_size"] = 5
+        campaign.problem_config = config
     elif is_alloy:
         # The secret physics: generated per campaign, visible only to the executor.
         from ..agent.strategies import stable_seed
@@ -246,7 +273,7 @@ async def list_structures(campaign_id: str, session: AsyncSession = Depends(get_
 async def get_hull_view(campaign_id: str, session: AsyncSession = Depends(get_session)):
     """Formation-energy hull view for alloy campaigns: measurements, predictions, hull."""
     campaign = await _get_campaign(session, campaign_id)
-    if campaign.problem_type not in ("alloy_v1", "fcc_v2"):
+    if campaign.problem_type not in ("alloy_v1", "fcc_v2", "dft_v3"):
         raise HTTPException(status_code=400, detail="hull view applies to alloy campaigns only")
 
     from ..problems.alloy import build_alloy_state

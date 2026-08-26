@@ -1,11 +1,15 @@
 "use client";
 
 import type { Calculation } from "@alloylab/api-client";
+import { API_URL } from "@/lib/api";
 import { StatusBadge } from "./StatusBadge";
 
 function target(c: Calculation): string {
   const p = c.input_parameters ?? {};
   if (c.calculation_type === "MONTE_CARLO") {
+    if (p.composition != null) {
+      return `x=${Number(p.composition).toFixed(2)}, T=${Number(p.temperature ?? 0).toFixed(0)} K`;
+    }
     return `T=${Number(p.temperature ?? 0).toFixed(3)}`;
   }
   return `${p.structure_label ?? "?"} (x=${Number(p.composition ?? 0).toFixed(2)})`;
@@ -14,11 +18,20 @@ function target(c: Calculation): string {
 function result(c: Calculation): string {
   if (!c.output) return "—";
   if (c.calculation_type === "MONTE_CARLO") {
+    if (c.output.heat_capacity != null) {
+      return `C = ${Number(c.output.heat_capacity).toFixed(2)} k_B · SRO ${Number(
+        c.output.sro,
+      ).toFixed(3)}`;
+    }
     return `χ = ${Number(c.output.susceptibility).toFixed(2)} ± ${Number(
       c.output.susceptibility_err,
     ).toFixed(2)}`;
   }
-  return `E/site = ${Number(c.output.energy_per_site).toFixed(4)}`;
+  const base = `E/site = ${Number(c.output.energy_per_site).toFixed(4)}`;
+  if (c.output.optimal_lattice_constant != null) {
+    return `${base} · a₀=${Number(c.output.optimal_lattice_constant).toFixed(3)} Å`;
+  }
+  return base;
 }
 
 export function CalculationsTable({ calculations }: { calculations: Calculation[] }) {
@@ -44,7 +57,19 @@ export function CalculationsTable({ calculations }: { calculations: Calculation[
           {calculations.map((c) => (
             <tr key={c.id} className="border-b border-[var(--border)] last:border-b-0">
               <td className="mono px-3 py-1.5 text-[var(--text-dim)]">
-                {c.id.slice(0, 8)}
+                {c.stdout_artifact ? (
+                  <a
+                    href={`${API_URL}/calculations/${c.id}/log`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[var(--accent)] underline decoration-dotted"
+                    title="open engine log"
+                  >
+                    {c.id.slice(0, 8)}
+                  </a>
+                ) : (
+                  c.id.slice(0, 8)
+                )}
                 {c.retry_of && (
                   <span className="ml-1 text-[var(--warn)]">
                     ↻ retry of {c.retry_of.slice(0, 8)}

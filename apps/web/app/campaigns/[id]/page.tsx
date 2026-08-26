@@ -33,7 +33,8 @@ export default function CampaignDashboard({
   const running = campaign.data?.status === "RUNNING";
   const problemType = campaign.data?.problem_type;
   const isPhase = problemType === "phase_v2";
-  const isAlloy = problemType === "alloy_v1" || problemType === "fcc_v2";
+  const isAlloy =
+    problemType === "alloy_v1" || problemType === "fcc_v2" || problemType === "dft_v3";
 
   const surrogate = useQuery({
     queryKey: ["surrogate", id],
@@ -121,11 +122,13 @@ export default function CampaignDashboard({
             <span className="mono text-[10px] uppercase tracking-wider text-[var(--text-dim)]">
               {problemType === "phase_v2"
                 ? "phase diagram M5 (mchammer)"
-                : problemType === "fcc_v2"
-                  ? "FCC Ni–Al V2 (icet)"
-                  : isAlloy
-                    ? "binary alloy V1"
-                    : "ising V0"}
+                : problemType === "dft_v3"
+                  ? "real calculator M6 (ASE)"
+                  : problemType === "fcc_v2"
+                    ? "FCC Ni–Al V2 (icet)"
+                    : isAlloy
+                      ? "binary alloy V1"
+                      : "ising V0"}
             </span>
           </div>
           <p className="mt-1 text-[13px] text-[var(--text-dim)]">{c.objective}</p>

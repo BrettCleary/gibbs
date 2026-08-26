@@ -114,19 +114,22 @@ function CampaignForm({
 }) {
   const [form, setForm] = useState({
     name: "Ni–Al ground-state search",
-    problem_type: "fcc_v2",
+    problem_type: "dft_v3",
     strategy: "uncertainty",
     simulation_budget: 15,
     lattice_size: 24,
     temperature_min: 1.5,
     temperature_max: 3.5,
     failure_rate: 0.15,
+    dft_engine: "emt",
     target_uncertainty: "" as string,
     phase_t_min: 100,
     phase_t_max: 1200,
   });
   const isPhase = form.problem_type === "phase_v2";
-  const isAlloy = form.problem_type === "alloy_v1" || form.problem_type === "fcc_v2";
+  const isDft = form.problem_type === "dft_v3";
+  const isAlloy =
+    form.problem_type === "alloy_v1" || form.problem_type === "fcc_v2" || isDft;
 
   const field = "flex flex-col gap-1 text-[12px] text-[var(--text-dim)]";
   const input =
@@ -142,6 +145,7 @@ function CampaignForm({
           problem_type: form.problem_type as CampaignCreate["problem_type"],
           objective: "",
           strategy: form.strategy as CampaignCreate["strategy"],
+          dft_engine: form.dft_engine as CampaignCreate["dft_engine"],
           simulation_budget: Number(form.simulation_budget),
           lattice_size: Number(form.lattice_size),
           temperature_min: Number(
@@ -172,6 +176,7 @@ function CampaignForm({
           value={form.problem_type}
           onChange={(e) => setForm({ ...form, problem_type: e.target.value })}
         >
+          <option value="dft_v3">Real DFT / EMT, Ni–Al (M6)</option>
           <option value="phase_v2">Ni–Al phase diagram, MC (M5)</option>
           <option value="fcc_v2">FCC Ni–Al, icet (V2)</option>
           <option value="alloy_v1">binary alloy (V1)</option>
@@ -239,6 +244,19 @@ function CampaignForm({
             />
           </label>
         </>
+      )}
+      {isDft && (
+        <label className={field}>
+          energy engine
+          <select
+            className={input}
+            value={form.dft_engine}
+            onChange={(e) => setForm({ ...form, dft_engine: e.target.value })}
+          >
+            <option value="emt">EMT classical potential (fast)</option>
+            <option value="espresso">Quantum ESPRESSO (real DFT, slow)</option>
+          </select>
+        </label>
       )}
       {isPhase && (
         <>

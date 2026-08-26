@@ -29,6 +29,7 @@ class ProblemType(str, Enum):
     alloy_v1 = "alloy_v1"
     fcc_v2 = "fcc_v2"
     phase_v2 = "phase_v2"
+    dft_v3 = "dft_v3"
 
 
 DEFAULT_OBJECTIVES = {
@@ -41,7 +42,14 @@ DEFAULT_OBJECTIVES = {
     ProblemType.phase_v2: "Map the order/disorder phase boundary Tc(x) of an FCC "
     "Ni-Al alloy with a finite canonical Monte Carlo budget, prioritising the "
     "most uncertain boundaries.",
+    ProblemType.dft_v3: "Discover the stable ordered FCC Ni-Al structures with real "
+    "first-principles calculations, using as few expensive runs as possible.",
 }
+
+
+class DftEngine(str, Enum):
+    emt = "emt"
+    espresso = "espresso"
 
 
 class CampaignCreate(BaseModel):
@@ -59,6 +67,11 @@ class CampaignCreate(BaseModel):
         "(each strictly between 0 and 1; default [0.25, 0.5, 0.75]).",
     )
     strategy: StrategyName = StrategyName.agent
+    dft_engine: DftEngine = Field(
+        default=DftEngine.emt,
+        description="Energy engine for dft_v3 campaigns: 'emt' (fast classical "
+        "potential) or 'espresso' (real Quantum ESPRESSO DFT; needs pw.x + pseudos).",
+    )
     temperature_min: float = 1.5
     temperature_max: float = 3.5
     lattice_size: int = Field(default=24, ge=8, le=64)
@@ -132,6 +145,8 @@ class CalculationRead(BaseModel):
     changed_parameters: dict[str, Any] | None
     reason_for_change: str | None
     resolution: str | None
+    stdout_artifact: str | None = None
+    stderr_artifact: str | None = None
     created_at: datetime
     started_at: datetime | None
     completed_at: datetime | None

@@ -98,6 +98,9 @@ class Calculation(Base):
     reason_for_change: Mapped[str | None] = mapped_column(Text, nullable=True)
     # null | "retried" | "abandoned" — how a FAILED calculation was dealt with.
     resolution: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # Engine log artifacts (plan's Calculation entity), e.g. the pw.x .pwo file.
+    stdout_artifact: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    stderr_artifact: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

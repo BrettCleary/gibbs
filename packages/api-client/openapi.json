@@ -560,6 +560,49 @@
         }
       }
     },
+    "/calculations/{calculation_id}/log": {
+      "get": {
+        "tags": [
+          "calculations"
+        ],
+        "summary": "Get Calculation Log",
+        "description": "Raw engine log artifact (e.g. the pw.x output) for the run inspector.",
+        "operationId": "get_calculation_log_calculations__calculation_id__log_get",
+        "parameters": [
+          {
+            "name": "calculation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Calculation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/calculations/{calculation_id}": {
       "get": {
         "tags": [
@@ -1264,6 +1307,28 @@
             ],
             "title": "Resolution"
           },
+          "stdout_artifact": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stdout Artifact"
+          },
+          "stderr_artifact": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stderr Artifact"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -1378,6 +1443,11 @@
           "strategy": {
             "$ref": "#/components/schemas/StrategyName",
             "default": "agent"
+          },
+          "dft_engine": {
+            "$ref": "#/components/schemas/DftEngine",
+            "description": "Energy engine for dft_v3 campaigns: 'emt' (fast classical potential) or 'espresso' (real Quantum ESPRESSO DFT; needs pw.x + pseudos).",
+            "default": "emt"
           },
           "temperature_min": {
             "type": "number",
@@ -1666,6 +1736,14 @@
         "title": "CampaignSurrogateView",
         "description": "Everything the dashboard needs to draw chi(T) with uncertainty."
       },
+      "DftEngine": {
+        "type": "string",
+        "enum": [
+          "emt",
+          "espresso"
+        ],
+        "title": "DftEngine"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1889,7 +1967,8 @@
           "ising_v0",
           "alloy_v1",
           "fcc_v2",
-          "phase_v2"
+          "phase_v2",
+          "dft_v3"
         ],
         "title": "ProblemType"
       },
