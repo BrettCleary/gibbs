@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #0b0f14;
+  --panel: #111820;
+  --panel-2: #0e141b;
+  --border: #1e2a36;
+  --text: #cfd8e3;
+  --text-dim: #7d8a99;
+  --accent: #4cc2ff;
+  --good: #3ecf8e;
+  --warn: #e8b64c;
+  --bad: #e86a6a;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-feature-settings: "tnum";
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}

@@ -1,0 +1,98 @@
+import pytest
+
+from alloylab.agent.decisions import ActionType, ScientificDecision
+from alloylab.agent.loop import validate_decision
+from alloylab.agent.state import FailureRecord, Measurement, ScientificState
+from alloylab.agent.strategies import HeuristicDecider, handle_failures
+
+
+def _state(**overrides) -> ScientificState:
+    base = dict(
+        campaign_id="c1",
+        objective="find Tc",
+        strategy="grid",
+        temperature_min=1.5,
+        temperature_max=3.5,
+        lattice_size=8,
+        budget_total=10,
+        budget_used=0,
+        budget_remaining=10,
+        target_uncertainty=None,
+        measurements=[],
+        unresolved_failures=[],
+        latest_model=None,
+        suggested_uncertainty_temperature=None,
+    )
+    base.update(overrides)
+    return ScientificState(**base)
+
+
+def test_validate_clamps_out_of_range_temperatures():
+    d = ScientificDecision(
+        hypothesis="h",
+        action_type=ActionType.RUN_MONTE_CARLO,
+        temperatures=[0.1, 9.0, 2.0],
+    )
+    cleaned = validate_decision(_state(), d)
+    assert cleaned.temperatures == [1.5, 3.5, 2.0]
+
+
+def test_validate_caps_batch_and_budget():
+    d = ScientificDecision(
+        hypothesis="h",
+        action_type=ActionType.RUN_MONTE_CARLO,
+        temperatures=[2.0, 2.1, 2.2, 2.3],
+    )
+    cleaned = validate_decision(_state(budget_remaining=2), d)
+    assert len(cleaned.temperatures) == 2
+
+
+def test_validate_repairs_empty_proposal():
+    d = ScientificDecision(hypothesis="h", action_type=ActionType.RUN_MONTE_CARLO)
+    cleaned = validate_decision(_state(suggested_uncertainty_temperature=2.7), d)
+    assert cleaned.temperatures == [2.7]
+
+
+def test_validate_rejects_unknown_retry_target():
+    d = ScientificDecision(
+        hypothesis="h",
+        action_type=ActionType.RETRY_CALCULATION,
+        retry_calculation_id="missing",
+    )
+    with pytest.raises(ValueError):
+        validate_decision(_state(), d)
+
+
+def test_failure_policy_retries_then_abandons():
+    failure = FailureRecord(
+        calculation_id="f1",
+        temperature=2.2,
+        category="MC_NOT_EQUILIBRATED",
+        metadata={},
+        is_retry=False,
+    )
+    d = handle_failures(_state(unresolved_failures=[failure]))
+    assert d is not None and d.action_type == ActionType.RETRY_CALCULATION
+    assert d.retry_calculation_id == "f1"
+
+    failed_retry = failure.model_copy(update={"is_retry": True})
+    d2 = handle_failures(_state(unresolved_failures=[failed_retry]))
+    assert d2 is not None and d2.action_type == ActionType.ABANDON_CALCULATION
+
+
+async def test_heuristic_decider_finishes_on_exhausted_budget():
+    decider = HeuristicDecider("grid")
+    decision = await decider.decide(_state(budget_used=10, budget_remaining=0))
+    assert decision.action_type == ActionType.FINISH_CAMPAIGN
+    assert decision.stopping_rationale
+
+
+async def test_heuristic_decider_proposes_measurement():
+    decider = HeuristicDecider("grid")
+    m = [
+        Measurement(calculation_id=f"m{i}", temperature=t, susceptibility=1.0, susceptibility_err=0.1)
+        for i, t in enumerate([1.5, 3.5])
+    ]
+    decision = await decider.decide(_state(measurements=m, budget_used=2, budget_remaining=8))
+    assert decision.action_type == ActionType.RUN_MONTE_CARLO
+    assert decision.temperatures == [pytest.approx(2.5)]

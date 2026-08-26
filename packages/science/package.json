@@ -1,0 +1,8 @@
+{
+  "name": "@alloylab/science",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "uv run --package alloyscience pytest tests -q"
+  }
+}

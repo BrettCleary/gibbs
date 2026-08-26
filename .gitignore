@@ -1,0 +1,23 @@
+# deps
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# builds
+.next/
+dist/
+.turbo/
+*.egg-info/
+
+# local state
+*.db
+*.sqlite3
+.env
+.env.local
+alloylab_data/
+
+# misc
+.DS_Store

@@ -1,0 +1,15 @@
+{
+  "name": "alloylab-monorepo",
+  "private": true,
+  "packageManager": "pnpm@11.15.0",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "generate": "turbo run generate"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0"
+  }
+}

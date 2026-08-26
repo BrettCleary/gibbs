@@ -1,0 +1,1522 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AlloyLab API",
+    "description": "Autonomous computational materials-science platform (V0: Ising critical-region scientist).",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/campaigns": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "List Campaigns",
+        "operationId": "list_campaigns_campaigns_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CampaignRead"
+                  },
+                  "type": "array",
+                  "title": "Response List Campaigns Campaigns Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Create Campaign",
+        "operationId": "create_campaign_campaigns_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CampaignCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/campaigns/{campaign_id}": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Get Campaign",
+        "operationId": "get_campaign_campaigns__campaign_id__get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/campaigns/{campaign_id}/start": {
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Start Campaign",
+        "operationId": "start_campaign_campaigns__campaign_id__start_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/campaigns/{campaign_id}/pause": {
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Pause Campaign",
+        "operationId": "pause_campaign_campaigns__campaign_id__pause_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/campaigns/{campaign_id}/calculations": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "List Calculations",
+        "operationId": "list_calculations_campaigns__campaign_id__calculations_get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CalculationRead"
+                  },
+                  "title": "Response List Calculations Campaigns  Campaign Id  Calculations Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/campaigns/{campaign_id}/models": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "List Models",
+        "operationId": "list_models_campaigns__campaign_id__models_get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SurrogateModelRead"
+                  },
+                  "title": "Response List Models Campaigns  Campaign Id  Models Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/campaigns/{campaign_id}/agent-events": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "List Agent Events",
+        "operationId": "list_agent_events_campaigns__campaign_id__agent_events_get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 200,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AgentEventRead"
+                  },
+                  "title": "Response List Agent Events Campaigns  Campaign Id  Agent Events Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/campaigns/{campaign_id}/surrogate": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Get Surrogate View",
+        "description": "Latest surrogate curve plus the measured points it was trained on.",
+        "operationId": "get_surrogate_view_campaigns__campaign_id__surrogate_get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignSurrogateView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/campaigns/{campaign_id}/events": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Stream Events",
+        "description": "Server-Sent Events: live agent actions, job lifecycle, model updates.",
+        "operationId": "stream_events_campaigns__campaign_id__events_get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/calculations/{calculation_id}": {
+      "get": {
+        "tags": [
+          "calculations"
+        ],
+        "summary": "Get Calculation",
+        "operationId": "get_calculation_calculations__calculation_id__get",
+        "parameters": [
+          {
+            "name": "calculation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Calculation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalculationRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/calculations/{calculation_id}/retries": {
+      "get": {
+        "tags": [
+          "calculations"
+        ],
+        "summary": "Get Retries",
+        "operationId": "get_retries_calculations__calculation_id__retries_get",
+        "parameters": [
+          {
+            "name": "calculation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Calculation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CalculationRead"
+                  },
+                  "title": "Response Get Retries Calculations  Calculation Id  Retries Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/benchmarks": {
+      "get": {
+        "tags": [
+          "benchmarks"
+        ],
+        "summary": "List Benchmarks",
+        "operationId": "list_benchmarks_benchmarks_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BenchmarkRead"
+                  },
+                  "type": "array",
+                  "title": "Response List Benchmarks Benchmarks Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "benchmarks"
+        ],
+        "summary": "Create Benchmark",
+        "operationId": "create_benchmark_benchmarks_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BenchmarkCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BenchmarkRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/benchmarks/{benchmark_id}": {
+      "get": {
+        "tags": [
+          "benchmarks"
+        ],
+        "summary": "Get Benchmark",
+        "operationId": "get_benchmark_benchmarks__benchmark_id__get",
+        "parameters": [
+          {
+            "name": "benchmark_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Benchmark Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BenchmarkRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Health Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AgentEventRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "agent_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Run Id"
+          },
+          "campaign_id": {
+            "type": "string",
+            "title": "Campaign Id"
+          },
+          "event_type": {
+            "type": "string",
+            "title": "Event Type"
+          },
+          "hypothesis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hypothesis"
+          },
+          "reasoning_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reasoning Summary"
+          },
+          "action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action"
+          },
+          "tool_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Name"
+          },
+          "tool_input": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Input"
+          },
+          "tool_output_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Output Reference"
+          },
+          "payload": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payload"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "agent_run_id",
+          "campaign_id",
+          "event_type",
+          "hypothesis",
+          "reasoning_summary",
+          "action",
+          "tool_name",
+          "tool_input",
+          "tool_output_reference",
+          "payload",
+          "created_at"
+        ],
+        "title": "AgentEventRead"
+      },
+      "BenchmarkCreate": {
+        "properties": {
+          "strategies": {
+            "items": {
+              "$ref": "#/components/schemas/StrategyName"
+            },
+            "type": "array",
+            "title": "Strategies",
+            "default": [
+              "random",
+              "grid",
+              "uncertainty"
+            ]
+          },
+          "budget": {
+            "type": "integer",
+            "maximum": 60.0,
+            "minimum": 4.0,
+            "title": "Budget",
+            "default": 12
+          },
+          "seeds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Seeds",
+            "default": [
+              1,
+              2,
+              3
+            ]
+          },
+          "lattice_size": {
+            "type": "integer",
+            "maximum": 48.0,
+            "minimum": 8.0,
+            "title": "Lattice Size",
+            "default": 16
+          },
+          "temperature_min": {
+            "type": "number",
+            "title": "Temperature Min",
+            "default": 1.5
+          },
+          "temperature_max": {
+            "type": "number",
+            "title": "Temperature Max",
+            "default": 3.5
+          }
+        },
+        "type": "object",
+        "title": "BenchmarkCreate"
+      },
+      "BenchmarkRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "config": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Config"
+          },
+          "results": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Results"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "config",
+          "results",
+          "summary",
+          "error",
+          "created_at",
+          "completed_at"
+        ],
+        "title": "BenchmarkRead"
+      },
+      "CalculationRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "campaign_id": {
+            "type": "string",
+            "title": "Campaign Id"
+          },
+          "calculation_type": {
+            "type": "string",
+            "title": "Calculation Type"
+          },
+          "engine": {
+            "type": "string",
+            "title": "Engine"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "input_parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Input Parameters"
+          },
+          "output": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provenance"
+          },
+          "failure_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Category"
+          },
+          "failure_metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Metadata"
+          },
+          "retry_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry Of"
+          },
+          "changed_parameters": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Changed Parameters"
+          },
+          "reason_for_change": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason For Change"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "campaign_id",
+          "calculation_type",
+          "engine",
+          "status",
+          "input_parameters",
+          "output",
+          "provenance",
+          "failure_category",
+          "failure_metadata",
+          "retry_of",
+          "changed_parameters",
+          "reason_for_change",
+          "resolution",
+          "created_at",
+          "started_at",
+          "completed_at"
+        ],
+        "title": "CalculationRead"
+      },
+      "CampaignCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "objective": {
+            "type": "string",
+            "title": "Objective",
+            "default": "Locate the critical-temperature region of the 2D Ising model with a finite Monte Carlo budget."
+          },
+          "strategy": {
+            "$ref": "#/components/schemas/StrategyName",
+            "default": "agent"
+          },
+          "temperature_min": {
+            "type": "number",
+            "title": "Temperature Min",
+            "default": 1.5
+          },
+          "temperature_max": {
+            "type": "number",
+            "title": "Temperature Max",
+            "default": 3.5
+          },
+          "lattice_size": {
+            "type": "integer",
+            "maximum": 64.0,
+            "minimum": 8.0,
+            "title": "Lattice Size",
+            "default": 24
+          },
+          "simulation_budget": {
+            "type": "integer",
+            "maximum": 200.0,
+            "minimum": 4.0,
+            "title": "Simulation Budget",
+            "default": 20
+          },
+          "target_uncertainty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Uncertainty",
+            "description": "Stop early when the Tc-estimate std drops below this value."
+          },
+          "failure_rate": {
+            "type": "number",
+            "maximum": 0.9,
+            "minimum": 0.0,
+            "title": "Failure Rate",
+            "description": "Injected simulation-failure probability (for failure-recovery demos).",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "CampaignCreate"
+      },
+      "CampaignRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "objective": {
+            "type": "string",
+            "title": "Objective"
+          },
+          "problem_type": {
+            "type": "string",
+            "title": "Problem Type"
+          },
+          "strategy": {
+            "type": "string",
+            "title": "Strategy"
+          },
+          "temperature_min": {
+            "type": "number",
+            "title": "Temperature Min"
+          },
+          "temperature_max": {
+            "type": "number",
+            "title": "Temperature Max"
+          },
+          "lattice_size": {
+            "type": "integer",
+            "title": "Lattice Size"
+          },
+          "simulation_budget": {
+            "type": "integer",
+            "title": "Simulation Budget"
+          },
+          "simulations_used": {
+            "type": "integer",
+            "title": "Simulations Used"
+          },
+          "target_uncertainty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Uncertainty"
+          },
+          "failure_rate": {
+            "type": "number",
+            "title": "Failure Rate"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CampaignStatus"
+          },
+          "stopping_rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stopping Rationale"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "objective",
+          "problem_type",
+          "strategy",
+          "temperature_min",
+          "temperature_max",
+          "lattice_size",
+          "simulation_budget",
+          "simulations_used",
+          "target_uncertainty",
+          "failure_rate",
+          "status",
+          "stopping_rationale",
+          "created_at"
+        ],
+        "title": "CampaignRead"
+      },
+      "CampaignStatus": {
+        "type": "string",
+        "enum": [
+          "CREATED",
+          "RUNNING",
+          "PAUSED",
+          "COMPLETED",
+          "FAILED"
+        ],
+        "title": "CampaignStatus"
+      },
+      "CampaignSurrogateView": {
+        "properties": {
+          "campaign_id": {
+            "type": "string",
+            "title": "Campaign Id"
+          },
+          "model_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Version"
+          },
+          "temperatures": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Temperatures"
+          },
+          "mean": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Mean"
+          },
+          "std": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Std"
+          },
+          "measured_temperatures": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Measured Temperatures"
+          },
+          "measured_values": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Measured Values"
+          },
+          "measured_errors": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Measured Errors"
+          },
+          "measured_calculation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Measured Calculation Ids"
+          },
+          "tc_mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tc Mean"
+          },
+          "tc_std": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tc Std"
+          }
+        },
+        "type": "object",
+        "required": [
+          "campaign_id",
+          "model_version",
+          "temperatures",
+          "mean",
+          "std",
+          "measured_temperatures",
+          "measured_values",
+          "measured_errors",
+          "measured_calculation_ids",
+          "tc_mean",
+          "tc_std"
+        ],
+        "title": "CampaignSurrogateView",
+        "description": "Everything the dashboard needs to draw chi(T) with uncertainty."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "StartResponse": {
+        "properties": {
+          "campaign_id": {
+            "type": "string",
+            "title": "Campaign Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CampaignStatus"
+          },
+          "agent_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Run Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "campaign_id",
+          "status"
+        ],
+        "title": "StartResponse"
+      },
+      "StrategyName": {
+        "type": "string",
+        "enum": [
+          "agent",
+          "random",
+          "grid",
+          "uncertainty"
+        ],
+        "title": "StrategyName"
+      },
+      "SurrogateModelRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "campaign_id": {
+            "type": "string",
+            "title": "Campaign Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "training_calculation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Training Calculation Ids"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          },
+          "validation_metrics": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Validation Metrics"
+          },
+          "artifact": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Artifact"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "campaign_id",
+          "type",
+          "version",
+          "training_calculation_ids",
+          "parameters",
+          "validation_metrics",
+          "artifact",
+          "created_at"
+        ],
+        "title": "SurrogateModelRead"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

@@ -1,0 +1,172 @@
+"""Pydantic API schemas (the OpenAPI surface the TypeScript client is generated from)."""
+
+from __future__ import annotations
+
+from datetime import datetime
+from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel, Field, model_validator
+
+
+class CampaignStatus(str, Enum):
+    CREATED = "CREATED"
+    RUNNING = "RUNNING"
+    PAUSED = "PAUSED"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
+class StrategyName(str, Enum):
+    agent = "agent"
+    random = "random"
+    grid = "grid"
+    uncertainty = "uncertainty"
+
+
+class CampaignCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    objective: str = Field(
+        default="Locate the critical-temperature region of the 2D Ising model "
+        "with a finite Monte Carlo budget."
+    )
+    strategy: StrategyName = StrategyName.agent
+    temperature_min: float = 1.5
+    temperature_max: float = 3.5
+    lattice_size: int = Field(default=24, ge=8, le=64)
+    simulation_budget: int = Field(default=20, ge=4, le=200)
+    target_uncertainty: float | None = Field(
+        default=None,
+        description="Stop early when the Tc-estimate std drops below this value.",
+    )
+    failure_rate: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=0.9,
+        description="Injected simulation-failure probability (for failure-recovery demos).",
+    )
+
+    @model_validator(mode="after")
+    def _check_range(self):
+        if self.temperature_max <= self.temperature_min:
+            raise ValueError("temperature_max must exceed temperature_min")
+        return self
+
+
+class CampaignRead(BaseModel):
+    id: str
+    name: str
+    objective: str
+    problem_type: str
+    strategy: str
+    temperature_min: float
+    temperature_max: float
+    lattice_size: int
+    simulation_budget: int
+    simulations_used: int
+    target_uncertainty: float | None
+    failure_rate: float
+    status: CampaignStatus
+    stopping_rationale: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class CalculationRead(BaseModel):
+    id: str
+    campaign_id: str
+    calculation_type: str
+    engine: str
+    status: str
+    input_parameters: dict[str, Any]
+    output: dict[str, Any] | None
+    provenance: dict[str, Any] | None
+    failure_category: str | None
+    failure_metadata: dict[str, Any] | None
+    retry_of: str | None
+    changed_parameters: dict[str, Any] | None
+    reason_for_change: str | None
+    resolution: str | None
+    created_at: datetime
+    started_at: datetime | None
+    completed_at: datetime | None
+
+    model_config = {"from_attributes": True}
+
+
+class SurrogateModelRead(BaseModel):
+    id: str
+    campaign_id: str
+    type: str
+    version: int
+    training_calculation_ids: list[str]
+    parameters: dict[str, Any]
+    validation_metrics: dict[str, Any]
+    artifact: dict[str, Any]
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AgentEventRead(BaseModel):
+    id: str
+    agent_run_id: str | None
+    campaign_id: str
+    event_type: str
+    hypothesis: str | None
+    reasoning_summary: str | None
+    action: str | None
+    tool_name: str | None
+    tool_input: dict[str, Any] | None
+    tool_output_reference: str | None
+    payload: dict[str, Any] | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class CampaignSurrogateView(BaseModel):
+    """Everything the dashboard needs to draw chi(T) with uncertainty."""
+
+    campaign_id: str
+    model_version: int | None
+    temperatures: list[float]
+    mean: list[float]
+    std: list[float]
+    measured_temperatures: list[float]
+    measured_values: list[float]
+    measured_errors: list[float]
+    measured_calculation_ids: list[str]
+    tc_mean: float | None
+    tc_std: float | None
+
+
+class BenchmarkCreate(BaseModel):
+    strategies: list[StrategyName] = Field(
+        default=[StrategyName.random, StrategyName.grid, StrategyName.uncertainty]
+    )
+    budget: int = Field(default=12, ge=4, le=60)
+    seeds: list[int] = Field(default=[1, 2, 3])
+    lattice_size: int = Field(default=16, ge=8, le=48)
+    temperature_min: float = 1.5
+    temperature_max: float = 3.5
+
+
+class BenchmarkRead(BaseModel):
+    id: str
+    status: str
+    config: dict[str, Any]
+    results: list[dict[str, Any]] | None
+    summary: dict[str, Any] | None
+    error: str | None
+    created_at: datetime
+    completed_at: datetime | None
+
+    model_config = {"from_attributes": True}
+
+
+class StartResponse(BaseModel):
+    campaign_id: str
+    status: CampaignStatus
+    agent_run_id: str | None = None
