@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 
 export default function BenchmarksPage() {
   const queryClient = useQueryClient();
+  const [problem, setProblem] = useState<"ising" | "alloy">("alloy");
   const [budget, setBudget] = useState(10);
   const [nSeeds, setNSeeds] = useState(3);
 
@@ -25,6 +26,7 @@ export default function BenchmarksPage() {
     mutationFn: async () => {
       const { data, error } = await api.POST("/benchmarks", {
         body: {
+          problem,
           strategies: ["random", "grid", "uncertainty"],
           budget,
           seeds: Array.from({ length: nSeeds }, (_, i) => i + 1),
@@ -45,9 +47,11 @@ export default function BenchmarksPage() {
         <div>
           <h1 className="text-lg font-semibold">Benchmark Mode</h1>
           <p className="mt-1 max-w-2xl text-[13px] text-[var(--text-dim)]">
-            Does smarter experiment selection find the critical region with fewer
-            expensive queries? Each run scores a strategy&apos;s final Tc estimate
-            against a high-budget ground-truth scan of the same lattice.
+            Does smarter experiment selection reconstruct the ground truth with
+            fewer expensive queries? Ising runs score the Tc estimate against a
+            high-budget scan; alloy runs score hull reconstruction (missed and
+            false stable phases, hull error) against the exact hidden Hamiltonian
+            — a fresh one per seed.
           </p>
         </div>
         <form
@@ -57,6 +61,17 @@ export default function BenchmarksPage() {
             create.mutate();
           }}
         >
+          <label className="flex flex-col gap-1 text-[12px] text-[var(--text-dim)]">
+            problem
+            <select
+              value={problem}
+              onChange={(e) => setProblem(e.target.value as "ising" | "alloy")}
+              className="mono rounded-sm border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1.5 text-sm text-[var(--text)]"
+            >
+              <option value="alloy">binary alloy</option>
+              <option value="ising">ising</option>
+            </select>
+          </label>
           <label className="flex flex-col gap-1 text-[12px] text-[var(--text-dim)]">
             budget / run
             <input
@@ -101,13 +116,25 @@ export default function BenchmarksPage() {
   );
 }
 
+type IsingStats = {
+  mean_tc_error: number;
+  max_tc_error: number;
+  mean_tc_std: number;
+  n_runs: number;
+};
+type AlloyStats = {
+  mean_hull_rmse: number;
+  mean_missed_stable: number;
+  mean_false_stable: number;
+  n_runs: number;
+};
+
 function BenchmarkCard({ benchmark: b }: { benchmark: BenchmarkRun }) {
-  const per = (b.summary?.per_strategy ?? {}) as Record<
-    string,
-    { mean_tc_error: number; max_tc_error: number; mean_tc_std: number; n_runs: number }
-  >;
-  const best =
-    Object.entries(per).sort((x, y) => x[1].mean_tc_error - y[1].mean_tc_error)[0]?.[0];
+  const isAlloy = (b.summary?.problem ?? b.config?.problem) === "alloy";
+  const per = (b.summary?.per_strategy ?? {}) as Record<string, IsingStats & AlloyStats>;
+  const score = (s: IsingStats & AlloyStats) =>
+    isAlloy ? s.mean_hull_rmse : s.mean_tc_error;
+  const best = Object.entries(per).sort((x, y) => score(x[1]) - score(y[1]))[0]?.[0];
 
   return (
     <div className="panel">
@@ -117,16 +144,16 @@ function BenchmarkCard({ benchmark: b }: { benchmark: BenchmarkRun }) {
         </span>
         <StatusBadge status={b.status} />
         <span className="mono text-[12px] text-[var(--text-dim)]">
-          budget {String(b.config?.budget)} · L={String(b.config?.lattice_size)} ·{" "}
+          {isAlloy ? "binary alloy" : "ising"} · budget {String(b.config?.budget)} ·{" "}
           {(b.config?.seeds as number[] | undefined)?.length ?? "?"} seeds
-          {b.summary?.tc_true != null &&
+          {!isAlloy && b.summary?.tc_true != null &&
             ` · ground-truth Tc = ${Number(b.summary.tc_true).toFixed(3)}`}
         </span>
         {b.error && <span className="text-sm text-[var(--bad)]">{b.error}</span>}
       </div>
       {b.status === "RUNNING" && (
         <p className="px-4 py-4 text-sm text-[var(--text-dim)]">
-          Running ground-truth scan and strategy comparisons…
+          Running ground truth and strategy comparisons…
         </p>
       )}
       {Object.keys(per).length > 0 && (
@@ -135,15 +162,25 @@ function BenchmarkCard({ benchmark: b }: { benchmark: BenchmarkRun }) {
             <tr className="mono border-b border-[var(--border)] text-left text-[11px] text-[var(--text-dim)]">
               <th className="px-4 py-2">strategy</th>
               <th className="px-4 py-2">queries</th>
-              <th className="px-4 py-2">mean |Tc error|</th>
-              <th className="px-4 py-2">max |Tc error|</th>
-              <th className="px-4 py-2">mean reported σ(Tc)</th>
+              {isAlloy ? (
+                <>
+                  <th className="px-4 py-2">mean hull RMSE</th>
+                  <th className="px-4 py-2">missed stable / run</th>
+                  <th className="px-4 py-2">false stable / run</th>
+                </>
+              ) : (
+                <>
+                  <th className="px-4 py-2">mean |Tc error|</th>
+                  <th className="px-4 py-2">max |Tc error|</th>
+                  <th className="px-4 py-2">mean reported σ(Tc)</th>
+                </>
+              )}
               <th className="px-4 py-2">runs</th>
             </tr>
           </thead>
           <tbody>
             {Object.entries(per)
-              .sort((x, y) => x[1].mean_tc_error - y[1].mean_tc_error)
+              .sort((x, y) => score(x[1]) - score(y[1]))
               .map(([name, stats]) => (
                 <tr key={name} className="border-b border-[var(--border)] last:border-b-0">
                   <td className="mono px-4 py-2">
@@ -153,9 +190,19 @@ function BenchmarkCard({ benchmark: b }: { benchmark: BenchmarkRun }) {
                     )}
                   </td>
                   <td className="mono px-4 py-2">{String(b.config?.budget)}</td>
-                  <td className="mono px-4 py-2">{stats.mean_tc_error.toFixed(4)}</td>
-                  <td className="mono px-4 py-2">{stats.max_tc_error.toFixed(4)}</td>
-                  <td className="mono px-4 py-2">{stats.mean_tc_std.toFixed(4)}</td>
+                  {isAlloy ? (
+                    <>
+                      <td className="mono px-4 py-2">{stats.mean_hull_rmse.toFixed(4)}</td>
+                      <td className="mono px-4 py-2">{stats.mean_missed_stable.toFixed(1)}</td>
+                      <td className="mono px-4 py-2">{stats.mean_false_stable.toFixed(1)}</td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="mono px-4 py-2">{stats.mean_tc_error.toFixed(4)}</td>
+                      <td className="mono px-4 py-2">{stats.max_tc_error.toFixed(4)}</td>
+                      <td className="mono px-4 py-2">{stats.mean_tc_std.toFixed(4)}</td>
+                    </>
+                  )}
                   <td className="mono px-4 py-2">{stats.n_runs}</td>
                 </tr>
               ))}

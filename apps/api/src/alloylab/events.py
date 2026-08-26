@@ -35,3 +35,37 @@ event_bus = EventBus()
 
 def sse_format(event: dict[str, Any]) -> dict[str, str]:
     return {"event": event.get("event_type", "message"), "data": json.dumps(event)}
+
+
+async def emit_agent_event(
+    session,
+    campaign_id: str,
+    event_type: str,
+    agent_run_id: str | None = None,
+    **fields,
+):
+    """Persist an AgentEvent and publish it to live SSE subscribers."""
+    from .db.models import AgentEvent
+
+    event = AgentEvent(
+        campaign_id=campaign_id, agent_run_id=agent_run_id, event_type=event_type, **fields
+    )
+    session.add(event)
+    await session.commit()
+    await event_bus.publish(
+        campaign_id,
+        {
+            "id": event.id,
+            "campaign_id": campaign_id,
+            "agent_run_id": agent_run_id,
+            "event_type": event_type,
+            "hypothesis": event.hypothesis,
+            "reasoning_summary": event.reasoning_summary,
+            "action": event.action,
+            "tool_name": event.tool_name,
+            "tool_output_reference": event.tool_output_reference,
+            "payload": event.payload,
+            "created_at": event.created_at.isoformat(),
+        },
+    )
+    return event

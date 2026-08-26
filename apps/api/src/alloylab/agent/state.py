@@ -1,12 +1,13 @@
-"""Build the summarised scientific state handed to the deciding agent.
+"""Summarised scientific state handed to the deciding agent (plan section 28).
 
-Summaries, not raw arrays (plan section 28): measurements, surrogate metrics,
-uncertainty suggestions, unresolved failures, and budget.
+`BaseScientificState` carries what every problem shares (budget, failures,
+latest surrogate); each problem adapter extends it with its own summary
+(Ising: chi(T) measurements; alloy: structure pool + hull predictions).
 """
 
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,16 +17,9 @@ from alloyscience.surrogate import ResponseSurrogate
 from ..db.models import Calculation, Campaign, SurrogateModel
 
 
-class Measurement(BaseModel):
-    calculation_id: str
-    temperature: float
-    susceptibility: float
-    susceptibility_err: float
-
-
 class FailureRecord(BaseModel):
     calculation_id: str
-    temperature: float
+    description: str  # human-readable target, e.g. "T=2.300" or "structure s034-2x3"
     category: str
     metadata: dict
     is_retry: bool
@@ -33,26 +27,38 @@ class FailureRecord(BaseModel):
 
 class ModelSummary(BaseModel):
     version: int
-    tc_mean: float | None
-    tc_std: float | None
     n_training_points: int
+    uncertainty_metric: float | None = None  # compared against campaign.target_uncertainty
+    summary_text: str = ""
 
 
-class ScientificState(BaseModel):
+class BaseScientificState(BaseModel):
     campaign_id: str
     objective: str
     strategy: str
-    temperature_min: float
-    temperature_max: float
-    lattice_size: int
     budget_total: int
     budget_used: int
     budget_remaining: int
     target_uncertainty: float | None
-    measurements: list[Measurement]
-    unresolved_failures: list[FailureRecord]
-    latest_model: ModelSummary | None
-    suggested_uncertainty_temperature: float | None
+    unresolved_failures: list[FailureRecord] = Field(default_factory=list)
+    latest_model: ModelSummary | None = None
+
+
+class Measurement(BaseModel):
+    calculation_id: str
+    temperature: float
+    susceptibility: float
+    susceptibility_err: float
+
+
+class ScientificState(BaseScientificState):
+    """Ising V0 state: chi(T) measurements over a temperature range."""
+
+    temperature_min: float
+    temperature_max: float
+    lattice_size: int
+    measurements: list[Measurement] = Field(default_factory=list)
+    suggested_uncertainty_temperature: float | None = None
 
     def acquisition_state(self) -> AcquisitionState:
         return AcquisitionState(
@@ -65,18 +71,58 @@ class ScientificState(BaseModel):
         )
 
 
-async def build_scientific_state(session: AsyncSession, campaign: Campaign) -> ScientificState:
-    calcs = (
+async def load_campaign_calculations(
+    session: AsyncSession, campaign_id: str
+) -> list[Calculation]:
+    return (
         (
             await session.execute(
                 select(Calculation)
-                .where(Calculation.campaign_id == campaign.id)
+                .where(Calculation.campaign_id == campaign_id)
                 .order_by(Calculation.created_at)
             )
         )
         .scalars()
         .all()
     )
+
+
+def budget_used(calcs: list[Calculation]) -> int:
+    return sum(1 for c in calcs if c.status in ("SUCCEEDED", "FAILED", "RUNNING"))
+
+
+def unresolved_failures(
+    calcs: list[Calculation], describe
+) -> list[FailureRecord]:
+    return [
+        FailureRecord(
+            calculation_id=c.id,
+            description=describe(c),
+            category=c.failure_category or "UNKNOWN",
+            metadata=c.failure_metadata or {},
+            is_retry=c.retry_of is not None,
+        )
+        for c in calcs
+        if c.status == "FAILED" and c.resolution is None
+    ]
+
+
+async def latest_surrogate_model(
+    session: AsyncSession, campaign_id: str
+) -> SurrogateModel | None:
+    return (
+        await session.execute(
+            select(SurrogateModel)
+            .where(SurrogateModel.campaign_id == campaign_id)
+            .order_by(SurrogateModel.version.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+
+async def build_scientific_state(session: AsyncSession, campaign: Campaign) -> ScientificState:
+    """State builder for the Ising V0 problem."""
+    calcs = await load_campaign_calculations(session, campaign.id)
 
     measurements = [
         Measurement(
@@ -89,36 +135,21 @@ async def build_scientific_state(session: AsyncSession, campaign: Campaign) -> S
         if c.status == "SUCCEEDED" and c.output
     ]
 
-    unresolved = [
-        FailureRecord(
-            calculation_id=c.id,
-            temperature=float(c.input_parameters.get("temperature", 0.0)),
-            category=c.failure_category or "UNKNOWN",
-            metadata=c.failure_metadata or {},
-            is_retry=c.retry_of is not None,
-        )
-        for c in calcs
-        if c.status == "FAILED" and c.resolution is None
-    ]
-
-    latest = (
-        await session.execute(
-            select(SurrogateModel)
-            .where(SurrogateModel.campaign_id == campaign.id)
-            .order_by(SurrogateModel.version.desc())
-            .limit(1)
-        )
-    ).scalar_one_or_none()
-    latest_model = (
-        ModelSummary(
+    latest = await latest_surrogate_model(session, campaign.id)
+    latest_model = None
+    if latest is not None:
+        tc_mean = latest.validation_metrics.get("tc_mean")
+        tc_std = latest.validation_metrics.get("tc_std")
+        latest_model = ModelSummary(
             version=latest.version,
-            tc_mean=latest.validation_metrics.get("tc_mean"),
-            tc_std=latest.validation_metrics.get("tc_std"),
             n_training_points=len(latest.training_calculation_ids),
+            uncertainty_metric=tc_std,
+            summary_text=(
+                f"Tc = {tc_mean:.4f} ± {tc_std:.4f} (surrogate v{latest.version})"
+                if tc_mean is not None
+                else f"surrogate v{latest.version}"
+            ),
         )
-        if latest
-        else None
-    )
 
     suggestion = None
     if len(measurements) >= ResponseSurrogate.MIN_POINTS:
@@ -134,7 +165,7 @@ async def build_scientific_state(session: AsyncSession, campaign: Campaign) -> S
             exclude=[m.temperature for m in measurements],
         )
 
-    budget_used = sum(1 for c in calcs if c.status in ("SUCCEEDED", "FAILED", "RUNNING"))
+    used = budget_used(calcs)
     return ScientificState(
         campaign_id=campaign.id,
         objective=campaign.objective,
@@ -143,11 +174,14 @@ async def build_scientific_state(session: AsyncSession, campaign: Campaign) -> S
         temperature_max=campaign.temperature_max,
         lattice_size=campaign.lattice_size,
         budget_total=campaign.simulation_budget,
-        budget_used=budget_used,
-        budget_remaining=max(campaign.simulation_budget - budget_used, 0),
+        budget_used=used,
+        budget_remaining=max(campaign.simulation_budget - used, 0),
         target_uncertainty=campaign.target_uncertainty,
         measurements=measurements,
-        unresolved_failures=unresolved,
+        unresolved_failures=unresolved_failures(
+            calcs,
+            lambda c: f"T={float(c.input_parameters.get('temperature', 0.0)):.3f}",
+        ),
         latest_model=latest_model,
         suggested_uncertainty_temperature=suggestion,
     )

@@ -8,16 +8,19 @@ from sse_starlette.sse import EventSourceResponse
 from ..agent.llm import LLMDecider
 from ..agent.loop import runner_registry
 from ..config import get_settings
-from ..db.models import AgentEvent, Calculation, Campaign, SurrogateModel
+from ..db.models import AgentEvent, Calculation, Campaign, Structure, SurrogateModel
 from ..events import event_bus, sse_format
 from .deps import get_session
 from ..schemas import (
     AgentEventRead,
+    AlloyHullView,
     CalculationRead,
     CampaignCreate,
     CampaignRead,
     CampaignSurrogateView,
+    HullPoint,
     StartResponse,
+    StructureRead,
     SurrogateModelRead,
 )
 
@@ -33,20 +36,39 @@ async def _get_campaign(session: AsyncSession, campaign_id: str) -> Campaign:
 
 @router.post("", response_model=CampaignRead, status_code=201)
 async def create_campaign(body: CampaignCreate, session: AsyncSession = Depends(get_session)):
+    is_alloy = body.problem_type.value == "alloy_v1"
     campaign = Campaign(
         name=body.name,
         objective=body.objective,
-        problem_type="ising_v0",
+        problem_type=body.problem_type.value,
         strategy=body.strategy.value,
         temperature_min=body.temperature_min,
         temperature_max=body.temperature_max,
+        composition_min=(body.composition_min if body.composition_min is not None else 0.0)
+        if is_alloy
+        else None,
+        composition_max=(body.composition_max if body.composition_max is not None else 1.0)
+        if is_alloy
+        else None,
         lattice_size=body.lattice_size,
         simulation_budget=body.simulation_budget,
         target_uncertainty=body.target_uncertainty,
         failure_rate=body.failure_rate,
-        elements=["Ising spin"],
+        elements=["A", "B"] if is_alloy else ["Ising spin"],
     )
     session.add(campaign)
+    await session.flush()
+    if is_alloy:
+        # The secret physics: generated per campaign, visible only to the executor.
+        from alloyscience.alloy import HiddenPairHamiltonian
+
+        from ..agent.strategies import stable_seed
+
+        seed = stable_seed(campaign.id)
+        campaign.problem_config = {
+            "hamiltonian": HiddenPairHamiltonian.random(seed=seed).to_dict(),
+            "oracle_seed": seed % 1_000_000,
+        }
     await session.commit()
     return campaign
 
@@ -166,6 +188,83 @@ async def get_surrogate_view(campaign_id: str, session: AsyncSession = Depends(g
         measured_calculation_ids=[c.id for c in calcs],
         tc_mean=model.validation_metrics.get("tc_mean") if model else None,
         tc_std=model.validation_metrics.get("tc_std") if model else None,
+    )
+
+
+@router.get("/{campaign_id}/structures", response_model=list[StructureRead])
+async def list_structures(campaign_id: str, session: AsyncSession = Depends(get_session)):
+    await _get_campaign(session, campaign_id)
+    rows = await session.execute(
+        select(Structure).where(Structure.campaign_id == campaign_id).order_by(Structure.label)
+    )
+    return rows.scalars().all()
+
+
+@router.get("/{campaign_id}/hull", response_model=AlloyHullView)
+async def get_hull_view(campaign_id: str, session: AsyncSession = Depends(get_session)):
+    """Formation-energy hull view for alloy campaigns: measurements, predictions, hull."""
+    campaign = await _get_campaign(session, campaign_id)
+    if campaign.problem_type != "alloy_v1":
+        raise HTTPException(status_code=400, detail="hull view applies to alloy campaigns only")
+
+    from ..problems.alloy import build_alloy_state
+
+    state = await build_alloy_state(session, campaign)
+    model = (
+        await session.execute(
+            select(SurrogateModel)
+            .where(SurrogateModel.campaign_id == campaign_id)
+            .order_by(SurrogateModel.version.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+    structures = (
+        (
+            await session.execute(
+                select(Structure)
+                .where(Structure.campaign_id == campaign_id)
+                .order_by(Structure.label)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    id_by_label = {s.label: s.id for s in structures}
+    e_form_by_label = {m.label: m.e_form for m in state.measurements}
+
+    points = []
+    for p in state.pool_predictions:
+        measured_e_form = e_form_by_label.get(p.label)
+        points.append(
+            HullPoint(
+                structure_id=id_by_label.get(p.label, ""),
+                label=p.label,
+                x=p.x,
+                e_form=measured_e_form if p.measured else p.e_form_mean,
+                e_form_std=0.0 if p.measured else p.e_form_std,
+                measured=p.measured,
+                predicted_stable=p.label in set(state.predicted_stable),
+            )
+        )
+
+    hull_x: list[float] = []
+    hull_e: list[float] = []
+    loocv = None
+    if model is not None:
+        hull_x = model.artifact.get("hull_x", [])
+        hull_e = model.artifact.get("hull_e", [])
+        loocv = model.validation_metrics.get("loocv_rmse")
+
+    return AlloyHullView(
+        campaign_id=campaign_id,
+        model_version=model.version if model else None,
+        loocv_rmse=loocv,
+        points=points,
+        hull_x=hull_x,
+        hull_e=hull_e,
+        stable_labels=state.predicted_stable,
+        endpoints_measured=state.endpoints_measured,
     )
 
 

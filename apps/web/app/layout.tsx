@@ -32,7 +32,7 @@ export default function RootLayout({
                 </Link>
               </nav>
               <span className="ml-auto mono text-xs text-[var(--text-dim)]">
-                V0 · Ising critical-region scientist
+                V1 · autonomous alloy scientist
               </span>
             </div>
           </header>

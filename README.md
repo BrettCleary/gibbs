@@ -1,15 +1,25 @@
 # AlloyLab — Autonomous Alloy Scientist
 
 An autonomous computational materials-science platform (see `project_description.md`
-for the full plan). This repository currently implements **Milestone 1 (Foundation)**
-and **Milestone 2 (Ising Scientist)**: the complete product loop — agent decisions,
-typed simulation jobs, surrogate models with uncertainty, failure recovery, live
-mission-control UI, and a strategy benchmark — running against the synthetic 2D
-Ising problem, exactly as the plan prescribes ("DO THIS BEFORE REAL DFT").
+for the full plan). This repository currently implements **Milestones 1–3**: the
+complete product loop — agent decisions, typed simulation jobs, surrogate models
+with uncertainty, failure recovery, live mission-control UI, and strategy
+benchmarks — on two synthetic problems, exactly as the plan prescribes
+("DO THIS BEFORE REAL DFT"):
 
-The V0 scientific problem: **autonomously locate the critical-temperature region
-of the 2D Ising model with a finite Monte Carlo budget**, and quantitatively
-compare the scientist against random/grid/uncertainty baselines.
+- **Ising V0** — autonomously locate the critical-temperature region of the 2D
+  Ising model with a finite Monte Carlo budget.
+- **Alloy V1 (Milestone 3)** — a binary alloy A(1-x)B(x) governed by a *hidden*
+  pair Hamiltonian. The agent enumerates candidate orderings, spends a finite
+  oracle budget on simulated-DFT energy queries (with injected SCF failures),
+  fits a real mini cluster expansion over correlation features, and discovers
+  the formation-energy convex hull and stable ordered structures (e.g. the
+  checkerboard A2B2 ground state). Benchmark mode scores strategies on hull
+  RMSE and missed/false stable phases against the exact hidden Hamiltonian.
+
+Both problems run through one problem-agnostic campaign loop
+(`alloylab/problems/` adapters), so V2+ (icet, real DFT) slot in without
+touching the loop, executor, or failure policy.
 
 ## Architecture (three layers, kept separate)
 
@@ -89,9 +99,11 @@ refits, injected failure → diagnose → retry → succeed — per plan section
 
 ## What's next (per the plan)
 
-- Milestone 3: hidden binary-alloy lattice Hamiltonian (composition, formation
-  energies, ground-state search; `alloyscience.thermodynamics` hull code is
-  already in place and tested)
-- Milestone 4: icet cluster expansions
-- Milestone 6: ASE + Quantum ESPRESSO behind the same `Calculation` job type
+- Milestone 4: icet cluster expansions (replace the mini pair-correlation CE in
+  `alloyscience.alloy.cluster_expansion` behind the same surrogate interface)
+- Milestone 5: finite-temperature T–x phase diagram via Monte Carlo on the CE
+- Milestone 6: ASE + Quantum ESPRESSO behind the same `STRUCTURE_ENERGY` job type
 - Milestone 7: swap the async executor for Temporal without touching the agent
+
+Note: the dev database schema is created with `create_all` (no migrations yet);
+after pulling schema changes, delete the local `alloylab.db` file.

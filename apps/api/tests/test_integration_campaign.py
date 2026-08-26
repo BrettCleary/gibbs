@@ -79,8 +79,12 @@ async def test_failure_recovery_campaign(client):
     failed = [c for c in calcs if c["status"] == "FAILED"]
     retries = [c for c in calcs if c["retry_of"]]
     assert failed, "expected injected failures at failure_rate=0.9"
-    # Every failure is explicitly resolved and every retry preserves lineage.
-    assert all(c["resolution"] in ("retried", "abandoned") for c in failed)
+    # The budget is a hard ceiling — a failure at the boundary may legitimately
+    # remain unresolved, but never more than the final one; every other failure
+    # is explicitly resolved and every retry preserves lineage.
+    unresolved = [c for c in failed if c["resolution"] is None]
+    assert len(unresolved) <= 1
+    assert campaign["simulations_used"] <= 6
     for retry in retries:
         assert retry["changed_parameters"]
         assert retry["reason_for_change"]

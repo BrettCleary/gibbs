@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 class ActionType(str, Enum):
     RUN_MONTE_CARLO = "RUN_MONTE_CARLO"
+    RUN_STRUCTURE_ENERGY = "RUN_STRUCTURE_ENERGY"
     RETRY_CALCULATION = "RETRY_CALCULATION"
     ABANDON_CALCULATION = "ABANDON_CALCULATION"
     FINISH_CAMPAIGN = "FINISH_CAMPAIGN"
@@ -28,11 +29,17 @@ class ScientificDecision(BaseModel):
         default_factory=list,
         description="Temperatures for RUN_MONTE_CARLO (at most 3 per decision).",
     )
+    structure_labels: list[str] = Field(
+        default_factory=list,
+        description="Structure labels for RUN_STRUCTURE_ENERGY (at most 3 per decision).",
+    )
     retry_calculation_id: str | None = Field(
         default=None, description="Failed calculation id for RETRY/ABANDON actions."
     )
     adjusted_parameters: dict[str, float] | None = Field(
-        default=None, description="Parameter overrides for a retry."
+        default=None,
+        description="Retry overrides as '<param>_factor' multipliers, e.g. "
+        "{'n_equilibration_sweeps_factor': 3.0}.",
     )
     reason_for_change: str | None = None
     expected_information_gain: str = ""

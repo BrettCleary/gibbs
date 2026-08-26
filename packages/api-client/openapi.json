@@ -387,6 +387,95 @@
         }
       }
     },
+    "/campaigns/{campaign_id}/structures": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "List Structures",
+        "operationId": "list_structures_campaigns__campaign_id__structures_get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StructureRead"
+                  },
+                  "title": "Response List Structures Campaigns  Campaign Id  Structures Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/campaigns/{campaign_id}/hull": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Get Hull View",
+        "description": "Formation-energy hull view for alloy campaigns: measurements, predictions, hull.",
+        "operationId": "get_hull_view_campaigns__campaign_id__hull_get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlloyHullView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/campaigns/{campaign_id}/events": {
       "get": {
         "tags": [
@@ -775,8 +864,87 @@
         ],
         "title": "AgentEventRead"
       },
+      "AlloyHullView": {
+        "properties": {
+          "campaign_id": {
+            "type": "string",
+            "title": "Campaign Id"
+          },
+          "model_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Version"
+          },
+          "loocv_rmse": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loocv Rmse"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/HullPoint"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "hull_x": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Hull X"
+          },
+          "hull_e": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Hull E"
+          },
+          "stable_labels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stable Labels"
+          },
+          "endpoints_measured": {
+            "type": "boolean",
+            "title": "Endpoints Measured"
+          }
+        },
+        "type": "object",
+        "required": [
+          "campaign_id",
+          "model_version",
+          "loocv_rmse",
+          "points",
+          "hull_x",
+          "hull_e",
+          "stable_labels",
+          "endpoints_measured"
+        ],
+        "title": "AlloyHullView",
+        "description": "Everything the dashboard needs to draw the formation-energy hull."
+      },
       "BenchmarkCreate": {
         "properties": {
+          "problem": {
+            "$ref": "#/components/schemas/BenchmarkProblem",
+            "default": "ising"
+          },
           "strategies": {
             "items": {
               "$ref": "#/components/schemas/StrategyName"
@@ -828,6 +996,14 @@
         },
         "type": "object",
         "title": "BenchmarkCreate"
+      },
+      "BenchmarkProblem": {
+        "type": "string",
+        "enum": [
+          "ising",
+          "alloy"
+        ],
+        "title": "BenchmarkProblem"
       },
       "BenchmarkRead": {
         "properties": {
@@ -922,6 +1098,17 @@
           "campaign_id": {
             "type": "string",
             "title": "Campaign Id"
+          },
+          "structure_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Structure Id"
           },
           "calculation_type": {
             "type": "string",
@@ -1092,10 +1279,41 @@
             "minLength": 1,
             "title": "Name"
           },
+          "problem_type": {
+            "$ref": "#/components/schemas/ProblemType",
+            "default": "ising_v0"
+          },
           "objective": {
             "type": "string",
             "title": "Objective",
-            "default": "Locate the critical-temperature region of the 2D Ising model with a finite Monte Carlo budget."
+            "description": "Defaults to the problem's canonical objective when empty.",
+            "default": ""
+          },
+          "composition_min": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Composition Min"
+          },
+          "composition_max": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Composition Max"
           },
           "strategy": {
             "$ref": "#/components/schemas/StrategyName",
@@ -1181,6 +1399,28 @@
           "temperature_max": {
             "type": "number",
             "title": "Temperature Max"
+          },
+          "composition_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Composition Min"
+          },
+          "composition_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Composition Max"
           },
           "lattice_size": {
             "type": "integer",
@@ -1379,6 +1619,69 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "HullPoint": {
+        "properties": {
+          "structure_id": {
+            "type": "string",
+            "title": "Structure Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "x": {
+            "type": "number",
+            "title": "X"
+          },
+          "e_form": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "E Form"
+          },
+          "e_form_std": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "E Form Std"
+          },
+          "measured": {
+            "type": "boolean",
+            "title": "Measured",
+            "default": false
+          },
+          "predicted_stable": {
+            "type": "boolean",
+            "title": "Predicted Stable",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "structure_id",
+          "label",
+          "x"
+        ],
+        "title": "HullPoint"
+      },
+      "ProblemType": {
+        "type": "string",
+        "enum": [
+          "ising_v0",
+          "alloy_v1"
+        ],
+        "title": "ProblemType"
+      },
       "StartResponse": {
         "properties": {
           "campaign_id": {
@@ -1416,6 +1719,69 @@
           "uncertainty"
         ],
         "title": "StrategyName"
+      },
+      "StructureRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "campaign_id": {
+            "type": "string",
+            "title": "Campaign Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "chemical_formula": {
+            "type": "string",
+            "title": "Chemical Formula"
+          },
+          "composition": {
+            "type": "number",
+            "title": "Composition"
+          },
+          "n_sites": {
+            "type": "integer",
+            "title": "N Sites"
+          },
+          "occupations": {
+            "items": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Occupations"
+          },
+          "shape": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Shape"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "campaign_id",
+          "label",
+          "chemical_formula",
+          "composition",
+          "n_sites",
+          "occupations",
+          "shape",
+          "created_at"
+        ],
+        "title": "StructureRead"
       },
       "SurrogateModelRead": {
         "properties": {

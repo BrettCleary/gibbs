@@ -6,6 +6,14 @@ from .strategies import (
     UncertaintyStrategy,
     make_strategy,
 )
+from .alloy_harness import (
+    ALLOY_STRATEGIES,
+    AlloyAcquisitionState,
+    AlloyBenchmarkResult,
+    predicted_hull_from_state,
+    propose_structure,
+    run_alloy_benchmark,
+)
 from .harness import (
     BenchmarkRecord,
     BenchmarkRunResult,
@@ -18,6 +26,12 @@ from .harness import (
 )
 
 __all__ = [
+    "ALLOY_STRATEGIES",
+    "AlloyAcquisitionState",
+    "AlloyBenchmarkResult",
+    "predicted_hull_from_state",
+    "propose_structure",
+    "run_alloy_benchmark",
     "AcquisitionState",
     "GridStrategy",
     "RandomStrategy",

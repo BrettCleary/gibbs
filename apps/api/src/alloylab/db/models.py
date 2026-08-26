@@ -43,6 +43,28 @@ class Campaign(Base):
 
     status: Mapped[str] = mapped_column(String(30), default="CREATED")
     stopping_rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Hidden problem definition (e.g. the secret alloy Hamiltonian). Never
+    # exposed through the API or to the agent; used only by the executor and
+    # by benchmark ground-truth evaluation.
+    problem_config: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class Structure(Base):
+    """A candidate atomic configuration (V1: periodic tile on the 2D lattice)."""
+
+    __tablename__ = "structures"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    campaign_id: Mapped[str] = mapped_column(ForeignKey("campaigns.id"), index=True)
+    label: Mapped[str] = mapped_column(String(50), index=True)
+    chemical_formula: Mapped[str] = mapped_column(String(100), default="")
+    composition: Mapped[float] = mapped_column(Float)  # x_B
+    n_sites: Mapped[int] = mapped_column(Integer)
+    occupations: Mapped[list] = mapped_column(JSON, default=list)
+    shape: Mapped[list] = mapped_column(JSON, default=list)
+    features: Mapped[list] = mapped_column(JSON, default=list)
+    extra: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
@@ -53,6 +75,9 @@ class Calculation(Base):
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
     campaign_id: Mapped[str] = mapped_column(ForeignKey("campaigns.id"), index=True)
+    structure_id: Mapped[str | None] = mapped_column(
+        ForeignKey("structures.id"), nullable=True, index=True
+    )
     calculation_type: Mapped[str] = mapped_column(String(40), default="MONTE_CARLO")
     engine: Mapped[str] = mapped_column(String(100), default="alloyscience.ising.IsingSimulator")
     status: Mapped[str] = mapped_column(String(20), default="QUEUED", index=True)

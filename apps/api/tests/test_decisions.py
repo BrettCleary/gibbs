@@ -1,9 +1,14 @@
 import pytest
 
 from alloylab.agent.decisions import ActionType, ScientificDecision
-from alloylab.agent.loop import validate_decision
 from alloylab.agent.state import FailureRecord, Measurement, ScientificState
-from alloylab.agent.strategies import HeuristicDecider, handle_failures
+from alloylab.agent.strategies import (
+    HeuristicDecider,
+    ISING_RETRY_ADJUSTMENT,
+    ISING_RETRY_REASON,
+    handle_failures,
+)
+from alloylab.problems.ising import IsingProblem
 
 
 def _state(**overrides) -> ScientificState:
@@ -33,7 +38,7 @@ def test_validate_clamps_out_of_range_temperatures():
         action_type=ActionType.RUN_MONTE_CARLO,
         temperatures=[0.1, 9.0, 2.0],
     )
-    cleaned = validate_decision(_state(), d)
+    cleaned = IsingProblem().validate(_state(), d)
     assert cleaned.temperatures == [1.5, 3.5, 2.0]
 
 
@@ -43,13 +48,13 @@ def test_validate_caps_batch_and_budget():
         action_type=ActionType.RUN_MONTE_CARLO,
         temperatures=[2.0, 2.1, 2.2, 2.3],
     )
-    cleaned = validate_decision(_state(budget_remaining=2), d)
+    cleaned = IsingProblem().validate(_state(budget_remaining=2), d)
     assert len(cleaned.temperatures) == 2
 
 
 def test_validate_repairs_empty_proposal():
     d = ScientificDecision(hypothesis="h", action_type=ActionType.RUN_MONTE_CARLO)
-    cleaned = validate_decision(_state(suggested_uncertainty_temperature=2.7), d)
+    cleaned = IsingProblem().validate(_state(suggested_uncertainty_temperature=2.7), d)
     assert cleaned.temperatures == [2.7]
 
 
@@ -60,23 +65,28 @@ def test_validate_rejects_unknown_retry_target():
         retry_calculation_id="missing",
     )
     with pytest.raises(ValueError):
-        validate_decision(_state(), d)
+        IsingProblem().validate(_state(), d)
 
 
 def test_failure_policy_retries_then_abandons():
     failure = FailureRecord(
         calculation_id="f1",
-        temperature=2.2,
+        description="T=2.200",
         category="MC_NOT_EQUILIBRATED",
         metadata={},
         is_retry=False,
     )
-    d = handle_failures(_state(unresolved_failures=[failure]))
+    d = handle_failures(
+        _state(unresolved_failures=[failure]), ISING_RETRY_ADJUSTMENT, ISING_RETRY_REASON
+    )
     assert d is not None and d.action_type == ActionType.RETRY_CALCULATION
     assert d.retry_calculation_id == "f1"
+    assert d.adjusted_parameters == ISING_RETRY_ADJUSTMENT
 
     failed_retry = failure.model_copy(update={"is_retry": True})
-    d2 = handle_failures(_state(unresolved_failures=[failed_retry]))
+    d2 = handle_failures(
+        _state(unresolved_failures=[failed_retry]), ISING_RETRY_ADJUSTMENT, ISING_RETRY_REASON
+    )
     assert d2 is not None and d2.action_type == ActionType.ABANDON_CALCULATION
 
 
@@ -90,7 +100,9 @@ async def test_heuristic_decider_finishes_on_exhausted_budget():
 async def test_heuristic_decider_proposes_measurement():
     decider = HeuristicDecider("grid")
     m = [
-        Measurement(calculation_id=f"m{i}", temperature=t, susceptibility=1.0, susceptibility_err=0.1)
+        Measurement(
+            calculation_id=f"m{i}", temperature=t, susceptibility=1.0, susceptibility_err=0.1
+        )
         for i, t in enumerate([1.5, 3.5])
     ]
     decision = await decider.decide(_state(measurements=m, budget_used=2, budget_remaining=8))

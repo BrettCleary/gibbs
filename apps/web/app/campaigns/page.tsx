@@ -113,7 +113,8 @@ function CampaignForm({
   error: string | null;
 }) {
   const [form, setForm] = useState({
-    name: "Ising critical-region search",
+    name: "Alloy ground-state search",
+    problem_type: "alloy_v1",
     strategy: "uncertainty",
     simulation_budget: 15,
     lattice_size: 24,
@@ -122,6 +123,7 @@ function CampaignForm({
     failure_rate: 0.15,
     target_uncertainty: "" as string,
   });
+  const isAlloy = form.problem_type === "alloy_v1";
 
   const field = "flex flex-col gap-1 text-[12px] text-[var(--text-dim)]";
   const input =
@@ -134,8 +136,8 @@ function CampaignForm({
         e.preventDefault();
         onSubmit({
           name: form.name,
-          objective:
-            "Locate the critical-temperature region of the 2D Ising model with a finite Monte Carlo budget.",
+          problem_type: form.problem_type as CampaignCreate["problem_type"],
+          objective: "",
           strategy: form.strategy as CampaignCreate["strategy"],
           simulation_budget: Number(form.simulation_budget),
           lattice_size: Number(form.lattice_size),
@@ -157,6 +159,17 @@ function CampaignForm({
         />
       </label>
       <label className={field}>
+        problem
+        <select
+          className={input}
+          value={form.problem_type}
+          onChange={(e) => setForm({ ...form, problem_type: e.target.value })}
+        >
+          <option value="alloy_v1">binary alloy (V1)</option>
+          <option value="ising_v0">Ising critical region (V0)</option>
+        </select>
+      </label>
+      <label className={field}>
         strategy
         <select
           className={input}
@@ -165,7 +178,7 @@ function CampaignForm({
         >
           <option value="agent">agent (LLM scientist)</option>
           <option value="uncertainty">uncertainty sampling</option>
-          <option value="grid">grid coverage</option>
+          <option value="grid">{isAlloy ? "composition coverage" : "grid coverage"}</option>
           <option value="random">random</option>
         </select>
       </label>
@@ -180,38 +193,42 @@ function CampaignForm({
           onChange={(e) => setForm({ ...form, simulation_budget: Number(e.target.value) })}
         />
       </label>
-      <label className={field}>
-        lattice size L
-        <input
-          className={input}
-          type="number"
-          min={8}
-          max={64}
-          step={2}
-          value={form.lattice_size}
-          onChange={(e) => setForm({ ...form, lattice_size: Number(e.target.value) })}
-        />
-      </label>
-      <label className={field}>
-        T min
-        <input
-          className={input}
-          type="number"
-          step={0.1}
-          value={form.temperature_min}
-          onChange={(e) => setForm({ ...form, temperature_min: Number(e.target.value) })}
-        />
-      </label>
-      <label className={field}>
-        T max
-        <input
-          className={input}
-          type="number"
-          step={0.1}
-          value={form.temperature_max}
-          onChange={(e) => setForm({ ...form, temperature_max: Number(e.target.value) })}
-        />
-      </label>
+      {!isAlloy && (
+        <>
+          <label className={field}>
+            lattice size L
+            <input
+              className={input}
+              type="number"
+              min={8}
+              max={64}
+              step={2}
+              value={form.lattice_size}
+              onChange={(e) => setForm({ ...form, lattice_size: Number(e.target.value) })}
+            />
+          </label>
+          <label className={field}>
+            T min
+            <input
+              className={input}
+              type="number"
+              step={0.1}
+              value={form.temperature_min}
+              onChange={(e) => setForm({ ...form, temperature_min: Number(e.target.value) })}
+            />
+          </label>
+          <label className={field}>
+            T max
+            <input
+              className={input}
+              type="number"
+              step={0.1}
+              value={form.temperature_max}
+              onChange={(e) => setForm({ ...form, temperature_max: Number(e.target.value) })}
+            />
+          </label>
+        </>
+      )}
       <label className={field}>
         injected failure rate
         <input
@@ -225,7 +242,7 @@ function CampaignForm({
         />
       </label>
       <label className={field}>
-        target Tc uncertainty (optional)
+        {isAlloy ? "target stable-phase uncertainty (optional)" : "target Tc uncertainty (optional)"}
         <input
           className={input}
           type="number"

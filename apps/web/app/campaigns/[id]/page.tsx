@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { ResponseChart } from "@/components/ResponseChart";
 import { EventFeed } from "@/components/EventFeed";
 import { CalculationsTable } from "@/components/CalculationsTable";
+import { AlloyDashboard } from "@/components/AlloyDashboard";
 
 export default function CampaignDashboard({
   params,
@@ -29,6 +30,7 @@ export default function CampaignDashboard({
   });
 
   const running = campaign.data?.status === "RUNNING";
+  const isAlloy = campaign.data?.problem_type === "alloy_v1";
 
   const surrogate = useQuery({
     queryKey: ["surrogate", id],
@@ -39,6 +41,19 @@ export default function CampaignDashboard({
       return data!;
     },
     refetchInterval: running ? 2500 : false,
+    enabled: campaign.data != null && !isAlloy,
+  });
+
+  const hull = useQuery({
+    queryKey: ["hull", id],
+    queryFn: async () => {
+      const { data } = await api.GET("/campaigns/{campaign_id}/hull", {
+        params: { path: { campaign_id: id } },
+      });
+      return data!;
+    },
+    refetchInterval: running ? 2500 : false,
+    enabled: campaign.data != null && isAlloy,
   });
 
   const calculations = useQuery({
@@ -88,6 +103,9 @@ export default function CampaignDashboard({
           <div className="flex items-center gap-3">
             <h1 className="text-base font-semibold">{c.name}</h1>
             <StatusBadge status={c.status} />
+            <span className="mono text-[10px] uppercase tracking-wider text-[var(--text-dim)]">
+              {isAlloy ? "binary alloy V1" : "ising V0"}
+            </span>
           </div>
           <p className="mt-1 text-[13px] text-[var(--text-dim)]">{c.objective}</p>
           {c.stopping_rationale && (
@@ -97,7 +115,9 @@ export default function CampaignDashboard({
           )}
         </div>
         <div className="mono text-[12px]">
-          <div className="text-[var(--text-dim)]">MC budget</div>
+          <div className="text-[var(--text-dim)]">
+            {isAlloy ? "oracle budget" : "MC budget"}
+          </div>
           <div className="mt-1 text-sm">
             {c.simulations_used} / {c.simulation_budget}
           </div>
@@ -108,17 +128,32 @@ export default function CampaignDashboard({
             />
           </div>
         </div>
-        <div className="mono text-[12px]">
-          <div className="text-[var(--text-dim)]">Tc estimate</div>
-          <div className="mt-1 text-sm text-[var(--warn)]">
-            {s?.tc_mean != null
-              ? `${s.tc_mean.toFixed(3)} ± ${s.tc_std?.toFixed(3) ?? "?"}`
-              : "no model yet"}
+        {isAlloy ? (
+          <div className="mono text-[12px]">
+            <div className="text-[var(--text-dim)]">predicted stable phases</div>
+            <div className="mt-1 text-sm text-[var(--good)]">
+              {hull.data ? hull.data.stable_labels.length : "—"}
+            </div>
+            <div className="mt-0.5 text-[11px] text-[var(--text-dim)]">
+              CE v{hull.data?.model_version ?? "—"}
+              {hull.data?.loocv_rmse != null &&
+                ` · LOOCV ${hull.data.loocv_rmse.toFixed(4)}`}{" "}
+              · strategy: {c.strategy}
+            </div>
           </div>
-          <div className="mt-0.5 text-[11px] text-[var(--text-dim)]">
-            surrogate v{s?.model_version ?? "—"} · strategy: {c.strategy}
+        ) : (
+          <div className="mono text-[12px]">
+            <div className="text-[var(--text-dim)]">Tc estimate</div>
+            <div className="mt-1 text-sm text-[var(--warn)]">
+              {s?.tc_mean != null
+                ? `${s.tc_mean.toFixed(3)} ± ${s.tc_std?.toFixed(3) ?? "?"}`
+                : "no model yet"}
+            </div>
+            <div className="mt-0.5 text-[11px] text-[var(--text-dim)]">
+              surrogate v{s?.model_version ?? "—"} · strategy: {c.strategy}
+            </div>
           </div>
-        </div>
+        )}
         <div className="flex gap-2">
           {c.status !== "COMPLETED" && c.status !== "FAILED" && !running && (
             <button
@@ -149,32 +184,44 @@ export default function CampaignDashboard({
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-5">
-        {/* Main visualization */}
-        <div className="panel xl:col-span-3">
-          <div className="border-b border-[var(--border)] px-4 py-2.5">
-            <h2 className="mono text-[11px] font-bold tracking-wider text-[var(--text-dim)]">
-              SUSCEPTIBILITY χ(T) — MEASUREMENTS vs SURROGATE PREDICTION
-            </h2>
+      {isAlloy ? (
+        <AlloyDashboard campaignId={id} running={running} />
+      ) : (
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-5">
+          <div className="panel xl:col-span-3">
+            <div className="border-b border-[var(--border)] px-4 py-2.5">
+              <h2 className="mono text-[11px] font-bold tracking-wider text-[var(--text-dim)]">
+                SUSCEPTIBILITY χ(T) — MEASUREMENTS vs SURROGATE PREDICTION
+              </h2>
+            </div>
+            <div className="p-4">
+              <ResponseChart
+                curveT={s?.temperatures ?? []}
+                curveMean={s?.mean ?? []}
+                curveStd={s?.std ?? []}
+                pointsT={s?.measured_temperatures ?? []}
+                pointsY={s?.measured_values ?? []}
+                pointsErr={s?.measured_errors ?? []}
+                tcMean={s?.tc_mean}
+                tcStd={s?.tc_std}
+                tMin={c.temperature_min}
+                tMax={c.temperature_max}
+              />
+            </div>
           </div>
-          <div className="p-4">
-            <ResponseChart
-              curveT={s?.temperatures ?? []}
-              curveMean={s?.mean ?? []}
-              curveStd={s?.std ?? []}
-              pointsT={s?.measured_temperatures ?? []}
-              pointsY={s?.measured_values ?? []}
-              pointsErr={s?.measured_errors ?? []}
-              tcMean={s?.tc_mean}
-              tcStd={s?.tc_std}
-              tMin={c.temperature_min}
-              tMax={c.temperature_max}
-            />
+          <div className="panel xl:col-span-2">
+            <div className="border-b border-[var(--border)] px-4 py-2.5">
+              <h2 className="mono text-[11px] font-bold tracking-wider text-[var(--text-dim)]">
+                AGENT ACTIVITY
+              </h2>
+            </div>
+            <EventFeed campaignId={id} live={running} />
           </div>
         </div>
+      )}
 
-        {/* Agent activity */}
-        <div className="panel xl:col-span-2">
+      {isAlloy && (
+        <div className="panel">
           <div className="border-b border-[var(--border)] px-4 py-2.5">
             <h2 className="mono text-[11px] font-bold tracking-wider text-[var(--text-dim)]">
               AGENT ACTIVITY
@@ -182,7 +229,7 @@ export default function CampaignDashboard({
           </div>
           <EventFeed campaignId={id} live={running} />
         </div>
-      </div>
+      )}
 
       {/* Run inspector table */}
       <div className="panel">

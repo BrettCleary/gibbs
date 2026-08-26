@@ -144,6 +144,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/campaigns/{campaign_id}/structures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Structures */
+        get: operations["list_structures_campaigns__campaign_id__structures_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/campaigns/{campaign_id}/hull": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Hull View
+         * @description Formation-energy hull view for alloy campaigns: measurements, predictions, hull.
+         */
+        get: operations["get_hull_view_campaigns__campaign_id__hull_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/campaigns/{campaign_id}/events": {
         parameters: {
             query?: never;
@@ -288,8 +325,32 @@ export interface components {
              */
             created_at: string;
         };
+        /**
+         * AlloyHullView
+         * @description Everything the dashboard needs to draw the formation-energy hull.
+         */
+        AlloyHullView: {
+            /** Campaign Id */
+            campaign_id: string;
+            /** Model Version */
+            model_version: number | null;
+            /** Loocv Rmse */
+            loocv_rmse: number | null;
+            /** Points */
+            points: components["schemas"]["HullPoint"][];
+            /** Hull X */
+            hull_x: number[];
+            /** Hull E */
+            hull_e: number[];
+            /** Stable Labels */
+            stable_labels: string[];
+            /** Endpoints Measured */
+            endpoints_measured: boolean;
+        };
         /** BenchmarkCreate */
         BenchmarkCreate: {
+            /** @default ising */
+            problem: components["schemas"]["BenchmarkProblem"];
             /**
              * Strategies
              * @default [
@@ -329,6 +390,11 @@ export interface components {
              */
             temperature_max: number;
         };
+        /**
+         * BenchmarkProblem
+         * @enum {string}
+         */
+        BenchmarkProblem: "ising" | "alloy";
         /** BenchmarkRead */
         BenchmarkRead: {
             /** Id */
@@ -363,6 +429,8 @@ export interface components {
             id: string;
             /** Campaign Id */
             campaign_id: string;
+            /** Structure Id */
+            structure_id?: string | null;
             /** Calculation Type */
             calculation_type: string;
             /** Engine */
@@ -411,11 +479,18 @@ export interface components {
         CampaignCreate: {
             /** Name */
             name: string;
+            /** @default ising_v0 */
+            problem_type: components["schemas"]["ProblemType"];
             /**
              * Objective
-             * @default Locate the critical-temperature region of the 2D Ising model with a finite Monte Carlo budget.
+             * @description Defaults to the problem's canonical objective when empty.
+             * @default
              */
             objective: string;
+            /** Composition Min */
+            composition_min?: number | null;
+            /** Composition Max */
+            composition_max?: number | null;
             /** @default agent */
             strategy: components["schemas"]["StrategyName"];
             /**
@@ -466,6 +541,10 @@ export interface components {
             temperature_min: number;
             /** Temperature Max */
             temperature_max: number;
+            /** Composition Min */
+            composition_min?: number | null;
+            /** Composition Max */
+            composition_max?: number | null;
             /** Lattice Size */
             lattice_size: number;
             /** Simulation Budget */
@@ -523,6 +602,34 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HullPoint */
+        HullPoint: {
+            /** Structure Id */
+            structure_id: string;
+            /** Label */
+            label: string;
+            /** X */
+            x: number;
+            /** E Form */
+            e_form?: number | null;
+            /** E Form Std */
+            e_form_std?: number | null;
+            /**
+             * Measured
+             * @default false
+             */
+            measured: boolean;
+            /**
+             * Predicted Stable
+             * @default false
+             */
+            predicted_stable: boolean;
+        };
+        /**
+         * ProblemType
+         * @enum {string}
+         */
+        ProblemType: "ising_v0" | "alloy_v1";
         /** StartResponse */
         StartResponse: {
             /** Campaign Id */
@@ -536,6 +643,30 @@ export interface components {
          * @enum {string}
          */
         StrategyName: "agent" | "random" | "grid" | "uncertainty";
+        /** StructureRead */
+        StructureRead: {
+            /** Id */
+            id: string;
+            /** Campaign Id */
+            campaign_id: string;
+            /** Label */
+            label: string;
+            /** Chemical Formula */
+            chemical_formula: string;
+            /** Composition */
+            composition: number;
+            /** N Sites */
+            n_sites: number;
+            /** Occupations */
+            occupations: number[][];
+            /** Shape */
+            shape: number[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** SurrogateModelRead */
         SurrogateModelRead: {
             /** Id */
@@ -847,6 +978,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CampaignSurrogateView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_structures_campaigns__campaign_id__structures_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StructureRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_hull_view_campaigns__campaign_id__hull_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlloyHullView"];
                 };
             };
             /** @description Validation Error */

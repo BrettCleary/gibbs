@@ -9,7 +9,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from alloyscience.benchmark import compute_ground_truth, make_strategy, run_benchmark
+from alloyscience.benchmark import (
+    compute_ground_truth,
+    make_strategy,
+    run_alloy_benchmark,
+    run_benchmark,
+)
 
 from ..db.base import get_session_factory
 from ..db.models import BenchmarkRun
@@ -54,35 +59,10 @@ async def get_benchmark(benchmark_id: str, session: AsyncSession = Depends(get_s
 async def _execute(benchmark_id: str, config: BenchmarkCreate) -> None:
     session_factory = get_session_factory()
     try:
-        ground_truth = await asyncio.to_thread(
-            compute_ground_truth,
-            lattice_size=config.lattice_size,
-            t_min=config.temperature_min,
-            t_max=config.temperature_max,
-        )
-        results = []
-        for strategy_name in [s.value for s in config.strategies]:
-            for seed in config.seeds:
-                result = await asyncio.to_thread(
-                    run_benchmark,
-                    make_strategy(strategy_name, seed=seed),
-                    config.budget,
-                    ground_truth,
-                    None,
-                    seed,
-                )
-                results.append(result.to_dict())
-
-        summary: dict = {"tc_true": ground_truth.tc, "per_strategy": {}}
-        for strategy_name in {r["strategy"] for r in results}:
-            errors = [r["tc_error"] for r in results if r["strategy"] == strategy_name]
-            stds = [r["tc_std"] for r in results if r["strategy"] == strategy_name]
-            summary["per_strategy"][strategy_name] = {
-                "mean_tc_error": sum(errors) / len(errors),
-                "max_tc_error": max(errors),
-                "mean_tc_std": sum(stds) / len(stds),
-                "n_runs": len(errors),
-            }
+        if config.problem.value == "alloy":
+            results, summary = await _run_alloy(config)
+        else:
+            results, summary = await _run_ising(config)
 
         async with session_factory() as session:
             run = await session.get(BenchmarkRun, benchmark_id)
@@ -100,3 +80,63 @@ async def _execute(benchmark_id: str, config: BenchmarkCreate) -> None:
                 run.error = str(exc)
                 run.completed_at = datetime.now(timezone.utc)
                 await session.commit()
+
+
+async def _run_ising(config: BenchmarkCreate) -> tuple[list, dict]:
+    ground_truth = await asyncio.to_thread(
+            compute_ground_truth,
+            lattice_size=config.lattice_size,
+            t_min=config.temperature_min,
+            t_max=config.temperature_max,
+        )
+    results = []
+    for strategy_name in [s.value for s in config.strategies]:
+        for seed in config.seeds:
+            result = await asyncio.to_thread(
+                run_benchmark,
+                make_strategy(strategy_name, seed=seed),
+                config.budget,
+                ground_truth,
+                None,
+                seed,
+            )
+            results.append(result.to_dict())
+
+    summary: dict = {"problem": "ising", "tc_true": ground_truth.tc, "per_strategy": {}}
+    for strategy_name in {r["strategy"] for r in results}:
+        errors = [r["tc_error"] for r in results if r["strategy"] == strategy_name]
+        stds = [r["tc_std"] for r in results if r["strategy"] == strategy_name]
+        summary["per_strategy"][strategy_name] = {
+            "mean_tc_error": sum(errors) / len(errors),
+            "max_tc_error": max(errors),
+            "mean_tc_std": sum(stds) / len(stds),
+            "n_runs": len(errors),
+        }
+    return results, summary
+
+
+async def _run_alloy(config: BenchmarkCreate) -> tuple[list, dict]:
+    """Alloy benchmark: each seed draws a fresh hidden Hamiltonian; strategies
+    are scored on hull reconstruction (plan section 21 metrics)."""
+    results = []
+    for strategy_name in [s.value for s in config.strategies]:
+        # "grid" maps to the plan's composition-coverage baseline.
+        alloy_strategy = "coverage" if strategy_name == "grid" else strategy_name
+        for seed in config.seeds:
+            result = await asyncio.to_thread(
+                run_alloy_benchmark, alloy_strategy, config.budget, seed
+            )
+            d = result.to_dict()
+            d["strategy"] = strategy_name
+            results.append(d)
+
+    summary: dict = {"problem": "alloy", "per_strategy": {}}
+    for strategy_name in {r["strategy"] for r in results}:
+        rows = [r for r in results if r["strategy"] == strategy_name]
+        summary["per_strategy"][strategy_name] = {
+            "mean_hull_rmse": sum(r["hull_rmse"] for r in rows) / len(rows),
+            "mean_missed_stable": sum(r["n_missed_stable"] for r in rows) / len(rows),
+            "mean_false_stable": sum(r["n_false_stable"] for r in rows) / len(rows),
+            "n_runs": len(rows),
+        }
+    return results, summary

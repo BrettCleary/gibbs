@@ -11,6 +11,9 @@ export type AgentEvent = components["schemas"]["AgentEventRead"];
 export type SurrogateView = components["schemas"]["CampaignSurrogateView"];
 export type BenchmarkRun = components["schemas"]["BenchmarkRead"];
 export type BenchmarkCreate = components["schemas"]["BenchmarkCreate"];
+export type StructureRead = components["schemas"]["StructureRead"];
+export type HullView = components["schemas"]["AlloyHullView"];
+export type HullPoint = components["schemas"]["HullPoint"];
 
 export function createApiClient(baseUrl: string) {
   return createClient<paths>({ baseUrl });

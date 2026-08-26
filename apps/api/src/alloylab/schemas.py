@@ -24,12 +24,28 @@ class StrategyName(str, Enum):
     uncertainty = "uncertainty"
 
 
+class ProblemType(str, Enum):
+    ising_v0 = "ising_v0"
+    alloy_v1 = "alloy_v1"
+
+
+DEFAULT_OBJECTIVES = {
+    ProblemType.ising_v0: "Locate the critical-temperature region of the 2D Ising "
+    "model with a finite Monte Carlo budget.",
+    ProblemType.alloy_v1: "Discover the stable ordered structures of a binary alloy "
+    "with a hidden Hamiltonian, using as few oracle energy queries as possible.",
+}
+
+
 class CampaignCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
+    problem_type: ProblemType = ProblemType.ising_v0
     objective: str = Field(
-        default="Locate the critical-temperature region of the 2D Ising model "
-        "with a finite Monte Carlo budget."
+        default="",
+        description="Defaults to the problem's canonical objective when empty.",
     )
+    composition_min: float | None = Field(default=None, ge=0.0, le=1.0)
+    composition_max: float | None = Field(default=None, ge=0.0, le=1.0)
     strategy: StrategyName = StrategyName.agent
     temperature_min: float = 1.5
     temperature_max: float = 3.5
@@ -50,6 +66,14 @@ class CampaignCreate(BaseModel):
     def _check_range(self):
         if self.temperature_max <= self.temperature_min:
             raise ValueError("temperature_max must exceed temperature_min")
+        if (
+            self.composition_min is not None
+            and self.composition_max is not None
+            and self.composition_max <= self.composition_min
+        ):
+            raise ValueError("composition_max must exceed composition_min")
+        if not self.objective:
+            self.objective = DEFAULT_OBJECTIVES[self.problem_type]
         return self
 
 
@@ -61,6 +85,8 @@ class CampaignRead(BaseModel):
     strategy: str
     temperature_min: float
     temperature_max: float
+    composition_min: float | None = None
+    composition_max: float | None = None
     lattice_size: int
     simulation_budget: int
     simulations_used: int
@@ -76,6 +102,7 @@ class CampaignRead(BaseModel):
 class CalculationRead(BaseModel):
     id: str
     campaign_id: str
+    structure_id: str | None = None
     calculation_type: str
     engine: str
     status: str
@@ -142,7 +169,50 @@ class CampaignSurrogateView(BaseModel):
     tc_std: float | None
 
 
+class StructureRead(BaseModel):
+    id: str
+    campaign_id: str
+    label: str
+    chemical_formula: str
+    composition: float
+    n_sites: int
+    occupations: list[list[int]]
+    shape: list[int]
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class HullPoint(BaseModel):
+    structure_id: str
+    label: str
+    x: float
+    e_form: float | None = None
+    e_form_std: float | None = None
+    measured: bool = False
+    predicted_stable: bool = False
+
+
+class AlloyHullView(BaseModel):
+    """Everything the dashboard needs to draw the formation-energy hull."""
+
+    campaign_id: str
+    model_version: int | None
+    loocv_rmse: float | None
+    points: list[HullPoint]
+    hull_x: list[float]
+    hull_e: list[float]
+    stable_labels: list[str]
+    endpoints_measured: bool
+
+
+class BenchmarkProblem(str, Enum):
+    ising = "ising"
+    alloy = "alloy"
+
+
 class BenchmarkCreate(BaseModel):
+    problem: BenchmarkProblem = BenchmarkProblem.ising
     strategies: list[StrategyName] = Field(
         default=[StrategyName.random, StrategyName.grid, StrategyName.uncertainty]
     )
