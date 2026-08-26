@@ -394,7 +394,7 @@ export interface components {
          * BenchmarkProblem
          * @enum {string}
          */
-        BenchmarkProblem: "ising" | "alloy";
+        BenchmarkProblem: "ising" | "alloy" | "fcc";
         /** BenchmarkRead */
         BenchmarkRead: {
             /** Id */
@@ -629,7 +629,7 @@ export interface components {
          * ProblemType
          * @enum {string}
          */
-        ProblemType: "ising_v0" | "alloy_v1";
+        ProblemType: "ising_v0" | "alloy_v1" | "fcc_v2";
         /** StartResponse */
         StartResponse: {
             /** Campaign Id */
@@ -661,6 +661,12 @@ export interface components {
             occupations: number[][];
             /** Shape */
             shape: number[];
+            /** Lattice */
+            lattice?: number[][] | null;
+            /** Positions */
+            positions?: number[][] | null;
+            /** Atomic Numbers */
+            atomic_numbers?: number[] | null;
             /**
              * Created At
              * Format: date-time

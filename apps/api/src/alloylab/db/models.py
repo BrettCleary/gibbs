@@ -61,9 +61,14 @@ class Structure(Base):
     chemical_formula: Mapped[str] = mapped_column(String(100), default="")
     composition: Mapped[float] = mapped_column(Float)  # x_B
     n_sites: Mapped[int] = mapped_column(Integer)
-    occupations: Mapped[list] = mapped_column(JSON, default=list)
+    occupations: Mapped[list] = mapped_column(JSON, default=list)  # 2D tile problems
     shape: Mapped[list] = mapped_column(JSON, default=list)
-    features: Mapped[list] = mapped_column(JSON, default=list)
+    features: Mapped[list] = mapped_column(JSON, default=list)  # CE design row
+    # 3D problems (plan's Structure entity): lattice vectors, cartesian
+    # positions, atomic numbers.
+    lattice: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    positions: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    atomic_numbers: Mapped[list | None] = mapped_column(JSON, nullable=True)
     extra: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 

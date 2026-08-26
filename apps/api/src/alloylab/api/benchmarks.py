@@ -14,6 +14,7 @@ from alloyscience.benchmark import (
     make_strategy,
     run_alloy_benchmark,
     run_benchmark,
+    run_fcc_benchmark,
 )
 
 from ..db.base import get_session_factory
@@ -60,7 +61,9 @@ async def _execute(benchmark_id: str, config: BenchmarkCreate) -> None:
     session_factory = get_session_factory()
     try:
         if config.problem.value == "alloy":
-            results, summary = await _run_alloy(config)
+            results, summary = await _run_hull_problem(config, run_alloy_benchmark, "alloy")
+        elif config.problem.value == "fcc":
+            results, summary = await _run_hull_problem(config, run_fcc_benchmark, "fcc")
         else:
             results, summary = await _run_ising(config)
 
@@ -115,22 +118,22 @@ async def _run_ising(config: BenchmarkCreate) -> tuple[list, dict]:
     return results, summary
 
 
-async def _run_alloy(config: BenchmarkCreate) -> tuple[list, dict]:
-    """Alloy benchmark: each seed draws a fresh hidden Hamiltonian; strategies
-    are scored on hull reconstruction (plan section 21 metrics)."""
+async def _run_hull_problem(
+    config: BenchmarkCreate, runner, problem_name: str
+) -> tuple[list, dict]:
+    """Hull-discovery benchmark (alloy/fcc): each seed draws a fresh hidden
+    Hamiltonian; strategies are scored on hull reconstruction (plan section 21)."""
     results = []
     for strategy_name in [s.value for s in config.strategies]:
         # "grid" maps to the plan's composition-coverage baseline.
-        alloy_strategy = "coverage" if strategy_name == "grid" else strategy_name
+        hull_strategy = "coverage" if strategy_name == "grid" else strategy_name
         for seed in config.seeds:
-            result = await asyncio.to_thread(
-                run_alloy_benchmark, alloy_strategy, config.budget, seed
-            )
+            result = await asyncio.to_thread(runner, hull_strategy, config.budget, seed)
             d = result.to_dict()
             d["strategy"] = strategy_name
             results.append(d)
 
-    summary: dict = {"problem": "alloy", "per_strategy": {}}
+    summary: dict = {"problem": problem_name, "per_strategy": {}}
     for strategy_name in {r["strategy"] for r in results}:
         rows = [r for r in results if r["strategy"] == strategy_name]
         summary["per_strategy"][strategy_name] = {

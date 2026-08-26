@@ -115,12 +115,12 @@ def predicted_hull_from_state(
 
 @dataclass(frozen=True)
 class AlloyBenchmarkResult:
+    problem: str
     strategy: str
     seed: int
     budget: int
     pool_size: int
-    j1: float
-    j2: float
+    hidden_params: dict
     queried_labels: list[str]
     score: PredictionScore
     loocv_rmse: float
@@ -135,6 +135,56 @@ class AlloyBenchmarkResult:
         return d
 
 
+def run_acquisition_benchmark(
+    problem: str,
+    strategy: str,
+    budget: int,
+    seed: int,
+    pool,
+    oracle: StructureOracle,
+    truth,
+    hidden_params: dict,
+) -> AlloyBenchmarkResult:
+    """Generic hull-discovery benchmark over any structure pool + oracle.
+
+    Pool items must expose `.label`, `.x`, and `.feature_vector()`.
+    """
+    if budget < ClusterExpansionSurrogate.MIN_POINTS:
+        raise ValueError(f"budget must be >= {ClusterExpansionSurrogate.MIN_POINTS}")
+
+    rng = np.random.default_rng(seed)
+    state = AlloyAcquisitionState(pool=list(pool))
+
+    # References first: pure A and pure B (consumes 2 budget units, like real DFT).
+    idx_a = next(i for i, s in enumerate(state.pool) if s.x == 0.0)
+    idx_b = next(i for i, s in enumerate(state.pool) if s.x == 1.0)
+    query_counter = 0
+    for i in (idx_a, idx_b):
+        state.measured_energies[i] = oracle.evaluate(state.pool[i], query_seed=query_counter)
+        query_counter += 1
+
+    while query_counter < budget and state.unmeasured_indices():
+        state.remaining_budget = budget - query_counter
+        i = propose_structure(state, strategy, rng)
+        state.measured_energies[i] = oracle.evaluate(state.pool[i], query_seed=query_counter)
+        query_counter += 1
+
+    e_form, stable, hull_x, hull_e, _ = predicted_hull_from_state(state, seed=seed)
+    score = score_predictions(truth, stable, hull_x, hull_e, e_form)
+    surrogate = state.surrogate(seed=seed)
+    return AlloyBenchmarkResult(
+        problem=problem,
+        strategy=strategy,
+        seed=seed,
+        budget=budget,
+        pool_size=len(state.pool),
+        hidden_params=hidden_params,
+        queried_labels=[state.pool[i].label for i in sorted(state.measured_energies)],
+        score=score,
+        loocv_rmse=surrogate.loocv_rmse() if surrogate else float("nan"),
+    )
+
+
 def run_alloy_benchmark(
     strategy: str,
     budget: int,
@@ -142,44 +192,35 @@ def run_alloy_benchmark(
     hamiltonian: HiddenPairHamiltonian | None = None,
     pool: list[AlloyStructure] | None = None,
 ) -> AlloyBenchmarkResult:
-    """One strategy run against a hidden Hamiltonian (random per seed by default)."""
+    """One strategy run against a hidden 2D pair Hamiltonian (random per seed)."""
     if pool is None:
         pool = enumerate_structures()
     if hamiltonian is None:
         hamiltonian = HiddenPairHamiltonian.random(seed=seed)
-    if budget < ClusterExpansionSurrogate.MIN_POINTS:
-        raise ValueError(f"budget must be >= {ClusterExpansionSurrogate.MIN_POINTS}")
-
     truth = compute_alloy_ground_truth(hamiltonian, pool)
     oracle = StructureOracle(hamiltonian, failure_rate=0.0, seed=seed)
-    rng = np.random.default_rng(seed)
-    state = AlloyAcquisitionState(pool=pool)
+    return run_acquisition_benchmark(
+        "alloy", strategy, budget, seed, pool, oracle, truth,
+        hidden_params={"j1": hamiltonian.j1, "j2": hamiltonian.j2},
+    )
 
-    # References first: pure A and pure B (consumes 2 budget units, like real DFT).
-    idx_a = next(i for i, s in enumerate(pool) if s.x == 0.0)
-    idx_b = next(i for i, s in enumerate(pool) if s.x == 1.0)
-    query_counter = 0
-    for i in (idx_a, idx_b):
-        state.measured_energies[i] = oracle.evaluate(pool[i], query_seed=query_counter)
-        query_counter += 1
 
-    while query_counter < budget and state.unmeasured_indices():
-        state.remaining_budget = budget - query_counter
-        i = propose_structure(state, strategy, rng)
-        state.measured_energies[i] = oracle.evaluate(pool[i], query_seed=query_counter)
-        query_counter += 1
+def run_fcc_benchmark(
+    strategy: str,
+    budget: int,
+    seed: int,
+    max_size: int | None = None,
+) -> AlloyBenchmarkResult:
+    """One strategy run against a hidden icet cluster expansion on FCC (V2)."""
+    from ..alloy.ground_truth import compute_ground_truth_from_energy_fn
+    from ..fcc import HiddenFccCE
+    from ..fcc.system import DEFAULT_MAX_SIZE, cached_system_and_pool
 
-    e_form, stable, hull_x, hull_e, _ = predicted_hull_from_state(state, seed=seed)
-    score = score_predictions(truth, stable, hull_x, hull_e, e_form)
-    surrogate = state.surrogate(seed=seed)
-    return AlloyBenchmarkResult(
-        strategy=strategy,
-        seed=seed,
-        budget=budget,
-        pool_size=len(pool),
-        j1=hamiltonian.j1,
-        j2=hamiltonian.j2,
-        queried_labels=[pool[i].label for i in sorted(state.measured_energies)],
-        score=score,
-        loocv_rmse=surrogate.loocv_rmse() if surrogate else float("nan"),
+    system, pool = cached_system_and_pool(max_size=max_size or DEFAULT_MAX_SIZE)
+    hidden = HiddenFccCE.random(system.n_parameters, seed=seed)
+    truth = compute_ground_truth_from_energy_fn(list(pool), hidden.energy_per_site)
+    oracle = StructureOracle(hidden, failure_rate=0.0, seed=seed)
+    return run_acquisition_benchmark(
+        "fcc", strategy, budget, seed, list(pool), oracle, truth,
+        hidden_params={"ecis": list(hidden.ecis)},
     )

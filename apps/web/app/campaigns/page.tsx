@@ -113,8 +113,8 @@ function CampaignForm({
   error: string | null;
 }) {
   const [form, setForm] = useState({
-    name: "Alloy ground-state search",
-    problem_type: "alloy_v1",
+    name: "Ni–Al ground-state search",
+    problem_type: "fcc_v2",
     strategy: "uncertainty",
     simulation_budget: 15,
     lattice_size: 24,
@@ -123,7 +123,7 @@ function CampaignForm({
     failure_rate: 0.15,
     target_uncertainty: "" as string,
   });
-  const isAlloy = form.problem_type === "alloy_v1";
+  const isAlloy = form.problem_type !== "ising_v0";
 
   const field = "flex flex-col gap-1 text-[12px] text-[var(--text-dim)]";
   const input =
@@ -165,6 +165,7 @@ function CampaignForm({
           value={form.problem_type}
           onChange={(e) => setForm({ ...form, problem_type: e.target.value })}
         >
+          <option value="fcc_v2">FCC Ni–Al, icet (V2)</option>
           <option value="alloy_v1">binary alloy (V1)</option>
           <option value="ising_v0">Ising critical region (V0)</option>
         </select>

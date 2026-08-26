@@ -12,7 +12,9 @@ from .alloy_harness import (
     AlloyBenchmarkResult,
     predicted_hull_from_state,
     propose_structure,
+    run_acquisition_benchmark,
     run_alloy_benchmark,
+    run_fcc_benchmark,
 )
 from .harness import (
     BenchmarkRecord,
@@ -31,7 +33,9 @@ __all__ = [
     "AlloyBenchmarkResult",
     "predicted_hull_from_state",
     "propose_structure",
+    "run_acquisition_benchmark",
     "run_alloy_benchmark",
+    "run_fcc_benchmark",
     "AcquisitionState",
     "GridStrategy",
     "RandomStrategy",

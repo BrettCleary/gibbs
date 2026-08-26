@@ -1,25 +1,33 @@
 # AlloyLab — Autonomous Alloy Scientist
 
 An autonomous computational materials-science platform (see `project_description.md`
-for the full plan). This repository currently implements **Milestones 1–3**: the
+for the full plan). This repository currently implements **Milestones 1–4**: the
 complete product loop — agent decisions, typed simulation jobs, surrogate models
 with uncertainty, failure recovery, live mission-control UI, and strategy
-benchmarks — on two synthetic problems, exactly as the plan prescribes
+benchmarks — on three synthetic problems, exactly as the plan prescribes
 ("DO THIS BEFORE REAL DFT"):
 
 - **Ising V0** — autonomously locate the critical-temperature region of the 2D
   Ising model with a finite Monte Carlo budget.
-- **Alloy V1 (Milestone 3)** — a binary alloy A(1-x)B(x) governed by a *hidden*
-  pair Hamiltonian. The agent enumerates candidate orderings, spends a finite
-  oracle budget on simulated-DFT energy queries (with injected SCF failures),
-  fits a real mini cluster expansion over correlation features, and discovers
-  the formation-energy convex hull and stable ordered structures (e.g. the
-  checkerboard A2B2 ground state). Benchmark mode scores strategies on hull
-  RMSE and missed/false stable phases against the exact hidden Hamiltonian.
+- **Alloy V1 (Milestone 3)** — a binary alloy A(1-x)B(x) on a 2D lattice
+  governed by a *hidden* pair Hamiltonian. The agent enumerates candidate
+  orderings, spends a finite oracle budget on simulated-DFT energy queries
+  (with injected SCF failures), fits a mini cluster expansion over correlation
+  features, and discovers the formation-energy convex hull and stable ordered
+  structures (e.g. the checkerboard A2B2 ground state).
+- **FCC Ni-Al V2 (Milestone 4, icet)** — real crystallography via ASE + icet:
+  symmetry-enumerated FCC orderings, an icet cluster space whose cluster
+  vectors are the CE design rows, LOOCV-validated CE fitting with bootstrap
+  uncertainty, and a hidden icet-style cluster expansion as the ground-truth
+  oracle (plan section 22 V2). The agent discovers L1_2 Ni3Al / L1_0 NiAl-type
+  ground states; `alloyscience.fcc.run_canonical_mc` samples the fitted CE with
+  mchammer (canonical MC + Warren-Cowley short-range order) — the building
+  block Milestone 5 sweeps into a T-x phase diagram.
 
-Both problems run through one problem-agnostic campaign loop
-(`alloylab/problems/` adapters), so V2+ (icet, real DFT) slot in without
-touching the loop, executor, or failure policy.
+Benchmark mode scores strategies on hull RMSE and missed/false stable phases
+against the exact hidden Hamiltonian. All problems run through one
+problem-agnostic campaign loop (`alloylab/problems/` adapters), so V3 (real
+DFT) slots in without touching the loop, executor, or failure policy.
 
 ## Architecture (three layers, kept separate)
 
@@ -99,9 +107,9 @@ refits, injected failure → diagnose → retry → succeed — per plan section
 
 ## What's next (per the plan)
 
-- Milestone 4: icet cluster expansions (replace the mini pair-correlation CE in
-  `alloyscience.alloy.cluster_expansion` behind the same surrogate interface)
-- Milestone 5: finite-temperature T–x phase diagram via Monte Carlo on the CE
+- Milestone 5: finite-temperature T–x phase diagram — sweep
+  `alloyscience.fcc.run_canonical_mc` over (x, T), detect order/disorder
+  transitions, visualize with uncertainty bands
 - Milestone 6: ASE + Quantum ESPRESSO behind the same `STRUCTURE_ENERGY` job type
 - Milestone 7: swap the async executor for Temporal without touching the agent
 

@@ -31,11 +31,17 @@ class AlloyGroundTruth:
         return asdict(self)
 
 
-def compute_alloy_ground_truth(
-    hamiltonian: HiddenPairHamiltonian, pool: list[AlloyStructure]
-) -> AlloyGroundTruth:
+def compute_ground_truth_from_energy_fn(pool, energy_per_site_fn) -> AlloyGroundTruth:
+    """Exact ground truth for any structure pool given a noise-free energy function.
+
+    Works for any pool items exposing `.label` and `.x` (2D tiles, FCC
+    orderings, ...); formation energies are referenced to the pure endpoints.
+    """
+    energies = [energy_per_site_fn(s) for s in pool]
+    e_a = next(e for s, e in zip(pool, energies) if s.x == 0.0)
+    e_b = next(e for s, e in zip(pool, energies) if s.x == 1.0)
     x = [s.x for s in pool]
-    e_form = [hamiltonian.formation_energy(s) for s in pool]
+    e_form = [e - (1.0 - s.x) * e_a - s.x * e_b for s, e in zip(pool, energies)]
     hull = lower_convex_hull(x, e_form)
     stable = [s.label for s, on in zip(pool, hull.on_hull) if on]
     return AlloyGroundTruth(
@@ -46,6 +52,12 @@ def compute_alloy_ground_truth(
         hull_x=hull.hull_x,
         hull_e=hull.hull_e,
     )
+
+
+def compute_alloy_ground_truth(
+    hamiltonian: HiddenPairHamiltonian, pool: list[AlloyStructure]
+) -> AlloyGroundTruth:
+    return compute_ground_truth_from_energy_fn(pool, hamiltonian.energy_per_site)
 
 
 @dataclass(frozen=True)

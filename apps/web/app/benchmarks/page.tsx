@@ -8,7 +8,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 
 export default function BenchmarksPage() {
   const queryClient = useQueryClient();
-  const [problem, setProblem] = useState<"ising" | "alloy">("alloy");
+  const [problem, setProblem] = useState<"ising" | "alloy" | "fcc">("fcc");
   const [budget, setBudget] = useState(10);
   const [nSeeds, setNSeeds] = useState(3);
 
@@ -65,9 +65,10 @@ export default function BenchmarksPage() {
             problem
             <select
               value={problem}
-              onChange={(e) => setProblem(e.target.value as "ising" | "alloy")}
+              onChange={(e) => setProblem(e.target.value as "ising" | "alloy" | "fcc")}
               className="mono rounded-sm border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1.5 text-sm text-[var(--text)]"
             >
+              <option value="fcc">FCC Ni–Al (icet)</option>
               <option value="alloy">binary alloy</option>
               <option value="ising">ising</option>
             </select>
@@ -130,7 +131,8 @@ type AlloyStats = {
 };
 
 function BenchmarkCard({ benchmark: b }: { benchmark: BenchmarkRun }) {
-  const isAlloy = (b.summary?.problem ?? b.config?.problem) === "alloy";
+  const problem = String(b.summary?.problem ?? b.config?.problem ?? "ising");
+  const isAlloy = problem !== "ising";
   const per = (b.summary?.per_strategy ?? {}) as Record<string, IsingStats & AlloyStats>;
   const score = (s: IsingStats & AlloyStats) =>
     isAlloy ? s.mean_hull_rmse : s.mean_tc_error;
@@ -144,7 +146,7 @@ function BenchmarkCard({ benchmark: b }: { benchmark: BenchmarkRun }) {
         </span>
         <StatusBadge status={b.status} />
         <span className="mono text-[12px] text-[var(--text-dim)]">
-          {isAlloy ? "binary alloy" : "ising"} · budget {String(b.config?.budget)} ·{" "}
+          {problem === "fcc" ? "FCC Ni–Al" : problem === "alloy" ? "binary alloy" : "ising"} · budget {String(b.config?.budget)} ·{" "}
           {(b.config?.seeds as number[] | undefined)?.length ?? "?"} seeds
           {!isAlloy && b.summary?.tc_true != null &&
             ` · ground-truth Tc = ${Number(b.summary.tc_true).toFixed(3)}`}

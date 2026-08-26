@@ -143,18 +143,38 @@ def _execute_monte_carlo(calculation_id: str, params: dict) -> tuple[dict, dict]
     return result.to_dict(), {**result.provenance, "wall_time_s": result.wall_time_s}
 
 
+class _FeatureStructure:
+    """Minimal structure shim for oracles that only need the CE design row."""
+
+    def __init__(self, label: str, features: list[float]):
+        self.label = label
+        self._features = np.array(features, dtype=float)
+
+    def feature_vector(self) -> np.ndarray:
+        return self._features
+
+
 def _execute_structure_energy(params: dict, problem_config: dict) -> tuple[dict, dict]:
-    hamiltonian = HiddenPairHamiltonian.from_dict(problem_config.get("hamiltonian", {}))
-    structure = AlloyStructure(
-        label=str(params["structure_label"]),
-        occupations=tuple(tuple(int(v) for v in row) for row in params["occupations"]),
-        shape=(int(params["shape"][0]), int(params["shape"][1])),
-        x=float(params["composition"]),
-        n_sites=int(params["n_sites"]),
-        features=tuple(float(f) for f in params["features"]),
-    )
+    kind = problem_config.get("kind", "pair_hamiltonian")
+    if kind == "fcc_ce":
+        from alloyscience.fcc import HiddenFccCE
+
+        hidden = HiddenFccCE.from_dict(problem_config.get("hamiltonian", {}))
+        structure = _FeatureStructure(str(params["structure_label"]), params["features"])
+        engine_detail = "hidden icet cluster-expansion oracle (ECIs withheld from agent)"
+    else:
+        hidden = HiddenPairHamiltonian.from_dict(problem_config.get("hamiltonian", {}))
+        structure = AlloyStructure(
+            label=str(params["structure_label"]),
+            occupations=tuple(tuple(int(v) for v in row) for row in params["occupations"]),
+            shape=(int(params["shape"][0]), int(params["shape"][1])),
+            x=float(params["composition"]),
+            n_sites=int(params["n_sites"]),
+            features=tuple(float(f) for f in params["features"]),
+        )
+        engine_detail = "hidden pair Hamiltonian oracle (parameters withheld from agent)"
     oracle = StructureOracle(
-        hamiltonian,
+        hidden,
         failure_rate=float(params.get("failure_rate", 0.0)),
         seed=int(problem_config.get("oracle_seed", 0)),
     )
@@ -165,11 +185,11 @@ def _execute_structure_energy(params: dict, problem_config: dict) -> tuple[dict,
     )
     output = {
         "energy_per_site": float(energy),
-        "structure_label": structure.label,
-        "composition": structure.x,
+        "structure_label": str(params["structure_label"]),
+        "composition": float(params["composition"]),
     }
     provenance = {
-        "engine_detail": "hidden pair Hamiltonian oracle (parameters withheld from agent)",
+        "engine_detail": engine_detail,
         "noise_model": "gaussian, deterministic per (structure, seed)",
     }
     return output, provenance

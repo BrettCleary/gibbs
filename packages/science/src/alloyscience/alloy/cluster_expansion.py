@@ -72,7 +72,9 @@ class ClusterExpansionSurrogate:
     def coefficient_summary(self) -> dict:
         mean = self._ensemble.mean(axis=0)
         std = self._ensemble.std(axis=0)
-        names = ["J0", "J_point", "J_nn", "J_nnn"][: self.X.shape[1]]
+        k = self.X.shape[1]
+        base = ["J0", "J_point", "J_nn", "J_nnn"]
+        names = base[:k] + [f"ECI_{i}" for i in range(len(base), k)]
         return {
             name: {"mean": float(m), "std": float(s)}
             for name, m, s in zip(names, mean, std)

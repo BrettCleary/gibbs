@@ -1001,7 +1001,8 @@
         "type": "string",
         "enum": [
           "ising",
-          "alloy"
+          "alloy",
+          "fcc"
         ],
         "title": "BenchmarkProblem"
       },
@@ -1678,7 +1679,8 @@
         "type": "string",
         "enum": [
           "ising_v0",
-          "alloy_v1"
+          "alloy_v1",
+          "fcc_v2"
         ],
         "title": "ProblemType"
       },
@@ -1762,6 +1764,54 @@
             },
             "type": "array",
             "title": "Shape"
+          },
+          "lattice": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lattice"
+          },
+          "positions": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Positions"
+          },
+          "atomic_numbers": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Atomic Numbers"
           },
           "created_at": {
             "type": "string",

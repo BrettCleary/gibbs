@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
@@ -36,7 +37,7 @@ async def _get_campaign(session: AsyncSession, campaign_id: str) -> Campaign:
 
 @router.post("", response_model=CampaignRead, status_code=201)
 async def create_campaign(body: CampaignCreate, session: AsyncSession = Depends(get_session)):
-    is_alloy = body.problem_type.value == "alloy_v1"
+    is_alloy = body.problem_type.value in ("alloy_v1", "fcc_v2")
     campaign = Campaign(
         name=body.name,
         objective=body.objective,
@@ -54,21 +55,36 @@ async def create_campaign(body: CampaignCreate, session: AsyncSession = Depends(
         simulation_budget=body.simulation_budget,
         target_uncertainty=body.target_uncertainty,
         failure_rate=body.failure_rate,
-        elements=["A", "B"] if is_alloy else ["Ising spin"],
+        elements={
+            "alloy_v1": ["A", "B"],
+            "fcc_v2": ["Ni", "Al"],
+        }.get(body.problem_type.value, ["Ising spin"]),
     )
     session.add(campaign)
     await session.flush()
     if is_alloy:
         # The secret physics: generated per campaign, visible only to the executor.
-        from alloyscience.alloy import HiddenPairHamiltonian
-
         from ..agent.strategies import stable_seed
 
         seed = stable_seed(campaign.id)
-        campaign.problem_config = {
-            "hamiltonian": HiddenPairHamiltonian.random(seed=seed).to_dict(),
-            "oracle_seed": seed % 1_000_000,
-        }
+        if body.problem_type.value == "fcc_v2":
+            from alloyscience.fcc import HiddenFccCE
+            from alloyscience.fcc.system import cached_system_and_pool
+
+            system, _ = await run_in_threadpool(cached_system_and_pool)
+            campaign.problem_config = {
+                "kind": "fcc_ce",
+                "hamiltonian": HiddenFccCE.random(system.n_parameters, seed=seed).to_dict(),
+                "oracle_seed": seed % 1_000_000,
+            }
+        else:
+            from alloyscience.alloy import HiddenPairHamiltonian
+
+            campaign.problem_config = {
+                "kind": "pair_hamiltonian",
+                "hamiltonian": HiddenPairHamiltonian.random(seed=seed).to_dict(),
+                "oracle_seed": seed % 1_000_000,
+            }
     await session.commit()
     return campaign
 
@@ -204,7 +220,7 @@ async def list_structures(campaign_id: str, session: AsyncSession = Depends(get_
 async def get_hull_view(campaign_id: str, session: AsyncSession = Depends(get_session)):
     """Formation-energy hull view for alloy campaigns: measurements, predictions, hull."""
     campaign = await _get_campaign(session, campaign_id)
-    if campaign.problem_type != "alloy_v1":
+    if campaign.problem_type not in ("alloy_v1", "fcc_v2"):
         raise HTTPException(status_code=400, detail="hull view applies to alloy campaigns only")
 
     from ..problems.alloy import build_alloy_state

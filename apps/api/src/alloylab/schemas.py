@@ -27,6 +27,7 @@ class StrategyName(str, Enum):
 class ProblemType(str, Enum):
     ising_v0 = "ising_v0"
     alloy_v1 = "alloy_v1"
+    fcc_v2 = "fcc_v2"
 
 
 DEFAULT_OBJECTIVES = {
@@ -34,6 +35,8 @@ DEFAULT_OBJECTIVES = {
     "model with a finite Monte Carlo budget.",
     ProblemType.alloy_v1: "Discover the stable ordered structures of a binary alloy "
     "with a hidden Hamiltonian, using as few oracle energy queries as possible.",
+    ProblemType.fcc_v2: "Discover the stable ordered FCC Ni-Al structures governed "
+    "by a hidden cluster expansion, using as few oracle energy queries as possible.",
 }
 
 
@@ -178,6 +181,9 @@ class StructureRead(BaseModel):
     n_sites: int
     occupations: list[list[int]]
     shape: list[int]
+    lattice: list[list[float]] | None = None
+    positions: list[list[float]] | None = None
+    atomic_numbers: list[int] | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -209,6 +215,7 @@ class AlloyHullView(BaseModel):
 class BenchmarkProblem(str, Enum):
     ising = "ising"
     alloy = "alloy"
+    fcc = "fcc"
 
 
 class BenchmarkCreate(BaseModel):

@@ -7,6 +7,7 @@
  */
 
 import type { StructureRead, HullPoint } from "@alloylab/api-client";
+import { Structure3DViewer } from "./Structure3DViewer";
 
 const REPEAT = 3;
 const CELL = 22;
@@ -18,6 +19,40 @@ export function StructureViewer({
   structure: StructureRead;
   point?: HullPoint | null;
 }) {
+  const is3d = (structure.atomic_numbers?.length ?? 0) > 0;
+  if (is3d) {
+    return (
+      <div className="flex flex-col gap-2 p-4">
+        <div className="flex items-baseline justify-between">
+          <span className="mono text-sm font-bold">{structure.label}</span>
+          <span className="mono text-[11px] text-[var(--text-dim)]">
+            {structure.chemical_formula} · x_Al={structure.composition.toFixed(3)} ·{" "}
+            {structure.n_sites}-atom cell (shown 2×2×2)
+          </span>
+        </div>
+        <Structure3DViewer structure={structure} />
+        <div className="mono flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-[var(--text-dim)]">
+          <span>
+            <span className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-[#aeb9c6] align-middle" /> Ni
+          </span>
+          <span>
+            <span className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-[var(--accent)] align-middle" /> Al
+          </span>
+          {point?.e_form != null && (
+            <span>
+              ΔE_form = {point.e_form.toFixed(4)}
+              {!point.measured && point.e_form_std != null
+                ? ` ± ${point.e_form_std.toFixed(4)} (predicted)`
+                : " (measured)"}
+            </span>
+          )}
+          {point?.predicted_stable && (
+            <span className="text-[var(--good)]">on predicted hull</span>
+          )}
+        </div>
+      </div>
+    );
+  }
   const occ = structure.occupations;
   const rows = occ.length;
   const cols = occ[0]?.length ?? 0;

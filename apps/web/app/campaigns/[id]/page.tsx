@@ -30,7 +30,8 @@ export default function CampaignDashboard({
   });
 
   const running = campaign.data?.status === "RUNNING";
-  const isAlloy = campaign.data?.problem_type === "alloy_v1";
+  const problemType = campaign.data?.problem_type;
+  const isAlloy = problemType != null && problemType !== "ising_v0";
 
   const surrogate = useQuery({
     queryKey: ["surrogate", id],
@@ -104,7 +105,7 @@ export default function CampaignDashboard({
             <h1 className="text-base font-semibold">{c.name}</h1>
             <StatusBadge status={c.status} />
             <span className="mono text-[10px] uppercase tracking-wider text-[var(--text-dim)]">
-              {isAlloy ? "binary alloy V1" : "ising V0"}
+              {problemType === "fcc_v2" ? "FCC Ni–Al V2 (icet)" : isAlloy ? "binary alloy V1" : "ising V0"}
             </span>
           </div>
           <p className="mt-1 text-[13px] text-[var(--text-dim)]">{c.objective}</p>

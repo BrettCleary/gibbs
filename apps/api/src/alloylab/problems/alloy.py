@@ -337,11 +337,11 @@ class AlloyLLMDecider:
 
     name = "agent"
 
-    def __init__(self):
+    def __init__(self, instructions: str = ALLOY_LLM_INSTRUCTIONS):
         from ..agent.llm import LLMDecider
 
         self._llm = LLMDecider(
-            instructions=ALLOY_LLM_INSTRUCTIONS,
+            instructions=instructions,
             render_state=render_alloy_state,
             action_types=(ActionType.RUN_STRUCTURE_ENERGY,),
         )
@@ -413,6 +413,11 @@ def render_alloy_state(state: AlloyState) -> str:
 
 class AlloyProblem:
     problem_type = "alloy_v1"
+    llm_instructions = ALLOY_LLM_INSTRUCTIONS
+
+    def pool_item(self, row: Structure):
+        """Row -> object exposing .label / .x / .feature_vector() for the CE machinery."""
+        return _structure_from_row(row)
 
     async def initialize(self, session: AsyncSession, campaign: Campaign) -> None:
         existing = await _load_pool(session, campaign.id)
@@ -450,7 +455,7 @@ class AlloyProblem:
 
     def decider(self, campaign: Campaign) -> Decider:
         if campaign.strategy == "agent":
-            return AlloyLLMDecider()
+            return AlloyLLMDecider(instructions=self.llm_instructions)
         return AlloyHeuristicDecider(campaign.strategy, seed=stable_seed(campaign.id))
 
     def validate(self, state: AlloyState, decision: ScientificDecision) -> ScientificDecision:
@@ -531,7 +536,7 @@ class AlloyProblem:
         if latest is not None and latest.training_calculation_ids == training_ids:
             return
 
-        pool = [_structure_from_row(r) for r in rows]
+        pool = [self.pool_item(r) for r in rows]
         index_by_id = {r.id: i for i, r in enumerate(rows)}
         acq = AlloyAcquisitionState(pool=pool)
         for sid, (_, e_site) in measured.items():
