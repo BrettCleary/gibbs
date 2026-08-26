@@ -122,8 +122,11 @@ function CampaignForm({
     temperature_max: 3.5,
     failure_rate: 0.15,
     target_uncertainty: "" as string,
+    phase_t_min: 100,
+    phase_t_max: 1200,
   });
-  const isAlloy = form.problem_type !== "ising_v0";
+  const isPhase = form.problem_type === "phase_v2";
+  const isAlloy = form.problem_type === "alloy_v1" || form.problem_type === "fcc_v2";
 
   const field = "flex flex-col gap-1 text-[12px] text-[var(--text-dim)]";
   const input =
@@ -141,8 +144,12 @@ function CampaignForm({
           strategy: form.strategy as CampaignCreate["strategy"],
           simulation_budget: Number(form.simulation_budget),
           lattice_size: Number(form.lattice_size),
-          temperature_min: Number(form.temperature_min),
-          temperature_max: Number(form.temperature_max),
+          temperature_min: Number(
+            form.problem_type === "phase_v2" ? form.phase_t_min : form.temperature_min,
+          ),
+          temperature_max: Number(
+            form.problem_type === "phase_v2" ? form.phase_t_max : form.temperature_max,
+          ),
           failure_rate: Number(form.failure_rate),
           target_uncertainty:
             form.target_uncertainty === "" ? null : Number(form.target_uncertainty),
@@ -165,6 +172,7 @@ function CampaignForm({
           value={form.problem_type}
           onChange={(e) => setForm({ ...form, problem_type: e.target.value })}
         >
+          <option value="phase_v2">Ni–Al phase diagram, MC (M5)</option>
           <option value="fcc_v2">FCC Ni–Al, icet (V2)</option>
           <option value="alloy_v1">binary alloy (V1)</option>
           <option value="ising_v0">Ising critical region (V0)</option>
@@ -179,12 +187,14 @@ function CampaignForm({
         >
           <option value="agent">agent (LLM scientist)</option>
           <option value="uncertainty">uncertainty sampling</option>
-          <option value="grid">{isAlloy ? "composition coverage" : "grid coverage"}</option>
+          <option value="grid">
+            {isPhase ? "slice round-robin + grid" : isAlloy ? "composition coverage" : "grid coverage"}
+          </option>
           <option value="random">random</option>
         </select>
       </label>
       <label className={field}>
-        MC budget
+        {isAlloy ? "oracle budget" : "MC budget"}
         <input
           className={input}
           type="number"
@@ -194,7 +204,7 @@ function CampaignForm({
           onChange={(e) => setForm({ ...form, simulation_budget: Number(e.target.value) })}
         />
       </label>
-      {!isAlloy && (
+      {!isAlloy && !isPhase && (
         <>
           <label className={field}>
             lattice size L
@@ -230,6 +240,30 @@ function CampaignForm({
           </label>
         </>
       )}
+      {isPhase && (
+        <>
+          <label className={field}>
+            T min (K)
+            <input
+              className={input}
+              type="number"
+              step={50}
+              value={form.phase_t_min}
+              onChange={(e) => setForm({ ...form, phase_t_min: Number(e.target.value) })}
+            />
+          </label>
+          <label className={field}>
+            T max (K)
+            <input
+              className={input}
+              type="number"
+              step={50}
+              value={form.phase_t_max}
+              onChange={(e) => setForm({ ...form, phase_t_max: Number(e.target.value) })}
+            />
+          </label>
+        </>
+      )}
       <label className={field}>
         injected failure rate
         <input
@@ -243,7 +277,11 @@ function CampaignForm({
         />
       </label>
       <label className={field}>
-        {isAlloy ? "target stable-phase uncertainty (optional)" : "target Tc uncertainty (optional)"}
+        {isPhase
+          ? "target boundary uncertainty, K (optional)"
+          : isAlloy
+            ? "target stable-phase uncertainty (optional)"
+            : "target Tc uncertainty (optional)"}
         <input
           className={input}
           type="number"

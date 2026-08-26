@@ -34,9 +34,13 @@ class TcEstimate:
     mean: float
     std: float
     samples: list[float] = field(default_factory=list)
+    # True when most ensemble members put the peak at a range edge: the real
+    # peak likely lies outside the window, so `mean` is a bound, not a
+    # location, and the small `std` must not be read as confidence.
+    edge_pinned: bool = False
 
     def to_dict(self) -> dict:
-        return {"mean": self.mean, "std": self.std}
+        return {"mean": self.mean, "std": self.std, "edge_pinned": self.edge_pinned}
 
 
 class ResponseSurrogate:
@@ -110,10 +114,13 @@ class ResponseSurrogate:
             pred = self._kernel_predict(t_b, y_b, grid)
             peaks.append(float(grid[int(np.argmax(pred))]))
         peaks_arr = np.array(peaks)
+        margin = 0.02 * (t_max - t_min)
+        at_edge = (peaks_arr <= t_min + margin) | (peaks_arr >= t_max - margin)
         return TcEstimate(
             mean=float(peaks_arr.mean()),
             std=float(peaks_arr.std()),
             samples=peaks,
+            edge_pinned=bool(at_edge.mean() > 0.5),
         )
 
     def acquisition_uncertainty(
@@ -141,3 +148,35 @@ class ResponseSurrogate:
             dist = np.abs(grid[:, None] - exclude_arr[None, :]).min(axis=1)
             std = np.where(dist < min_separation, -np.inf, std)
         return float(grid[int(np.argmax(std))])
+
+    def suggest_peak_refinement(
+        self,
+        t_min: float,
+        t_max: float,
+        exclude: list[float] | None = None,
+        min_separation: float | None = None,
+    ) -> float:
+        """Best next measurement for locating the PEAK of the response.
+
+        Raw max-std acquisition chases the range edges, where kernel smoothers
+        extrapolate with huge variance but the peak rarely lives. Instead,
+        sample from the ensemble's own peak-location distribution: candidate
+        temperatures are the per-member peak positions, and the one farthest
+        from any existing measurement is chosen — concentrating queries where
+        the peak plausibly sits and the data is thinnest.
+        """
+        est = self.estimate_peak(t_min, t_max)
+        exclude_arr = np.array(exclude if exclude is not None else self.t.tolist())
+        if min_separation is None:
+            min_separation = 0.02 * (t_max - t_min)
+        candidates = np.array(est.samples if est.samples else [est.mean])
+        if len(exclude_arr) == 0:
+            return float(np.median(candidates))
+        dist = np.abs(candidates[:, None] - exclude_arr[None, :]).min(axis=1)
+        best = float(candidates[int(np.argmax(dist))])
+        if dist.max() >= min_separation:
+            return best
+        # Peak region saturated with measurements: fall back to max-std.
+        return self.suggest_highest_uncertainty(
+            t_min, t_max, exclude=list(exclude_arr), min_separation=min_separation
+        )

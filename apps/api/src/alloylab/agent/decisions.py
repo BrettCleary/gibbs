@@ -29,6 +29,10 @@ class ScientificDecision(BaseModel):
         default_factory=list,
         description="Temperatures for RUN_MONTE_CARLO (at most 3 per decision).",
     )
+    composition: float | None = Field(
+        default=None,
+        description="Composition slice for phase-diagram RUN_MONTE_CARLO decisions.",
+    )
     structure_labels: list[str] = Field(
         default_factory=list,
         description="Structure labels for RUN_STRUCTURE_ENERGY (at most 3 per decision).",

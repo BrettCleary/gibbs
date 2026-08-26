@@ -181,6 +181,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/campaigns/{campaign_id}/phase-diagram": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Phase Diagram
+         * @description T-x phase-diagram view: per-slice boundary estimates, curves, measurements.
+         */
+        get: operations["get_phase_diagram_campaigns__campaign_id__phase_diagram_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/campaigns/{campaign_id}/events": {
         parameters: {
             query?: never;
@@ -394,7 +414,7 @@ export interface components {
          * BenchmarkProblem
          * @enum {string}
          */
-        BenchmarkProblem: "ising" | "alloy" | "fcc";
+        BenchmarkProblem: "ising" | "alloy" | "fcc" | "phase";
         /** BenchmarkRead */
         BenchmarkRead: {
             /** Id */
@@ -491,6 +511,11 @@ export interface components {
             composition_min?: number | null;
             /** Composition Max */
             composition_max?: number | null;
+            /**
+             * Composition Slices
+             * @description Composition slices for phase-diagram campaigns (each strictly between 0 and 1; default [0.25, 0.5, 0.75]).
+             */
+            composition_slices?: number[] | null;
             /** @default agent */
             strategy: components["schemas"]["StrategyName"];
             /**
@@ -626,10 +651,73 @@ export interface components {
             predicted_stable: boolean;
         };
         /**
+         * PhaseDiagramView
+         * @description Everything the dashboard needs to draw the T-x phase diagram.
+         */
+        PhaseDiagramView: {
+            /** Campaign Id */
+            campaign_id: string;
+            /** Model Version */
+            model_version: number | null;
+            /** Temperature Min */
+            temperature_min: number;
+            /** Temperature Max */
+            temperature_max: number;
+            /** Slices */
+            slices: components["schemas"]["PhaseSliceView"][];
+        };
+        /** PhaseMeasurementView */
+        PhaseMeasurementView: {
+            /** Calculation Id */
+            calculation_id: string;
+            /** Temperature */
+            temperature: number;
+            /** Heat Capacity */
+            heat_capacity: number;
+            /** Heat Capacity Err */
+            heat_capacity_err: number;
+            /** Sro */
+            sro: number;
+        };
+        /** PhaseSliceView */
+        PhaseSliceView: {
+            /** X */
+            x: number;
+            /** Tc Mean */
+            tc_mean?: number | null;
+            /** Tc Std */
+            tc_std?: number | null;
+            /**
+             * Tc Edge Pinned
+             * @default false
+             */
+            tc_edge_pinned: boolean;
+            /**
+             * Curve T
+             * @default []
+             */
+            curve_t: number[];
+            /**
+             * Curve Mean
+             * @default []
+             */
+            curve_mean: number[];
+            /**
+             * Curve Std
+             * @default []
+             */
+            curve_std: number[];
+            /**
+             * Measured
+             * @default []
+             */
+            measured: components["schemas"]["PhaseMeasurementView"][];
+        };
+        /**
          * ProblemType
          * @enum {string}
          */
-        ProblemType: "ising_v0" | "alloy_v1" | "fcc_v2";
+        ProblemType: "ising_v0" | "alloy_v1" | "fcc_v2" | "phase_v2";
         /** StartResponse */
         StartResponse: {
             /** Campaign Id */
@@ -1046,6 +1134,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AlloyHullView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_phase_diagram_campaigns__campaign_id__phase_diagram_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhaseDiagramView"];
                 };
             };
             /** @description Validation Error */

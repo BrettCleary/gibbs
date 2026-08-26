@@ -14,6 +14,8 @@ export type BenchmarkCreate = components["schemas"]["BenchmarkCreate"];
 export type StructureRead = components["schemas"]["StructureRead"];
 export type HullView = components["schemas"]["AlloyHullView"];
 export type HullPoint = components["schemas"]["HullPoint"];
+export type PhaseDiagramView = components["schemas"]["PhaseDiagramView"];
+export type PhaseSliceView = components["schemas"]["PhaseSliceView"];
 
 export function createApiClient(baseUrl: string) {
   return createClient<paths>({ baseUrl });

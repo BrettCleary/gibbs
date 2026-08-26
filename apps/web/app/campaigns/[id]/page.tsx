@@ -8,6 +8,7 @@ import { ResponseChart } from "@/components/ResponseChart";
 import { EventFeed } from "@/components/EventFeed";
 import { CalculationsTable } from "@/components/CalculationsTable";
 import { AlloyDashboard } from "@/components/AlloyDashboard";
+import { PhaseDashboard } from "@/components/PhaseDashboard";
 
 export default function CampaignDashboard({
   params,
@@ -31,7 +32,8 @@ export default function CampaignDashboard({
 
   const running = campaign.data?.status === "RUNNING";
   const problemType = campaign.data?.problem_type;
-  const isAlloy = problemType != null && problemType !== "ising_v0";
+  const isPhase = problemType === "phase_v2";
+  const isAlloy = problemType === "alloy_v1" || problemType === "fcc_v2";
 
   const surrogate = useQuery({
     queryKey: ["surrogate", id],
@@ -42,7 +44,7 @@ export default function CampaignDashboard({
       return data!;
     },
     refetchInterval: running ? 2500 : false,
-    enabled: campaign.data != null && !isAlloy,
+    enabled: campaign.data != null && !isAlloy && !isPhase,
   });
 
   const hull = useQuery({
@@ -55,6 +57,18 @@ export default function CampaignDashboard({
     },
     refetchInterval: running ? 2500 : false,
     enabled: campaign.data != null && isAlloy,
+  });
+
+  const phaseDiagram = useQuery({
+    queryKey: ["phase-diagram", id],
+    queryFn: async () => {
+      const { data } = await api.GET("/campaigns/{campaign_id}/phase-diagram", {
+        params: { path: { campaign_id: id } },
+      });
+      return data!;
+    },
+    refetchInterval: running ? 2500 : false,
+    enabled: campaign.data != null && isPhase,
   });
 
   const calculations = useQuery({
@@ -105,7 +119,13 @@ export default function CampaignDashboard({
             <h1 className="text-base font-semibold">{c.name}</h1>
             <StatusBadge status={c.status} />
             <span className="mono text-[10px] uppercase tracking-wider text-[var(--text-dim)]">
-              {problemType === "fcc_v2" ? "FCC Ni–Al V2 (icet)" : isAlloy ? "binary alloy V1" : "ising V0"}
+              {problemType === "phase_v2"
+                ? "phase diagram M5 (mchammer)"
+                : problemType === "fcc_v2"
+                  ? "FCC Ni–Al V2 (icet)"
+                  : isAlloy
+                    ? "binary alloy V1"
+                    : "ising V0"}
             </span>
           </div>
           <p className="mt-1 text-[13px] text-[var(--text-dim)]">{c.objective}</p>
@@ -129,7 +149,24 @@ export default function CampaignDashboard({
             />
           </div>
         </div>
-        {isAlloy ? (
+        {isPhase ? (
+          <div className="mono text-[12px]">
+            <div className="text-[var(--text-dim)]">phase boundaries</div>
+            <div className="mt-1 text-sm text-[var(--warn)]">
+              {(() => {
+                const fitted = (phaseDiagram.data?.slices ?? []).filter(
+                  (s) => s.tc_mean != null,
+                );
+                if (fitted.length === 0) return "no boundary yet";
+                const maxStd = Math.max(...fitted.map((s) => s.tc_std ?? 0));
+                return `${fitted.length}/${phaseDiagram.data?.slices.length} · max σ ${maxStd.toFixed(0)} K`;
+              })()}
+            </div>
+            <div className="mt-0.5 text-[11px] text-[var(--text-dim)]">
+              boundary v{phaseDiagram.data?.model_version ?? "—"} · strategy: {c.strategy}
+            </div>
+          </div>
+        ) : isAlloy ? (
           <div className="mono text-[12px]">
             <div className="text-[var(--text-dim)]">predicted stable phases</div>
             <div className="mt-1 text-sm text-[var(--good)]">
@@ -185,7 +222,9 @@ export default function CampaignDashboard({
         )}
       </div>
 
-      {isAlloy ? (
+      {isPhase ? (
+        <PhaseDashboard campaignId={id} running={running} />
+      ) : isAlloy ? (
         <AlloyDashboard campaignId={id} running={running} />
       ) : (
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-5">
@@ -221,7 +260,7 @@ export default function CampaignDashboard({
         </div>
       )}
 
-      {isAlloy && (
+      {(isAlloy || isPhase) && (
         <div className="panel">
           <div className="border-b border-[var(--border)] px-4 py-2.5">
             <h2 className="mono text-[11px] font-bold tracking-wider text-[var(--text-dim)]">

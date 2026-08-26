@@ -17,6 +17,10 @@ type Props = {
   tcStd: number | null | undefined;
   tMin: number;
   tMax: number;
+  xLabel?: string;
+  yLabel?: string;
+  peakPrefix?: string;
+  legendCurve?: string;
 };
 
 const W = 760;
@@ -65,7 +69,7 @@ export function ResponseChart(props: Props) {
           <g key={`x${i}`}>
             <line x1={x(t)} x2={x(t)} y1={M.top} y2={H - M.bottom} stroke="var(--border)" strokeWidth={1} />
             <text x={x(t)} y={H - M.bottom + 18} textAnchor="middle" fontSize={11} fill="var(--text-dim)">
-              {t.toFixed(2)}
+              {t.toFixed(props.tMax > 100 ? 0 : 2)}
             </text>
           </g>
         );
@@ -76,13 +80,13 @@ export function ResponseChart(props: Props) {
           <g key={`y${i}`}>
             <line x1={M.left} x2={W - M.right} y1={y(v)} y2={y(v)} stroke="var(--border)" strokeWidth={1} />
             <text x={M.left - 8} y={y(v) + 4} textAnchor="end" fontSize={11} fill="var(--text-dim)">
-              {v.toFixed(0)}
+              {v.toFixed(yMax < 10 ? 1 : 0)}
             </text>
           </g>
         );
       })}
       <text x={(W + M.left) / 2} y={H - 6} textAnchor="middle" fontSize={12} fill="var(--text-dim)">
-        temperature T (J/k_B)
+        {props.xLabel ?? "temperature T (J/k_B)"}
       </text>
       <text
         x={14}
@@ -92,7 +96,7 @@ export function ResponseChart(props: Props) {
         fill="var(--text-dim)"
         transform={`rotate(-90 14 ${(H - M.bottom + M.top) / 2})`}
       >
-        susceptibility χ
+        {props.yLabel ?? "susceptibility χ"}
       </text>
 
       {/* Tc estimate band + line */}
@@ -121,8 +125,9 @@ export function ResponseChart(props: Props) {
             strokeWidth={1.5}
           />
           <text x={x(props.tcMean) + 5} y={M.top + 30} fontSize={11} fill="var(--warn)">
-            T̂c = {props.tcMean.toFixed(3)}
-            {props.tcStd != null ? ` ± ${props.tcStd.toFixed(3)}` : ""}
+            {props.peakPrefix ?? "T̂c = "}
+            {props.tcMean.toFixed(props.tMax > 100 ? 0 : 3)}
+            {props.tcStd != null ? ` ± ${props.tcStd.toFixed(props.tMax > 100 ? 0 : 3)}` : ""}
           </text>
         </>
       )}
@@ -153,7 +158,7 @@ export function ResponseChart(props: Props) {
         <circle cx={W - 220} cy={M.top + 8} r={3.5} fill="var(--text)" />
         <text x={W - 210} y={M.top + 12}>measured (MC)</text>
         <line x1={W - 118} x2={W - 92} y1={M.top + 8} y2={M.top + 8} stroke="var(--accent)" strokeWidth={1.75} strokeDasharray="6 3" />
-        <text x={W - 86} y={M.top + 12}>surrogate ±2σ</text>
+        <text x={W - 86} y={M.top + 12}>{props.legendCurve ?? "surrogate ±2σ"}</text>
       </g>
     </svg>
   );

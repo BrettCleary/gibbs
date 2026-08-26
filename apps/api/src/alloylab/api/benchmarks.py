@@ -64,6 +64,8 @@ async def _execute(benchmark_id: str, config: BenchmarkCreate) -> None:
             results, summary = await _run_hull_problem(config, run_alloy_benchmark, "alloy")
         elif config.problem.value == "fcc":
             results, summary = await _run_hull_problem(config, run_fcc_benchmark, "fcc")
+        elif config.problem.value == "phase":
+            results, summary = await _run_phase(config)
         else:
             results, summary = await _run_ising(config)
 
@@ -83,6 +85,30 @@ async def _execute(benchmark_id: str, config: BenchmarkCreate) -> None:
                 run.error = str(exc)
                 run.completed_at = datetime.now(timezone.utc)
                 await session.commit()
+
+
+async def _run_phase(config: BenchmarkCreate) -> tuple[list, dict]:
+    """Phase-diagram benchmark: mean |Tc error| over slices vs a dense
+    high-budget MC scan of the same hidden CE (fresh CE per seed, cached)."""
+    from alloyscience.phase import run_phase_benchmark
+
+    results = []
+    for strategy_name in [s.value for s in config.strategies]:
+        for seed in config.seeds:
+            result = await asyncio.to_thread(
+                run_phase_benchmark, strategy_name, config.budget, seed
+            )
+            results.append(result.to_dict())
+
+    summary: dict = {"problem": "phase", "per_strategy": {}}
+    for strategy_name in {r["strategy"] for r in results}:
+        rows = [r for r in results if r["strategy"] == strategy_name]
+        summary["per_strategy"][strategy_name] = {
+            "mean_boundary_error": sum(r["boundary_error"] for r in rows) / len(rows),
+            "max_boundary_error": max(r["max_boundary_error"] for r in rows),
+            "n_runs": len(rows),
+        }
+    return results, summary
 
 
 async def _run_ising(config: BenchmarkCreate) -> tuple[list, dict]:

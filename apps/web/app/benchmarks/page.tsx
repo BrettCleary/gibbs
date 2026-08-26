@@ -8,7 +8,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 
 export default function BenchmarksPage() {
   const queryClient = useQueryClient();
-  const [problem, setProblem] = useState<"ising" | "alloy" | "fcc">("fcc");
+  const [problem, setProblem] = useState<"ising" | "alloy" | "fcc" | "phase">("phase");
   const [budget, setBudget] = useState(10);
   const [nSeeds, setNSeeds] = useState(3);
 
@@ -65,9 +65,10 @@ export default function BenchmarksPage() {
             problem
             <select
               value={problem}
-              onChange={(e) => setProblem(e.target.value as "ising" | "alloy" | "fcc")}
+              onChange={(e) => setProblem(e.target.value as "ising" | "alloy" | "fcc" | "phase")}
               className="mono rounded-sm border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1.5 text-sm text-[var(--text)]"
             >
+              <option value="phase">Ni–Al phase diagram</option>
               <option value="fcc">FCC Ni–Al (icet)</option>
               <option value="alloy">binary alloy</option>
               <option value="ising">ising</option>
@@ -129,13 +130,22 @@ type AlloyStats = {
   mean_false_stable: number;
   n_runs: number;
 };
+type PhaseStats = {
+  mean_boundary_error: number;
+  max_boundary_error: number;
+  n_runs: number;
+};
 
 function BenchmarkCard({ benchmark: b }: { benchmark: BenchmarkRun }) {
   const problem = String(b.summary?.problem ?? b.config?.problem ?? "ising");
-  const isAlloy = problem !== "ising";
-  const per = (b.summary?.per_strategy ?? {}) as Record<string, IsingStats & AlloyStats>;
-  const score = (s: IsingStats & AlloyStats) =>
-    isAlloy ? s.mean_hull_rmse : s.mean_tc_error;
+  const isPhase = problem === "phase";
+  const isAlloy = problem === "alloy" || problem === "fcc";
+  const per = (b.summary?.per_strategy ?? {}) as Record<
+    string,
+    IsingStats & AlloyStats & PhaseStats
+  >;
+  const score = (s: IsingStats & AlloyStats & PhaseStats) =>
+    isPhase ? s.mean_boundary_error : isAlloy ? s.mean_hull_rmse : s.mean_tc_error;
   const best = Object.entries(per).sort((x, y) => score(x[1]) - score(y[1]))[0]?.[0];
 
   return (
@@ -146,7 +156,7 @@ function BenchmarkCard({ benchmark: b }: { benchmark: BenchmarkRun }) {
         </span>
         <StatusBadge status={b.status} />
         <span className="mono text-[12px] text-[var(--text-dim)]">
-          {problem === "fcc" ? "FCC Ni–Al" : problem === "alloy" ? "binary alloy" : "ising"} · budget {String(b.config?.budget)} ·{" "}
+          {isPhase ? "Ni–Al phase diagram" : problem === "fcc" ? "FCC Ni–Al" : problem === "alloy" ? "binary alloy" : "ising"} · budget {String(b.config?.budget)} ·{" "}
           {(b.config?.seeds as number[] | undefined)?.length ?? "?"} seeds
           {!isAlloy && b.summary?.tc_true != null &&
             ` · ground-truth Tc = ${Number(b.summary.tc_true).toFixed(3)}`}
@@ -164,7 +174,13 @@ function BenchmarkCard({ benchmark: b }: { benchmark: BenchmarkRun }) {
             <tr className="mono border-b border-[var(--border)] text-left text-[11px] text-[var(--text-dim)]">
               <th className="px-4 py-2">strategy</th>
               <th className="px-4 py-2">queries</th>
-              {isAlloy ? (
+              {isPhase ? (
+                <>
+                  <th className="px-4 py-2">mean |Tc error| (K)</th>
+                  <th className="px-4 py-2">max |Tc error| (K)</th>
+                  <th className="px-4 py-2">—</th>
+                </>
+              ) : isAlloy ? (
                 <>
                   <th className="px-4 py-2">mean hull RMSE</th>
                   <th className="px-4 py-2">missed stable / run</th>
@@ -192,7 +208,13 @@ function BenchmarkCard({ benchmark: b }: { benchmark: BenchmarkRun }) {
                     )}
                   </td>
                   <td className="mono px-4 py-2">{String(b.config?.budget)}</td>
-                  {isAlloy ? (
+                  {isPhase ? (
+                    <>
+                      <td className="mono px-4 py-2">{stats.mean_boundary_error.toFixed(0)}</td>
+                      <td className="mono px-4 py-2">{stats.max_boundary_error.toFixed(0)}</td>
+                      <td className="mono px-4 py-2">—</td>
+                    </>
+                  ) : isAlloy ? (
                     <>
                       <td className="mono px-4 py-2">{stats.mean_hull_rmse.toFixed(4)}</td>
                       <td className="mono px-4 py-2">{stats.mean_missed_stable.toFixed(1)}</td>

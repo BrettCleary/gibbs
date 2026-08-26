@@ -105,6 +105,8 @@ def _execute(
 ) -> tuple[dict, dict]:
     """Runs in a worker thread; returns (output, provenance)."""
     if calculation_type == "MONTE_CARLO":
+        if problem_config.get("kind") == "fcc_phase":
+            return _execute_phase_mc(calculation_id, params, problem_config)
         return _execute_monte_carlo(calculation_id, params)
     if calculation_type == "STRUCTURE_ENERGY":
         return _execute_structure_energy(params, problem_config)
@@ -115,24 +117,64 @@ def _execute(
     )
 
 
-def _execute_monte_carlo(calculation_id: str, params: dict) -> tuple[dict, dict]:
+def _roll_injected_failure(calculation_id: str, params: dict, metadata: dict) -> None:
+    """Deterministic per-calculation failure roll (crc32, not hash(): Python
+    string hashing is randomised per process). Retries never re-inject."""
     failure_rate = float(params.get("failure_rate", 0.0))
-    is_retry = bool(params.get("is_retry", False))
-    if failure_rate > 0 and not is_retry:
-        # Deterministic per-calculation roll so reruns reproduce (crc32, not
-        # hash(): Python string hashing is randomised per process).
-        roll_rng = np.random.default_rng(zlib.crc32(calculation_id.encode()))
-        if roll_rng.random() < failure_rate:
-            raise SimulationFailure(
-                category="MC_NOT_EQUILIBRATED",
-                message="Monte Carlo chain flagged as not equilibrated "
-                "(injected failure for recovery testing)",
-                metadata={
-                    "temperature": params.get("temperature"),
-                    "n_equilibration_sweeps": params.get("n_equilibration_sweeps"),
-                    "hint": "increase equilibration sweeps and retry",
-                },
-            )
+    if failure_rate <= 0 or params.get("is_retry"):
+        return
+    roll_rng = np.random.default_rng(zlib.crc32(calculation_id.encode()))
+    if roll_rng.random() < failure_rate:
+        raise SimulationFailure(
+            category="MC_NOT_EQUILIBRATED",
+            message="Monte Carlo chain flagged as not equilibrated "
+            "(injected failure for recovery testing)",
+            metadata=metadata,
+        )
+
+
+def _execute_phase_mc(calculation_id: str, params: dict, problem_config: dict) -> tuple[dict, dict]:
+    from alloyscience.fcc import HiddenFccCE
+    from alloyscience.phase import phase_system, run_phase_point
+
+    _roll_injected_failure(
+        calculation_id,
+        params,
+        metadata={
+            "composition": params.get("composition"),
+            "temperature": params.get("temperature"),
+            "n_trial_steps": params.get("n_trial_steps"),
+            "hint": "increase trial steps and retry",
+        },
+    )
+    hidden = HiddenFccCE.from_dict(problem_config.get("hamiltonian", {}))
+    result = run_phase_point(
+        phase_system(),
+        hidden.ecis,
+        x=float(params["composition"]),
+        temperature=float(params["temperature"]),
+        supercell_repeat=int(params.get("supercell_repeat", 4)),
+        n_trial_steps=int(params.get("n_trial_steps", 20_000)),
+        seed=int(params.get("seed", 0)),
+    )
+    provenance = {
+        **result.provenance,
+        "engine_detail": "canonical MC on hidden cluster expansion (ECIs withheld from agent)",
+        "wall_time_s": result.wall_time_s,
+    }
+    return result.to_dict(), provenance
+
+
+def _execute_monte_carlo(calculation_id: str, params: dict) -> tuple[dict, dict]:
+    _roll_injected_failure(
+        calculation_id,
+        params,
+        metadata={
+            "temperature": params.get("temperature"),
+            "n_equilibration_sweeps": params.get("n_equilibration_sweeps"),
+            "hint": "increase equilibration sweeps and retry",
+        },
+    )
     simulator = IsingSimulator(int(params["lattice_size"]))
     result = simulator.run(
         float(params["temperature"]),
@@ -198,6 +240,11 @@ def _execute_structure_energy(params: dict, problem_config: dict) -> tuple[dict,
 def _start_text(calc: Calculation) -> str:
     p = calc.input_parameters
     if calc.calculation_type == "MONTE_CARLO":
+        if "composition" in p:
+            return (
+                f"Canonical MC started at x={float(p['composition']):.3f}, "
+                f"T={float(p.get('temperature', 0.0)):.0f} K"
+            )
         return f"Monte Carlo run started at T={float(p.get('temperature', 0.0)):.3f}"
     return (
         f"Oracle energy query started for {p.get('structure_label', '?')} "
@@ -209,6 +256,13 @@ def _success_text(calc: Calculation) -> str:
     p = calc.input_parameters
     out = calc.output or {}
     if calc.calculation_type == "MONTE_CARLO":
+        if "heat_capacity" in out:
+            return (
+                f"x={float(p.get('composition', 0.0)):.3f}, "
+                f"T={float(p.get('temperature', 0.0)):.0f} K: "
+                f"C={out.get('heat_capacity', 0.0):.2f}±{out.get('heat_capacity_err', 0.0):.2f} k_B, "
+                f"SRO={out.get('sro', 0.0):+.3f}"
+            )
         return (
             f"T={float(p.get('temperature', 0.0)):.3f}: "
             f"chi={out.get('susceptibility', 0.0):.2f}±{out.get('susceptibility_err', 0.0):.2f}"
@@ -219,6 +273,13 @@ def _success_text(calc: Calculation) -> str:
 def _success_payload(calc: Calculation) -> dict:
     out = calc.output or {}
     if calc.calculation_type == "MONTE_CARLO":
+        if "heat_capacity" in out:
+            return {
+                "heat_capacity": out.get("heat_capacity"),
+                "sro": out.get("sro"),
+                "composition": out.get("x"),
+                "temperature": out.get("temperature"),
+            }
         return {"susceptibility": out.get("susceptibility")}
     return {
         "energy_per_site": out.get("energy_per_site"),

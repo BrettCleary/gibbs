@@ -28,6 +28,7 @@ class ProblemType(str, Enum):
     ising_v0 = "ising_v0"
     alloy_v1 = "alloy_v1"
     fcc_v2 = "fcc_v2"
+    phase_v2 = "phase_v2"
 
 
 DEFAULT_OBJECTIVES = {
@@ -37,6 +38,9 @@ DEFAULT_OBJECTIVES = {
     "with a hidden Hamiltonian, using as few oracle energy queries as possible.",
     ProblemType.fcc_v2: "Discover the stable ordered FCC Ni-Al structures governed "
     "by a hidden cluster expansion, using as few oracle energy queries as possible.",
+    ProblemType.phase_v2: "Map the order/disorder phase boundary Tc(x) of an FCC "
+    "Ni-Al alloy with a finite canonical Monte Carlo budget, prioritising the "
+    "most uncertain boundaries.",
 }
 
 
@@ -49,6 +53,11 @@ class CampaignCreate(BaseModel):
     )
     composition_min: float | None = Field(default=None, ge=0.0, le=1.0)
     composition_max: float | None = Field(default=None, ge=0.0, le=1.0)
+    composition_slices: list[float] | None = Field(
+        default=None,
+        description="Composition slices for phase-diagram campaigns "
+        "(each strictly between 0 and 1; default [0.25, 0.5, 0.75]).",
+    )
     strategy: StrategyName = StrategyName.agent
     temperature_min: float = 1.5
     temperature_max: float = 3.5
@@ -75,6 +84,11 @@ class CampaignCreate(BaseModel):
             and self.composition_max <= self.composition_min
         ):
             raise ValueError("composition_max must exceed composition_min")
+        if self.composition_slices is not None:
+            if not self.composition_slices or any(
+                not 0.0 < x < 1.0 for x in self.composition_slices
+            ):
+                raise ValueError("composition_slices must be non-empty, each in (0, 1)")
         if not self.objective:
             self.objective = DEFAULT_OBJECTIVES[self.problem_type]
         return self
@@ -212,10 +226,40 @@ class AlloyHullView(BaseModel):
     endpoints_measured: bool
 
 
+class PhaseMeasurementView(BaseModel):
+    calculation_id: str
+    temperature: float
+    heat_capacity: float
+    heat_capacity_err: float
+    sro: float
+
+
+class PhaseSliceView(BaseModel):
+    x: float
+    tc_mean: float | None = None
+    tc_std: float | None = None
+    tc_edge_pinned: bool = False
+    curve_t: list[float] = []
+    curve_mean: list[float] = []
+    curve_std: list[float] = []
+    measured: list[PhaseMeasurementView] = []
+
+
+class PhaseDiagramView(BaseModel):
+    """Everything the dashboard needs to draw the T-x phase diagram."""
+
+    campaign_id: str
+    model_version: int | None
+    temperature_min: float
+    temperature_max: float
+    slices: list[PhaseSliceView]
+
+
 class BenchmarkProblem(str, Enum):
     ising = "ising"
     alloy = "alloy"
     fcc = "fcc"
+    phase = "phase"
 
 
 class BenchmarkCreate(BaseModel):

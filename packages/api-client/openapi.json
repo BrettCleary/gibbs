@@ -476,6 +476,49 @@
         }
       }
     },
+    "/campaigns/{campaign_id}/phase-diagram": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Get Phase Diagram",
+        "description": "T-x phase-diagram view: per-slice boundary estimates, curves, measurements.",
+        "operationId": "get_phase_diagram_campaigns__campaign_id__phase_diagram_get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhaseDiagramView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/campaigns/{campaign_id}/events": {
       "get": {
         "tags": [
@@ -1002,7 +1045,8 @@
         "enum": [
           "ising",
           "alloy",
-          "fcc"
+          "fcc",
+          "phase"
         ],
         "title": "BenchmarkProblem"
       },
@@ -1315,6 +1359,21 @@
               }
             ],
             "title": "Composition Max"
+          },
+          "composition_slices": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Composition Slices",
+            "description": "Composition slices for phase-diagram campaigns (each strictly between 0 and 1; default [0.25, 0.5, 0.75])."
           },
           "strategy": {
             "$ref": "#/components/schemas/StrategyName",
@@ -1675,12 +1734,162 @@
         ],
         "title": "HullPoint"
       },
+      "PhaseDiagramView": {
+        "properties": {
+          "campaign_id": {
+            "type": "string",
+            "title": "Campaign Id"
+          },
+          "model_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Version"
+          },
+          "temperature_min": {
+            "type": "number",
+            "title": "Temperature Min"
+          },
+          "temperature_max": {
+            "type": "number",
+            "title": "Temperature Max"
+          },
+          "slices": {
+            "items": {
+              "$ref": "#/components/schemas/PhaseSliceView"
+            },
+            "type": "array",
+            "title": "Slices"
+          }
+        },
+        "type": "object",
+        "required": [
+          "campaign_id",
+          "model_version",
+          "temperature_min",
+          "temperature_max",
+          "slices"
+        ],
+        "title": "PhaseDiagramView",
+        "description": "Everything the dashboard needs to draw the T-x phase diagram."
+      },
+      "PhaseMeasurementView": {
+        "properties": {
+          "calculation_id": {
+            "type": "string",
+            "title": "Calculation Id"
+          },
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "heat_capacity": {
+            "type": "number",
+            "title": "Heat Capacity"
+          },
+          "heat_capacity_err": {
+            "type": "number",
+            "title": "Heat Capacity Err"
+          },
+          "sro": {
+            "type": "number",
+            "title": "Sro"
+          }
+        },
+        "type": "object",
+        "required": [
+          "calculation_id",
+          "temperature",
+          "heat_capacity",
+          "heat_capacity_err",
+          "sro"
+        ],
+        "title": "PhaseMeasurementView"
+      },
+      "PhaseSliceView": {
+        "properties": {
+          "x": {
+            "type": "number",
+            "title": "X"
+          },
+          "tc_mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tc Mean"
+          },
+          "tc_std": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tc Std"
+          },
+          "tc_edge_pinned": {
+            "type": "boolean",
+            "title": "Tc Edge Pinned",
+            "default": false
+          },
+          "curve_t": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Curve T",
+            "default": []
+          },
+          "curve_mean": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Curve Mean",
+            "default": []
+          },
+          "curve_std": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Curve Std",
+            "default": []
+          },
+          "measured": {
+            "items": {
+              "$ref": "#/components/schemas/PhaseMeasurementView"
+            },
+            "type": "array",
+            "title": "Measured",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "x"
+        ],
+        "title": "PhaseSliceView"
+      },
       "ProblemType": {
         "type": "string",
         "enum": [
           "ising_v0",
           "alloy_v1",
-          "fcc_v2"
+          "fcc_v2",
+          "phase_v2"
         ],
         "title": "ProblemType"
       },

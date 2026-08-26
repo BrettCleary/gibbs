@@ -31,4 +31,8 @@ packages = ["src/alloylab"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-filterwarnings = ["ignore::DeprecationWarning:spglib"]
+filterwarnings = [
+    "ignore::DeprecationWarning:spglib",
+    "ignore:Setting the shape on a NumPy array:DeprecationWarning",
+    "ignore::DeprecationWarning:mchammer",
+]

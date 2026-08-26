@@ -21,4 +21,8 @@ build-backend = "hatchling.build"
 packages = ["src/alloyscience"]
 
 [tool.pytest.ini_options]
-filterwarnings = ["ignore::DeprecationWarning:spglib"]
+filterwarnings = [
+    "ignore::DeprecationWarning:spglib",
+    "ignore:Setting the shape on a NumPy array:DeprecationWarning",
+    "ignore::DeprecationWarning:mchammer",
+]

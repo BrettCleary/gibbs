@@ -28,6 +28,9 @@ class LLMDecisionOutput(BaseModel):
     uncertainty: str = ""
     action_type: ActionType
     temperatures: list[float] = Field(default_factory=list)
+    composition: float | None = Field(
+        default=None, description="Composition slice for phase-diagram MC decisions."
+    )
     structure_labels: list[str] = Field(default_factory=list)
     retry_calculation_id: str | None = None
     equilibration_sweeps_factor: float | None = Field(
@@ -111,6 +114,7 @@ class LLMDecider:
             uncertainty=out.uncertainty,
             action_type=action_type,
             temperatures=out.temperatures,
+            composition=out.composition,
             structure_labels=out.structure_labels,
             retry_calculation_id=out.retry_calculation_id,
             adjusted_parameters=adjusted or None,

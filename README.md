@@ -1,10 +1,10 @@
 # AlloyLab — Autonomous Alloy Scientist
 
 An autonomous computational materials-science platform (see `project_description.md`
-for the full plan). This repository currently implements **Milestones 1–4**: the
+for the full plan). This repository currently implements **Milestones 1–5**: the
 complete product loop — agent decisions, typed simulation jobs, surrogate models
 with uncertainty, failure recovery, live mission-control UI, and strategy
-benchmarks — on three synthetic problems, exactly as the plan prescribes
+benchmarks — on four synthetic problems, exactly as the plan prescribes
 ("DO THIS BEFORE REAL DFT"):
 
 - **Ising V0** — autonomously locate the critical-temperature region of the 2D
@@ -21,13 +21,22 @@ benchmarks — on three synthetic problems, exactly as the plan prescribes
   uncertainty, and a hidden icet-style cluster expansion as the ground-truth
   oracle (plan section 22 V2). The agent discovers L1_2 Ni3Al / L1_0 NiAl-type
   ground states; `alloyscience.fcc.run_canonical_mc` samples the fitted CE with
-  mchammer (canonical MC + Warren-Cowley short-range order) — the building
-  block Milestone 5 sweeps into a T-x phase diagram.
+  mchammer (canonical MC + Warren-Cowley short-range order).
+- **Phase diagram (Milestone 5, mchammer)** — the agent maps the
+  order/disorder boundary Tc(x) of a hidden CE with a finite canonical-MC
+  budget: heat-capacity peaks locate the transition per composition slice,
+  bootstrap ensembles quantify boundary uncertainty (with edge-pinned
+  estimates flagged as bounds, not locations), and acquisition targets the
+  most uncertain boundary via posterior sampling of the peak location (raw
+  max-std chases range edges — the benchmark caught exactly that pathology).
+  The dashboard draws the T-x diagram with uncertainty bars, the ordered
+  region, per-run SRO coloring, and a per-slice C(T) inspector.
 
-Benchmark mode scores strategies on hull RMSE and missed/false stable phases
-against the exact hidden Hamiltonian. All problems run through one
-problem-agnostic campaign loop (`alloylab/problems/` adapters), so V3 (real
-DFT) slots in without touching the loop, executor, or failure policy.
+Benchmark mode scores strategies against the exact hidden Hamiltonian: hull
+RMSE and missed/false stable phases for the hull problems, mean |Tc error|
+(the plan's phase-boundary error) for the phase problem. All problems run
+through one problem-agnostic campaign loop (`alloylab/problems/` adapters), so
+V3 (real DFT) slots in without touching the loop, executor, or failure policy.
 
 ## Architecture (three layers, kept separate)
 
@@ -107,11 +116,10 @@ refits, injected failure → diagnose → retry → succeed — per plan section
 
 ## What's next (per the plan)
 
-- Milestone 5: finite-temperature T–x phase diagram — sweep
-  `alloyscience.fcc.run_canonical_mc` over (x, T), detect order/disorder
-  transitions, visualize with uncertainty bands
 - Milestone 6: ASE + Quantum ESPRESSO behind the same `STRUCTURE_ENERGY` job type
 - Milestone 7: swap the async executor for Temporal without touching the agent
+- Milestone 8: property search (bulk modulus) subject to finite-temperature
+  stability from the Milestone 5 boundary machinery
 
 Note: the dev database schema is created with `create_all` (no migrations yet);
 after pulling schema changes, delete the local `alloylab.db` file.

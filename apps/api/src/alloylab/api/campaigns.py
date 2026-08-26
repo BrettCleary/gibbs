@@ -20,6 +20,9 @@ from ..schemas import (
     CampaignRead,
     CampaignSurrogateView,
     HullPoint,
+    PhaseDiagramView,
+    PhaseMeasurementView,
+    PhaseSliceView,
     StartResponse,
     StructureRead,
     SurrogateModelRead,
@@ -38,13 +41,19 @@ async def _get_campaign(session: AsyncSession, campaign_id: str) -> Campaign:
 @router.post("", response_model=CampaignRead, status_code=201)
 async def create_campaign(body: CampaignCreate, session: AsyncSession = Depends(get_session)):
     is_alloy = body.problem_type.value in ("alloy_v1", "fcc_v2")
+    is_phase = body.problem_type.value == "phase_v2"
+    t_min, t_max = body.temperature_min, body.temperature_max
+    if is_phase and t_max <= 10.0:
+        # Phase campaigns run in Kelvin; replace untouched Ising-unit defaults.
+        # The window brackets the Tc range of the hidden-ECI distribution.
+        t_min, t_max = 100.0, 1200.0
     campaign = Campaign(
         name=body.name,
         objective=body.objective,
         problem_type=body.problem_type.value,
         strategy=body.strategy.value,
-        temperature_min=body.temperature_min,
-        temperature_max=body.temperature_max,
+        temperature_min=t_min,
+        temperature_max=t_max,
         composition_min=(body.composition_min if body.composition_min is not None else 0.0)
         if is_alloy
         else None,
@@ -58,11 +67,28 @@ async def create_campaign(body: CampaignCreate, session: AsyncSession = Depends(
         elements={
             "alloy_v1": ["A", "B"],
             "fcc_v2": ["Ni", "Al"],
+            "phase_v2": ["Ni", "Al"],
         }.get(body.problem_type.value, ["Ising spin"]),
     )
     session.add(campaign)
     await session.flush()
-    if is_alloy:
+    if is_phase:
+        from alloyscience.fcc import HiddenFccCE
+        from alloyscience.phase import phase_system
+
+        from ..agent.strategies import stable_seed
+
+        seed = stable_seed(campaign.id)
+        system = await run_in_threadpool(phase_system)
+        campaign.problem_config = {
+            "kind": "fcc_phase",
+            "hamiltonian": HiddenFccCE.random(
+                system.n_parameters, seed=seed, noise_sigma=0.0
+            ).to_dict(),
+            "slices": body.composition_slices or [0.25, 0.5, 0.75],
+            "oracle_seed": seed % 1_000_000,
+        }
+    elif is_alloy:
         # The secret physics: generated per campaign, visible only to the executor.
         from ..agent.strategies import stable_seed
 
@@ -281,6 +307,63 @@ async def get_hull_view(campaign_id: str, session: AsyncSession = Depends(get_se
         hull_e=hull_e,
         stable_labels=state.predicted_stable,
         endpoints_measured=state.endpoints_measured,
+    )
+
+
+@router.get("/{campaign_id}/phase-diagram", response_model=PhaseDiagramView)
+async def get_phase_diagram(campaign_id: str, session: AsyncSession = Depends(get_session)):
+    """T-x phase-diagram view: per-slice boundary estimates, curves, measurements."""
+    campaign = await _get_campaign(session, campaign_id)
+    if campaign.problem_type != "phase_v2":
+        raise HTTPException(
+            status_code=400, detail="phase diagram applies to phase campaigns only"
+        )
+    from ..problems.phase import build_phase_state
+
+    state = await build_phase_state(session, campaign)
+    model = (
+        await session.execute(
+            select(SurrogateModel)
+            .where(SurrogateModel.campaign_id == campaign_id)
+            .order_by(SurrogateModel.version.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    curves_by_x: dict = {}
+    if model is not None:
+        for entry in model.artifact.get("slices", []):
+            curves_by_x[round(float(entry["x"]), 6)] = entry
+
+    slices = []
+    for s in state.slices:
+        entry = curves_by_x.get(round(s.x, 6), {})
+        slices.append(
+            PhaseSliceView(
+                x=s.x,
+                tc_mean=s.tc_mean,
+                tc_std=s.tc_std,
+                tc_edge_pinned=s.tc_edge_pinned,
+                curve_t=entry.get("curve_t", []),
+                curve_mean=entry.get("curve_mean", []),
+                curve_std=entry.get("curve_std", []),
+                measured=[
+                    PhaseMeasurementView(
+                        calculation_id=m.calculation_id,
+                        temperature=m.temperature,
+                        heat_capacity=m.heat_capacity,
+                        heat_capacity_err=m.heat_capacity_err,
+                        sro=m.sro,
+                    )
+                    for m in s.measurements
+                ],
+            )
+        )
+    return PhaseDiagramView(
+        campaign_id=campaign_id,
+        model_version=model.version if model else None,
+        temperature_min=campaign.temperature_min,
+        temperature_max=campaign.temperature_max,
+        slices=slices,
     )
 
 

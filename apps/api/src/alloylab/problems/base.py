@@ -54,8 +54,14 @@ def get_problem(campaign: Campaign) -> Problem:
     from .alloy import AlloyProblem
     from .fcc import FccProblem
     from .ising import IsingProblem
+    from .phase import PhaseProblem
 
-    problems = {"ising_v0": IsingProblem, "alloy_v1": AlloyProblem, "fcc_v2": FccProblem}
+    problems = {
+        "ising_v0": IsingProblem,
+        "alloy_v1": AlloyProblem,
+        "fcc_v2": FccProblem,
+        "phase_v2": PhaseProblem,
+    }
     if campaign.problem_type not in problems:
         raise ValueError(f"unknown problem type {campaign.problem_type!r}")
     return problems[campaign.problem_type]()
