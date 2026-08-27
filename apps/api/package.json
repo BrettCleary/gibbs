@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "uv run --package alloylab uvicorn alloylab.main:app --reload --port 8000",
+    "worker": "uv run --package alloylab python -m alloylab.worker",
     "test": "uv run --package alloylab pytest tests -q",
     "generate": "uv run --package alloylab python -m alloylab.export_openapi ../../packages/api-client/openapi.json"
   }

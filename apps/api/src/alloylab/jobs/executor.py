@@ -1,14 +1,22 @@
-"""Async job executor for simulation calculations.
+"""Job execution for simulation calculations (plan section 11).
 
-This is the V0/V1 stand-in for Temporal (plan section 11): jobs are strongly
-typed rows in the `calculations` table, executed in worker threads with status
-transitions, provenance, categorised failures, and live events. The agent
-never runs shell commands — it only submits typed jobs through this layer.
+Jobs are strongly typed rows in the `calculations` table; the agent never runs
+shell commands — it only submits typed jobs through this layer.
+
+The durable unit is `execute_and_persist(calculation_id)`: idempotent, no
+event emission, safe to replay — it runs identically inside the local asyncio
+executor and inside a Temporal activity on a separate worker process
+(Milestone 7). Event emission (SSE) stays in the API process on either path.
+
+Failure semantics: scientific failures (SCF non-convergence, ...) are DATA —
+persisted as FAILED for the agent to reason about, never retried by the
+infrastructure. Only infrastructure failures (worker crash, timeout) surface
+as exceptions for Temporal's retry policy.
 
 Engines:
-  MONTE_CARLO       -> alloyscience.ising.IsingSimulator
-  STRUCTURE_ENERGY  -> alloyscience.alloy.StructureOracle (hidden Hamiltonian
-                       read from campaign.problem_config; never shown to the agent)
+  MONTE_CARLO       -> alloyscience.ising.IsingSimulator | mchammer (fcc_phase)
+  STRUCTURE_ENERGY  -> hidden Hamiltonian / hidden icet CE oracles, or real
+                       calculators (ASE EMT, Quantum ESPRESSO) for dft_v3
 """
 
 from __future__ import annotations
@@ -33,92 +41,149 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+async def execute_and_persist(calculation_id: str) -> str:
+    """Run one queued calculation and persist the outcome. Returns final status.
+
+    Idempotent: a replay (e.g. a Temporal activity retry after a worker crash
+    that happened post-persist) returns the stored status without re-running.
+    """
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        calc = (
+            await session.execute(
+                select(Calculation).where(Calculation.id == calculation_id)
+            )
+        ).scalar_one()
+        if calc.status in ("SUCCEEDED", "FAILED"):
+            return calc.status
+        campaign = await session.get(Campaign, calc.campaign_id)
+        problem_config = (campaign.problem_config or {}) if campaign else {}
+        structure_data = None
+        if calc.structure_id:
+            row = await session.get(Structure, calc.structure_id)
+            if row is not None:
+                structure_data = {
+                    "label": row.label,
+                    "x": float(row.composition),
+                    "n_sites": int(row.n_sites),
+                    "chemical_formula": row.chemical_formula,
+                    "cluster_vector": [float(f) for f in row.features],
+                    "cell": row.lattice,
+                    "positions": row.positions,
+                    "atomic_numbers": row.atomic_numbers,
+                }
+        calc.status = "RUNNING"
+        if calc.started_at is None:
+            calc.started_at = _now()
+        calculation_type = calc.calculation_type
+        engine = calc.engine
+        params = dict(calc.input_parameters)
+        await session.commit()
+
+    try:
+        output, provenance = await asyncio.to_thread(
+            _execute, calculation_type, calculation_id, params, problem_config, structure_data
+        )
+        async with session_factory() as session:
+            calc = await session.get(Calculation, calculation_id)
+            calc.status = "SUCCEEDED"
+            calc.completed_at = _now()
+            calc.output = output
+            calc.stdout_artifact = provenance.get("log_path")
+            calc.provenance = {
+                **provenance,
+                "engine": engine,
+                "input_parameters": params,
+                "seed": params.get("seed"),
+            }
+            await session.commit()
+        return "SUCCEEDED"
+    except SimulationFailure as failure:
+        async with session_factory() as session:
+            calc = await session.get(Calculation, calculation_id)
+            calc.status = "FAILED"
+            calc.completed_at = _now()
+            calc.failure_category = failure.category
+            calc.failure_metadata = failure.metadata
+            calc.stdout_artifact = failure.metadata.get("log_path")
+            await session.commit()
+        return "FAILED"
+
+
+async def mark_infrastructure_failure(calculation_id: str, message: str) -> None:
+    """Terminal infrastructure failure: retry policy exhausted / timeout / crash."""
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        calc = await session.get(Calculation, calculation_id)
+        if calc is None or calc.status in ("SUCCEEDED", "FAILED"):
+            return
+        calc.status = "FAILED"
+        calc.completed_at = _now()
+        calc.failure_category = "INFRASTRUCTURE_FAILURE"
+        calc.failure_metadata = {
+            "error": message[:2000],
+            "hint": "worker crash or timeout; the durable retry policy was exhausted",
+        }
+        await session.commit()
+
+
+async def emit_job_started(calculation_id: str) -> None:
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        calc = await session.get(Calculation, calculation_id)
+        if calc is None:
+            return
+        await emit_agent_event(
+            session,
+            calc.campaign_id,
+            "JOB_STARTED",
+            action=_start_text(calc),
+            tool_output_reference=f"calculation:{calc.id}",
+        )
+
+
+async def emit_job_completed(calculation_id: str) -> None:
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        calc = await session.get(Calculation, calculation_id)
+        if calc is None:
+            return
+        if calc.status == "SUCCEEDED":
+            await emit_agent_event(
+                session,
+                calc.campaign_id,
+                "JOB_SUCCEEDED",
+                action=_success_text(calc),
+                tool_output_reference=f"calculation:{calc.id}",
+                payload=_success_payload(calc),
+            )
+        elif calc.status == "FAILED":
+            await emit_agent_event(
+                session,
+                calc.campaign_id,
+                "JOB_FAILED",
+                action=f"Run failed: {calc.failure_category}",
+                tool_output_reference=f"calculation:{calc.id}",
+                payload={
+                    "failure_category": calc.failure_category,
+                    **(calc.failure_metadata or {}),
+                },
+            )
+
+
 class JobExecutor:
+    """Local in-process executor: the default, no external services needed."""
+
     def __init__(self, max_concurrent: int = 2):
         self._semaphore = asyncio.Semaphore(max_concurrent)
 
-    async def run_calculation(self, calculation_id: str) -> Calculation:
+    async def run_calculation(self, calculation_id: str) -> str:
         """Execute one queued calculation to completion (SUCCEEDED or FAILED)."""
         async with self._semaphore:
-            session_factory = get_session_factory()
-            async with session_factory() as session:
-                calc = (
-                    await session.execute(
-                        select(Calculation).where(Calculation.id == calculation_id)
-                    )
-                ).scalar_one()
-                campaign = await session.get(Campaign, calc.campaign_id)
-                problem_config = (campaign.problem_config or {}) if campaign else {}
-                structure_data = None
-                if calc.structure_id:
-                    row = await session.get(Structure, calc.structure_id)
-                    if row is not None:
-                        structure_data = {
-                            "label": row.label,
-                            "x": float(row.composition),
-                            "n_sites": int(row.n_sites),
-                            "chemical_formula": row.chemical_formula,
-                            "cluster_vector": [float(f) for f in row.features],
-                            "cell": row.lattice,
-                            "positions": row.positions,
-                            "atomic_numbers": row.atomic_numbers,
-                        }
-                calc.status = "RUNNING"
-                calc.started_at = _now()
-                await session.commit()
-                await emit_agent_event(
-                    session,
-                    calc.campaign_id,
-                    "JOB_STARTED",
-                    action=_start_text(calc),
-                    tool_output_reference=f"calculation:{calc.id}",
-                )
-
-                params = dict(calc.input_parameters)
-                try:
-                    output, provenance = await asyncio.to_thread(
-                        _execute,
-                        calc.calculation_type,
-                        calc.id,
-                        params,
-                        problem_config,
-                        structure_data,
-                    )
-                    calc.status = "SUCCEEDED"
-                    calc.completed_at = _now()
-                    calc.output = output
-                    calc.stdout_artifact = provenance.get("log_path")
-                    calc.provenance = {
-                        **provenance,
-                        "engine": calc.engine,
-                        "input_parameters": params,
-                        "seed": params.get("seed"),
-                    }
-                    await session.commit()
-                    await emit_agent_event(
-                        session,
-                        calc.campaign_id,
-                        "JOB_SUCCEEDED",
-                        action=_success_text(calc),
-                        tool_output_reference=f"calculation:{calc.id}",
-                        payload=_success_payload(calc),
-                    )
-                except SimulationFailure as failure:
-                    calc.status = "FAILED"
-                    calc.completed_at = _now()
-                    calc.failure_category = failure.category
-                    calc.failure_metadata = failure.metadata
-                    calc.stdout_artifact = failure.metadata.get("log_path")
-                    await session.commit()
-                    await emit_agent_event(
-                        session,
-                        calc.campaign_id,
-                        "JOB_FAILED",
-                        action=f"Run failed: {failure.category}",
-                        tool_output_reference=f"calculation:{calc.id}",
-                        payload={"failure_category": failure.category, **failure.metadata},
-                    )
-                return calc
+            await emit_job_started(calculation_id)
+            status = await execute_and_persist(calculation_id)
+            await emit_job_completed(calculation_id)
+            return status
 
 
 def _execute(

@@ -1,7 +1,7 @@
 # AlloyLab — Autonomous Alloy Scientist
 
 An autonomous computational materials-science platform (see `project_description.md`
-for the full plan). This repository currently implements **Milestones 1–6**: the
+for the full plan). This repository currently implements **Milestones 1–7**: the
 complete product loop — agent decisions, typed simulation jobs, surrogate models
 with uncertainty, failure recovery, live mission-control UI, and strategy
 benchmarks — built on synthetic problems first (as the plan prescribes) and now
@@ -43,6 +43,17 @@ running against **real first-principles calculations**:
   mode that occurs for real in elongated metallic cells. Physics settings are
   demo-grade (non-spin-polarised, modest k-mesh): ordered Ni-Al compounds come
   out stable, but numbers are not publication-quality.
+- **Durable execution (Milestone 7, Temporal)** — with `ALLOYLAB_EXECUTOR=temporal`
+  every calculation runs as a `RunCalculationWorkflow` on a Temporal task
+  queue, executed by separate worker processes (`pnpm --filter @alloylab/api
+  worker`). Kill a worker mid-campaign and the campaign stalls durably, then
+  resumes and completes when a worker returns; in-flight activities are
+  detected via heartbeats and retried. Scientific failures (SCF
+  non-convergence) remain DATA for the agent — only infrastructure failures
+  (crash/timeout) hit Temporal's retry policy, and exhausted retries surface
+  as `INFRASTRUCTURE_FAILURE` job records. Live SSE events still stream from
+  the API process; the durable unit (`execute_and_persist`) is idempotent and
+  identical on the local and Temporal paths.
 
 Benchmark mode scores strategies against the exact hidden Hamiltonian: hull
 RMSE and missed/false stable phases for the hull problems, mean |Tc error|
@@ -121,6 +132,20 @@ The env-gated science test `test_espresso_real_scf_on_pure_ni` runs a real SCF
 when `ALLOYLAB_PW_COMMAND` is set. Espresso campaigns take minutes per
 structure — Milestone 7 (Temporal) is where these long jobs become durable.
 
+### Durable execution (Temporal)
+
+```bash
+brew install temporal
+temporal server start-dev                      # UI at http://localhost:8233
+export ALLOYLAB_EXECUTOR=temporal
+pnpm --filter @alloylab/api worker             # one or more workers
+pnpm --filter @alloylab/api dev                # the API
+```
+
+(`infra/temporal/docker-compose.yml` is the container alternative.) The
+env-gated test `ALLOYLAB_TEMPORAL_TEST=1 pytest apps/api/tests/test_executor.py`
+runs a full campaign through a real local Temporal server.
+
 ### Database
 
 SQLite by default (`alloylab.db` in the API working directory). For PostgreSQL:
@@ -143,10 +168,10 @@ refits, injected failure → diagnose → retry → succeed — per plan section
 
 ## What's next (per the plan)
 
-- Milestone 7: swap the async executor for Temporal without touching the agent
-  (worker restarts, retry policies, timeouts for the minutes-long pw.x jobs)
 - Milestone 8: property search (bulk modulus — the EMT engine already computes
   it per structure) subject to finite-temperature stability from Milestone 5
+- Milestone 9: the full autonomous campaign chaining structure selection →
+  DFT → CE → MC → candidate ranking → final recommendation
 
 Note: the dev database schema is created with `create_all` (no migrations yet);
 after pulling schema changes, delete the local `alloylab.db` file.

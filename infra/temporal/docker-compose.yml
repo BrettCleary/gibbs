@@ -1,0 +1,18 @@
+# Temporal server for durable execution (Milestone 7).
+#
+# For local development the Temporal CLI dev server is simpler:
+#   brew install temporal
+#   temporal server start-dev          # UI at http://localhost:8233
+#
+# This compose file is the container alternative:
+#   docker compose -f infra/temporal/docker-compose.yml up -d
+#
+# Then run the API with ALLOYLAB_EXECUTOR=temporal and start one or more workers:
+#   uv run --package alloylab python -m alloylab.worker
+services:
+  temporal:
+    image: temporalio/server:latest
+    ports:
+      - "7233:7233"
+      - "8233:8233"
+    command: ["server", "start-dev", "--ip", "0.0.0.0", "--ui-port", "8233"]

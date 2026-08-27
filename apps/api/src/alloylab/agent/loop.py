@@ -21,7 +21,7 @@ from ..config import get_settings
 from ..db.base import get_session_factory
 from ..db.models import AgentRun, Calculation, Campaign
 from ..events import emit_agent_event as emit
-from ..jobs import JobExecutor
+from ..jobs import JobExecutor, create_executor
 from .decisions import ActionType, ScientificDecision
 
 logger = logging.getLogger(__name__)
@@ -39,9 +39,9 @@ class CampaignRunnerRegistry:
         self._executor: JobExecutor | None = None
 
     @property
-    def executor(self) -> JobExecutor:
+    def executor(self):
         if self._executor is None:
-            self._executor = JobExecutor(max_concurrent=get_settings().max_concurrent_jobs)
+            self._executor = create_executor(get_settings())
         return self._executor
 
     def is_running(self, campaign_id: str) -> bool:

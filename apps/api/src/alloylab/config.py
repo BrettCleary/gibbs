@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     pw_command: str = "pw.x"
     pseudo_dir: str = "infra/pseudopotentials"
     omp_num_threads: int = 4
+    # Durable execution (Milestone 7). executor: "local" | "temporal".
+    executor: str = "local"
+    temporal_address: str = "localhost:7233"
+    temporal_task_queue: str = "alloylab-calculations"
+    job_timeout_seconds: int = 1800
 
     model_config = SettingsConfigDict(env_prefix="ALLOYLAB_", env_file=".env", extra="ignore")
 
