@@ -9,6 +9,7 @@ import { EventFeed } from "@/components/EventFeed";
 import { CalculationsTable } from "@/components/CalculationsTable";
 import { AlloyDashboard } from "@/components/AlloyDashboard";
 import { PhaseDashboard } from "@/components/PhaseDashboard";
+import { PropertyDashboard } from "@/components/PropertyDashboard";
 
 export default function CampaignDashboard({
   params,
@@ -33,6 +34,7 @@ export default function CampaignDashboard({
   const running = campaign.data?.status === "RUNNING";
   const problemType = campaign.data?.problem_type;
   const isPhase = problemType === "phase_v2";
+  const isProperty = problemType === "property_v3";
   const isAlloy =
     problemType === "alloy_v1" || problemType === "fcc_v2" || problemType === "dft_v3";
 
@@ -45,7 +47,7 @@ export default function CampaignDashboard({
       return data!;
     },
     refetchInterval: running ? 2500 : false,
-    enabled: campaign.data != null && !isAlloy && !isPhase,
+    enabled: campaign.data != null && !isAlloy && !isPhase && !isProperty,
   });
 
   const hull = useQuery({
@@ -120,7 +122,9 @@ export default function CampaignDashboard({
             <h1 className="text-base font-semibold">{c.name}</h1>
             <StatusBadge status={c.status} />
             <span className="mono text-[10px] uppercase tracking-wider text-[var(--text-dim)]">
-              {problemType === "phase_v2"
+              {problemType === "property_v3"
+                ? "property search M8 (stiff & stable)"
+                : problemType === "phase_v2"
                 ? "phase diagram M5 (mchammer)"
                 : problemType === "dft_v3"
                   ? "real calculator M6 (ASE)"
@@ -140,7 +144,7 @@ export default function CampaignDashboard({
         </div>
         <div className="mono text-[12px]">
           <div className="text-[var(--text-dim)]">
-            {isAlloy ? "oracle budget" : "MC budget"}
+            {isAlloy || isProperty ? "query budget" : "MC budget"}
           </div>
           <div className="mt-1 text-sm">
             {c.simulations_used} / {c.simulation_budget}
@@ -152,7 +156,13 @@ export default function CampaignDashboard({
             />
           </div>
         </div>
-        {isPhase ? (
+        {isProperty ? (
+          <div className="mono text-[12px]">
+            <div className="text-[var(--text-dim)]">objective</div>
+            <div className="mt-1 text-sm text-[var(--good)]">max B · stable · ordered</div>
+            <div className="mt-0.5 text-[11px] text-[var(--text-dim)]">strategy: {c.strategy}</div>
+          </div>
+        ) : isPhase ? (
           <div className="mono text-[12px]">
             <div className="text-[var(--text-dim)]">phase boundaries</div>
             <div className="mt-1 text-sm text-[var(--warn)]">
@@ -225,7 +235,9 @@ export default function CampaignDashboard({
         )}
       </div>
 
-      {isPhase ? (
+      {isProperty ? (
+        <PropertyDashboard campaignId={id} running={running} />
+      ) : isPhase ? (
         <PhaseDashboard campaignId={id} running={running} />
       ) : isAlloy ? (
         <AlloyDashboard campaignId={id} running={running} />
@@ -263,7 +275,7 @@ export default function CampaignDashboard({
         </div>
       )}
 
-      {(isAlloy || isPhase) && (
+      {(isAlloy || isPhase || isProperty) && (
         <div className="panel">
           <div className="border-b border-[var(--border)] px-4 py-2.5">
             <h2 className="mono text-[11px] font-bold tracking-wider text-[var(--text-dim)]">

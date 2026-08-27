@@ -56,6 +56,7 @@ def get_problem(campaign: Campaign) -> Problem:
     from .fcc import FccProblem
     from .ising import IsingProblem
     from .phase import PhaseProblem
+    from .property import PropertyProblem
 
     problems = {
         "ising_v0": IsingProblem,
@@ -63,6 +64,7 @@ def get_problem(campaign: Campaign) -> Problem:
         "fcc_v2": FccProblem,
         "phase_v2": PhaseProblem,
         "dft_v3": DftProblem,
+        "property_v3": PropertyProblem,
     }
     if campaign.problem_type not in problems:
         raise ValueError(f"unknown problem type {campaign.problem_type!r}")

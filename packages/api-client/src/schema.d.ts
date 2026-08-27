@@ -181,6 +181,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/campaigns/{campaign_id}/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Candidates
+         * @description Ranked candidates for property campaigns (plan section 14).
+         */
+        get: operations["get_candidates_campaigns__campaign_id__candidates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/campaigns/{campaign_id}/phase-diagram": {
         parameters: {
             query?: never;
@@ -434,7 +454,7 @@ export interface components {
          * BenchmarkProblem
          * @enum {string}
          */
-        BenchmarkProblem: "ising" | "alloy" | "fcc" | "phase";
+        BenchmarkProblem: "ising" | "alloy" | "fcc" | "phase" | "property";
         /** BenchmarkRead */
         BenchmarkRead: {
             /** Id */
@@ -542,6 +562,17 @@ export interface components {
             composition_slices?: number[] | null;
             /** @default agent */
             strategy: components["schemas"]["StrategyName"];
+            /**
+             * @description Energy/property engine for property_v3 campaigns: hidden synthetic oracle (benchmarkable) or EMT (real classical potential).
+             * @default hidden
+             */
+            property_engine: components["schemas"]["PropertyEngine"];
+            /**
+             * Temperature Threshold
+             * @description Property campaigns: candidates must stay ordered below this T (K).
+             * @default 1200
+             */
+            temperature_threshold: number;
             /**
              * @description Energy engine for dft_v3 campaigns: 'emt' (fast classical potential) or 'espresso' (real Quantum ESPRESSO DFT; needs pw.x + pseudos).
              * @default emt
@@ -651,6 +682,47 @@ export interface components {
             /** Tc Std */
             tc_std: number | null;
         };
+        /** CandidateRead */
+        CandidateRead: {
+            /** Label */
+            label: string;
+            /** X */
+            x: number;
+            /** E Form */
+            e_form: number;
+            /** E Form Std */
+            e_form_std: number;
+            /** E Above Hull */
+            e_above_hull: number;
+            /** Bulk Modulus */
+            bulk_modulus: number;
+            /** Bulk Modulus Std */
+            bulk_modulus_std: number;
+            /** Measured */
+            measured: boolean;
+            /** Stable 0K */
+            stable_0k: boolean;
+            /** Stability At Threshold */
+            stability_at_threshold: string;
+            /** Score */
+            score: number;
+        };
+        /**
+         * CandidatesView
+         * @description Plan section 14: the ranked candidate table.
+         */
+        CandidatesView: {
+            /** Campaign Id */
+            campaign_id: string;
+            /** Temperature Threshold */
+            temperature_threshold: number;
+            /** Model Version */
+            model_version: number | null;
+            /** Top Candidate Label */
+            top_candidate_label: string | null;
+            /** Candidates */
+            candidates: components["schemas"]["CandidateRead"][];
+        };
         /**
          * DftEngine
          * @enum {string}
@@ -751,7 +823,12 @@ export interface components {
          * ProblemType
          * @enum {string}
          */
-        ProblemType: "ising_v0" | "alloy_v1" | "fcc_v2" | "phase_v2" | "dft_v3";
+        ProblemType: "ising_v0" | "alloy_v1" | "fcc_v2" | "phase_v2" | "dft_v3" | "property_v3";
+        /**
+         * PropertyEngine
+         * @enum {string}
+         */
+        PropertyEngine: "hidden" | "emt";
         /** StartResponse */
         StartResponse: {
             /** Campaign Id */
@@ -1168,6 +1245,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AlloyHullView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_candidates_campaigns__campaign_id__candidates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidatesView"];
                 };
             };
             /** @description Validation Error */

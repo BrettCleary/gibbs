@@ -66,6 +66,8 @@ async def _execute(benchmark_id: str, config: BenchmarkCreate) -> None:
             results, summary = await _run_hull_problem(config, run_fcc_benchmark, "fcc")
         elif config.problem.value == "phase":
             results, summary = await _run_phase(config)
+        elif config.problem.value == "property":
+            results, summary = await _run_property(config)
         else:
             results, summary = await _run_ising(config)
 
@@ -106,6 +108,32 @@ async def _run_phase(config: BenchmarkCreate) -> tuple[list, dict]:
         summary["per_strategy"][strategy_name] = {
             "mean_boundary_error": sum(r["boundary_error"] for r in rows) / len(rows),
             "max_boundary_error": max(r["max_boundary_error"] for r in rows),
+            "n_runs": len(rows),
+        }
+    return results, summary
+
+
+async def _run_property(config: BenchmarkCreate) -> tuple[list, dict]:
+    """Property-search benchmark: regret in GPa vs the truly best stable intermetallic."""
+    from alloyscience.property import run_property_benchmark
+
+    results = []
+    for strategy_name in [s.value for s in config.strategies]:
+        # grid -> coverage; uncertainty -> property-directed acquisition (the agent's heuristic).
+        prop_strategy = {"grid": "coverage", "uncertainty": "property"}.get(strategy_name, strategy_name)
+        for seed in config.seeds:
+            result = await asyncio.to_thread(run_property_benchmark, prop_strategy, config.budget, seed)
+            d = result.to_dict()
+            d["strategy"] = strategy_name
+            results.append(d)
+
+    summary: dict = {"problem": "property", "per_strategy": {}}
+    for strategy_name in {r["strategy"] for r in results}:
+        rows = [r for r in results if r["strategy"] == strategy_name]
+        summary["per_strategy"][strategy_name] = {
+            "mean_regret_gpa": sum(r["regret_gpa"] for r in rows) / len(rows),
+            "max_regret_gpa": max(r["regret_gpa"] for r in rows),
+            "frac_truly_stable": sum(1 for r in rows if r["recommended_truly_stable"]) / len(rows),
             "n_runs": len(rows),
         }
     return results, summary

@@ -17,6 +17,8 @@ from ..schemas import (
     AlloyHullView,
     CalculationRead,
     CampaignCreate,
+    CandidateRead,
+    CandidatesView,
     CampaignRead,
     CampaignSurrogateView,
     HullPoint,
@@ -40,7 +42,7 @@ async def _get_campaign(session: AsyncSession, campaign_id: str) -> Campaign:
 
 @router.post("", response_model=CampaignRead, status_code=201)
 async def create_campaign(body: CampaignCreate, session: AsyncSession = Depends(get_session)):
-    is_alloy = body.problem_type.value in ("alloy_v1", "fcc_v2", "dft_v3")
+    is_alloy = body.problem_type.value in ("alloy_v1", "fcc_v2", "dft_v3", "property_v3")
     is_phase = body.problem_type.value == "phase_v2"
     t_min, t_max = body.temperature_min, body.temperature_max
     if is_phase and t_max <= 10.0:
@@ -69,6 +71,7 @@ async def create_campaign(body: CampaignCreate, session: AsyncSession = Depends(
             "fcc_v2": ["Ni", "Al"],
             "phase_v2": ["Ni", "Al"],
             "dft_v3": ["Ni", "Al"],
+            "property_v3": ["Ni", "Al"],
         }.get(body.problem_type.value, ["Ising spin"]),
     )
     session.add(campaign)
@@ -89,6 +92,30 @@ async def create_campaign(body: CampaignCreate, session: AsyncSession = Depends(
             "slices": body.composition_slices or [0.25, 0.5, 0.75],
             "oracle_seed": seed % 1_000_000,
         }
+    elif body.problem_type.value == "property_v3":
+        from alloyscience.fcc import HiddenFccCE
+        from alloyscience.property import HiddenBulkModulusModel
+        from alloyscience.property.benchmark import property_pool
+
+        from ..agent.strategies import stable_seed
+
+        seed = stable_seed(campaign.id)
+        system, pool = await run_in_threadpool(property_pool)
+        hidden = HiddenFccCE.random(system.n_parameters, seed=seed)
+        pure_a = next(s for s in pool if s.x == 0.0)
+        pure_b = next(s for s in pool if s.x == 1.0)
+        config = {
+            "kind": "property",
+            "engine": body.property_engine.value,
+            "t_threshold": body.temperature_threshold,
+            "max_size": 5,
+            "hamiltonian": hidden.to_dict(),
+            "b_model": HiddenBulkModulusModel.random(seed).to_dict(),
+            "e_pure_a": hidden.energy_per_site(pure_a),
+            "e_pure_b": hidden.energy_per_site(pure_b),
+            "oracle_seed": seed % 1_000_000,
+        }
+        campaign.problem_config = config
     elif body.problem_type.value == "dft_v3":
         # No hidden physics here — a real energy engine answers the queries.
         engine = body.dft_engine.value
@@ -273,7 +300,7 @@ async def list_structures(campaign_id: str, session: AsyncSession = Depends(get_
 async def get_hull_view(campaign_id: str, session: AsyncSession = Depends(get_session)):
     """Formation-energy hull view for alloy campaigns: measurements, predictions, hull."""
     campaign = await _get_campaign(session, campaign_id)
-    if campaign.problem_type not in ("alloy_v1", "fcc_v2", "dft_v3"):
+    if campaign.problem_type not in ("alloy_v1", "fcc_v2", "dft_v3", "property_v3"):
         raise HTTPException(status_code=400, detail="hull view applies to alloy campaigns only")
 
     from ..problems.alloy import build_alloy_state
@@ -334,6 +361,24 @@ async def get_hull_view(campaign_id: str, session: AsyncSession = Depends(get_se
         hull_e=hull_e,
         stable_labels=state.predicted_stable,
         endpoints_measured=state.endpoints_measured,
+    )
+
+
+@router.get("/{campaign_id}/candidates", response_model=CandidatesView)
+async def get_candidates(campaign_id: str, session: AsyncSession = Depends(get_session)):
+    """Ranked candidates for property campaigns (plan section 14)."""
+    campaign = await _get_campaign(session, campaign_id)
+    if campaign.problem_type != "property_v3":
+        raise HTTPException(status_code=400, detail="candidates apply to property campaigns only")
+    from ..problems.property import build_property_state
+
+    state = await build_property_state(session, campaign)
+    return CandidatesView(
+        campaign_id=campaign_id,
+        temperature_threshold=state.temperature_threshold,
+        model_version=state.latest_model.version if state.latest_model else None,
+        top_candidate_label=state.top_candidate_label,
+        candidates=[CandidateRead(**c.model_dump()) for c in state.candidates],
     )
 
 

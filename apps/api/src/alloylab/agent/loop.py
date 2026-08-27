@@ -152,6 +152,9 @@ async def run_campaign_loop(campaign_id: str, agent_run_id: str, executor: JobEx
 
             if decision.action_type == ActionType.FINISH_CAMPAIGN:
                 await _finish(session, campaign, agent_run_id, decision)
+                finalize = getattr(problem, "finalize", None)
+                if finalize is not None:
+                    await finalize(session, campaign, agent_run_id)
                 break
 
             if decision.action_type == ActionType.ABANDON_CALCULATION:

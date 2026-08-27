@@ -1,7 +1,7 @@
 # AlloyLab — Autonomous Alloy Scientist
 
 An autonomous computational materials-science platform (see `project_description.md`
-for the full plan). This repository currently implements **Milestones 1–7**: the
+for the full plan). This repository currently implements **Milestones 1–8**: the
 complete product loop — agent decisions, typed simulation jobs, surrogate models
 with uncertainty, failure recovery, live mission-control UI, and strategy
 benchmarks — built on synthetic problems first (as the plan prescribes) and now
@@ -54,6 +54,17 @@ running against **real first-principles calculations**:
   as `INFRASTRUCTURE_FAILURE` job records. Live SSE events still stream from
   the API process; the durable unit (`execute_and_persist`) is idempotent and
   identical on the local and Temporal paths.
+- **Property search (Milestone 8, plan section 22 V3)** — "find the stiffest
+  FCC Ni-Al ordering that is thermodynamically stable AND stays ordered below
+  a threshold temperature." Each query returns energy and bulk modulus (hidden
+  synthetic oracle with exact ground truth, or the real EMT engine); two
+  bootstrap surrogates over the cluster vectors (energy -> hull, bulk modulus)
+  feed a ranked candidate table (plan section 14: stable / property / uncertainty);
+  the agent then spends the tail of its budget on canonical-MC verification at
+  the threshold temperature ON ITS OWN FITTED CE (Milestone 5 machinery as a
+  tool) and disqualifies candidates that disorder. A `FINAL_RECOMMENDATION`
+  event closes the campaign; benchmark mode scores strategies by regret in GPa
+  against the truly best stable intermetallic.
 
 Benchmark mode scores strategies against the exact hidden Hamiltonian: hull
 RMSE and missed/false stable phases for the hull problems, mean |Tc error|
@@ -168,10 +179,9 @@ refits, injected failure → diagnose → retry → succeed — per plan section
 
 ## What's next (per the plan)
 
-- Milestone 8: property search (bulk modulus — the EMT engine already computes
-  it per structure) subject to finite-temperature stability from Milestone 5
-- Milestone 9: the full autonomous campaign chaining structure selection →
-  DFT → CE → MC → candidate ranking → final recommendation
+- Milestone 9: the full autonomous campaign — chain structure selection → DFT
+  → CE → MC → candidate ranking → final recommendation end-to-end on the real
+  engines, with the LLM scientist driving every stage
 
 Note: the dev database schema is created with `create_all` (no migrations yet);
 after pulling schema changes, delete the local `alloylab.db` file.

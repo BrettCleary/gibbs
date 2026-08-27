@@ -30,6 +30,7 @@ class ProblemType(str, Enum):
     fcc_v2 = "fcc_v2"
     phase_v2 = "phase_v2"
     dft_v3 = "dft_v3"
+    property_v3 = "property_v3"
 
 
 DEFAULT_OBJECTIVES = {
@@ -44,7 +45,14 @@ DEFAULT_OBJECTIVES = {
     "most uncertain boundaries.",
     ProblemType.dft_v3: "Discover the stable ordered FCC Ni-Al structures with real "
     "first-principles calculations, using as few expensive runs as possible.",
+    ProblemType.property_v3: "Find the FCC Ni-Al ordering with the highest bulk modulus "
+    "that is thermodynamically stable and remains ordered below the threshold temperature.",
 }
+
+
+class PropertyEngine(str, Enum):
+    hidden = "hidden"
+    emt = "emt"
 
 
 class DftEngine(str, Enum):
@@ -67,6 +75,14 @@ class CampaignCreate(BaseModel):
         "(each strictly between 0 and 1; default [0.25, 0.5, 0.75]).",
     )
     strategy: StrategyName = StrategyName.agent
+    property_engine: PropertyEngine = Field(
+        default=PropertyEngine.hidden,
+        description="Energy/property engine for property_v3 campaigns: hidden synthetic "
+        "oracle (benchmarkable) or EMT (real classical potential).",
+    )
+    temperature_threshold: float = Field(
+        default=1200.0, gt=0, description="Property campaigns: candidates must stay ordered below this T (K)."
+    )
     dft_engine: DftEngine = Field(
         default=DftEngine.emt,
         description="Energy engine for dft_v3 campaigns: 'emt' (fast classical "
@@ -270,11 +286,36 @@ class PhaseDiagramView(BaseModel):
     slices: list[PhaseSliceView]
 
 
+class CandidateRead(BaseModel):
+    label: str
+    x: float
+    e_form: float
+    e_form_std: float
+    e_above_hull: float
+    bulk_modulus: float
+    bulk_modulus_std: float
+    measured: bool
+    stable_0k: bool
+    stability_at_threshold: str
+    score: float
+
+
+class CandidatesView(BaseModel):
+    """Plan section 14: the ranked candidate table."""
+
+    campaign_id: str
+    temperature_threshold: float
+    model_version: int | None
+    top_candidate_label: str | None
+    candidates: list[CandidateRead]
+
+
 class BenchmarkProblem(str, Enum):
     ising = "ising"
     alloy = "alloy"
     fcc = "fcc"
     phase = "phase"
+    property = "property"
 
 
 class BenchmarkCreate(BaseModel):

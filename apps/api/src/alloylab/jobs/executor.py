@@ -195,12 +195,18 @@ def _execute(
 ) -> tuple[dict, dict]:
     """Runs in a worker thread; returns (output, provenance)."""
     if calculation_type == "MONTE_CARLO":
+        if "ecis" in params:
+            # Verification MC on the AGENT'S fitted CE (no hidden information).
+            return _execute_phase_mc(calculation_id, params, {"hamiltonian": {"ecis": params["ecis"]}})
         if problem_config.get("kind") == "fcc_phase":
             return _execute_phase_mc(calculation_id, params, problem_config)
         return _execute_monte_carlo(calculation_id, params)
     if calculation_type == "STRUCTURE_ENERGY":
-        if problem_config.get("kind") == "ase_calculator":
+        kind = problem_config.get("kind")
+        if kind == "ase_calculator" or (kind == "property" and problem_config.get("engine") == "emt"):
             return _execute_ase_calculator(calculation_id, params, problem_config, structure_data)
+        if kind == "property":
+            return _execute_property_oracle(calculation_id, params, problem_config, structure_data)
         return _execute_structure_energy(params, problem_config)
     raise SimulationFailure(
         category="UNSUPPORTED_CALCULATION",
@@ -331,6 +337,37 @@ def _execute_ase_calculator(
         "log_path": result.log_path,
     }
     return output, provenance
+
+
+def _execute_property_oracle(
+    calculation_id: str, params: dict, problem_config: dict, structure_data: dict | None
+) -> tuple[dict, dict]:
+    """Hidden CE energy + hidden bulk-modulus oracle (Milestone 8 synthetic V3)."""
+    from alloyscience.fcc import HiddenFccCE
+    from alloyscience.property import HiddenBulkModulusModel, PropertyOracle
+
+    hidden = HiddenFccCE.from_dict(problem_config.get("hamiltonian", {}))
+    b_model = HiddenBulkModulusModel.from_dict(problem_config.get("b_model", {}))
+    structure = _FeatureStructure(str(params["structure_label"]), params["features"])
+    structure.x = float(params["composition"])
+    oracle = PropertyOracle(
+        hidden, b_model,
+        e_pure_a=float(problem_config.get("e_pure_a", 0.0)),
+        e_pure_b=float(problem_config.get("e_pure_b", 0.0)),
+        failure_rate=float(params.get("failure_rate", 0.0)),
+        seed=int(problem_config.get("oracle_seed", 0)),
+    )
+    energy, bulk = oracle.evaluate(
+        structure, query_seed=int(params.get("seed", 0)), is_retry=bool(params.get("is_retry", False))
+    )
+    output = {
+        "energy_per_site": float(energy), "bulk_modulus_gpa": float(bulk),
+        "structure_label": structure.label, "composition": structure.x,
+    }
+    return output, {
+        "engine_detail": "hidden cluster expansion + hidden bulk-modulus model (parameters withheld)",
+        "noise_model": "gaussian, deterministic per (structure, seed)",
+    }
 
 
 def _execute_monte_carlo(calculation_id: str, params: dict) -> tuple[dict, dict]:

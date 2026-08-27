@@ -16,6 +16,8 @@ export type HullView = components["schemas"]["AlloyHullView"];
 export type HullPoint = components["schemas"]["HullPoint"];
 export type PhaseDiagramView = components["schemas"]["PhaseDiagramView"];
 export type PhaseSliceView = components["schemas"]["PhaseSliceView"];
+export type CandidatesView = components["schemas"]["CandidatesView"];
+export type CandidateRead = components["schemas"]["CandidateRead"];
 
 export function createApiClient(baseUrl: string) {
   return createClient<paths>({ baseUrl });

@@ -476,6 +476,49 @@
         }
       }
     },
+    "/campaigns/{campaign_id}/candidates": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Get Candidates",
+        "description": "Ranked candidates for property campaigns (plan section 14).",
+        "operationId": "get_candidates_campaigns__campaign_id__candidates_get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidatesView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/campaigns/{campaign_id}/phase-diagram": {
       "get": {
         "tags": [
@@ -1089,7 +1132,8 @@
           "ising",
           "alloy",
           "fcc",
-          "phase"
+          "phase",
+          "property"
         ],
         "title": "BenchmarkProblem"
       },
@@ -1444,6 +1488,18 @@
             "$ref": "#/components/schemas/StrategyName",
             "default": "agent"
           },
+          "property_engine": {
+            "$ref": "#/components/schemas/PropertyEngine",
+            "description": "Energy/property engine for property_v3 campaigns: hidden synthetic oracle (benchmarkable) or EMT (real classical potential).",
+            "default": "hidden"
+          },
+          "temperature_threshold": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Temperature Threshold",
+            "description": "Property campaigns: candidates must stay ordered below this T (K).",
+            "default": 1200.0
+          },
           "dft_engine": {
             "$ref": "#/components/schemas/DftEngine",
             "description": "Energy engine for dft_v3 campaigns: 'emt' (fast classical potential) or 'espresso' (real Quantum ESPRESSO DFT; needs pw.x + pseudos).",
@@ -1736,6 +1792,120 @@
         "title": "CampaignSurrogateView",
         "description": "Everything the dashboard needs to draw chi(T) with uncertainty."
       },
+      "CandidateRead": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "x": {
+            "type": "number",
+            "title": "X"
+          },
+          "e_form": {
+            "type": "number",
+            "title": "E Form"
+          },
+          "e_form_std": {
+            "type": "number",
+            "title": "E Form Std"
+          },
+          "e_above_hull": {
+            "type": "number",
+            "title": "E Above Hull"
+          },
+          "bulk_modulus": {
+            "type": "number",
+            "title": "Bulk Modulus"
+          },
+          "bulk_modulus_std": {
+            "type": "number",
+            "title": "Bulk Modulus Std"
+          },
+          "measured": {
+            "type": "boolean",
+            "title": "Measured"
+          },
+          "stable_0k": {
+            "type": "boolean",
+            "title": "Stable 0K"
+          },
+          "stability_at_threshold": {
+            "type": "string",
+            "title": "Stability At Threshold"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "x",
+          "e_form",
+          "e_form_std",
+          "e_above_hull",
+          "bulk_modulus",
+          "bulk_modulus_std",
+          "measured",
+          "stable_0k",
+          "stability_at_threshold",
+          "score"
+        ],
+        "title": "CandidateRead"
+      },
+      "CandidatesView": {
+        "properties": {
+          "campaign_id": {
+            "type": "string",
+            "title": "Campaign Id"
+          },
+          "temperature_threshold": {
+            "type": "number",
+            "title": "Temperature Threshold"
+          },
+          "model_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Version"
+          },
+          "top_candidate_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top Candidate Label"
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateRead"
+            },
+            "type": "array",
+            "title": "Candidates"
+          }
+        },
+        "type": "object",
+        "required": [
+          "campaign_id",
+          "temperature_threshold",
+          "model_version",
+          "top_candidate_label",
+          "candidates"
+        ],
+        "title": "CandidatesView",
+        "description": "Plan section 14: the ranked candidate table."
+      },
       "DftEngine": {
         "type": "string",
         "enum": [
@@ -1968,9 +2138,18 @@
           "alloy_v1",
           "fcc_v2",
           "phase_v2",
-          "dft_v3"
+          "dft_v3",
+          "property_v3"
         ],
         "title": "ProblemType"
+      },
+      "PropertyEngine": {
+        "type": "string",
+        "enum": [
+          "hidden",
+          "emt"
+        ],
+        "title": "PropertyEngine"
       },
       "StartResponse": {
         "properties": {

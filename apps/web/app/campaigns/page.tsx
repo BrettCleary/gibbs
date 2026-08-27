@@ -113,8 +113,8 @@ function CampaignForm({
   error: string | null;
 }) {
   const [form, setForm] = useState({
-    name: "Ni–Al ground-state search",
-    problem_type: "dft_v3",
+    name: "Stiffest stable Ni–Al intermetallic",
+    problem_type: "property_v3",
     strategy: "uncertainty",
     simulation_budget: 15,
     lattice_size: 24,
@@ -122,14 +122,17 @@ function CampaignForm({
     temperature_max: 3.5,
     failure_rate: 0.15,
     dft_engine: "emt",
+    property_engine: "hidden",
+    temperature_threshold: 1200,
     target_uncertainty: "" as string,
     phase_t_min: 100,
     phase_t_max: 1200,
   });
   const isPhase = form.problem_type === "phase_v2";
   const isDft = form.problem_type === "dft_v3";
+  const isProperty = form.problem_type === "property_v3";
   const isAlloy =
-    form.problem_type === "alloy_v1" || form.problem_type === "fcc_v2" || isDft;
+    form.problem_type === "alloy_v1" || form.problem_type === "fcc_v2" || isDft || isProperty;
 
   const field = "flex flex-col gap-1 text-[12px] text-[var(--text-dim)]";
   const input =
@@ -146,6 +149,8 @@ function CampaignForm({
           objective: "",
           strategy: form.strategy as CampaignCreate["strategy"],
           dft_engine: form.dft_engine as CampaignCreate["dft_engine"],
+          property_engine: form.property_engine as CampaignCreate["property_engine"],
+          temperature_threshold: Number(form.temperature_threshold),
           simulation_budget: Number(form.simulation_budget),
           lattice_size: Number(form.lattice_size),
           temperature_min: Number(
@@ -176,6 +181,7 @@ function CampaignForm({
           value={form.problem_type}
           onChange={(e) => setForm({ ...form, problem_type: e.target.value })}
         >
+          <option value="property_v3">Stiff &amp; stable Ni–Al search (M8)</option>
           <option value="dft_v3">Real DFT / EMT, Ni–Al (M6)</option>
           <option value="phase_v2">Ni–Al phase diagram, MC (M5)</option>
           <option value="fcc_v2">FCC Ni–Al, icet (V2)</option>
@@ -242,6 +248,21 @@ function CampaignForm({
               value={form.temperature_max}
               onChange={(e) => setForm({ ...form, temperature_max: Number(e.target.value) })}
             />
+          </label>
+        </>
+      )}
+      {isProperty && (
+        <>
+          <label className={field}>
+            property engine
+            <select className={input} value={form.property_engine} onChange={(e) => setForm({ ...form, property_engine: e.target.value })}>
+              <option value="hidden">hidden oracle (benchmarkable)</option>
+              <option value="emt">EMT classical potential (real)</option>
+            </select>
+          </label>
+          <label className={field}>
+            stability threshold T (K)
+            <input className={input} type="number" step={50} value={form.temperature_threshold} onChange={(e) => setForm({ ...form, temperature_threshold: Number(e.target.value) })} />
           </label>
         </>
       )}
