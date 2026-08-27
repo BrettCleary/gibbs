@@ -18,10 +18,10 @@ from .db.models import AgentEvent, Calculation, Campaign, SurrogateModel
 PROBLEM_TITLES = {
     "ising_v0": "2D Ising critical-region search",
     "alloy_v1": "Binary lattice-model ground-state search",
-    "fcc_v2": "FCC Ni-Al hull discovery (hidden cluster expansion)",
-    "phase_v2": "FCC Ni-Al order/disorder phase-boundary mapping",
-    "dft_v3": "FCC Ni-Al hull discovery with a real energy engine",
-    "property_v3": "Stiff-and-stable FCC Ni-Al intermetallic search",
+    "fcc_v2": "FCC {pair} hull discovery (hidden cluster expansion)",
+    "phase_v2": "FCC {pair} order/disorder phase-boundary mapping",
+    "dft_v3": "FCC {pair} hull discovery with a real energy engine",
+    "property_v3": "Stiff-and-stable FCC {pair} intermetallic search",
 }
 
 
@@ -89,7 +89,9 @@ async def build_report(session: AsyncSession, campaign: Campaign) -> dict:
     report = {
         "campaign_id": campaign.id,
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "title": PROBLEM_TITLES.get(campaign.problem_type, campaign.problem_type),
+        "title": PROBLEM_TITLES.get(campaign.problem_type, campaign.problem_type).format(
+            pair="-".join((campaign.problem_config or {}).get("elements", campaign.elements or ["Ni", "Al"]))
+        ),
         "objective": campaign.objective,
         "status": campaign.status,
         "strategy": campaign.strategy,

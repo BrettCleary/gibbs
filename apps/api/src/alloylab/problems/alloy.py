@@ -149,11 +149,13 @@ async def build_alloy_state(session: AsyncSession, campaign: Campaign) -> AlloyS
     measured = _measured_energies(calcs)
     by_id = {r.id: r for r in rows}
 
-    pure_a = next(r for r in rows if r.composition == 0.0)
-    pure_b = next(r for r in rows if r.composition == 1.0)
-    endpoints_measured = pure_a.id in measured and pure_b.id in measured
-    e_a = measured[pure_a.id][1] if pure_a.id in measured else None
-    e_b = measured[pure_b.id][1] if pure_b.id in measured else None
+    # Endpoints may be absent before the pool is enumerated (campaign not yet
+    # started); the hull view polls this before start, so degrade gracefully.
+    pure_a = next((r for r in rows if r.composition == 0.0), None)
+    pure_b = next((r for r in rows if r.composition == 1.0), None)
+    e_a = measured[pure_a.id][1] if pure_a is not None and pure_a.id in measured else None
+    e_b = measured[pure_b.id][1] if pure_b is not None and pure_b.id in measured else None
+    endpoints_measured = e_a is not None and e_b is not None
 
     measurements = []
     for sid, (calc_id, e_site) in measured.items():
@@ -247,8 +249,8 @@ async def build_alloy_state(session: AsyncSession, campaign: Campaign) -> AlloyS
         composition_max=campaign.composition_max if campaign.composition_max is not None else 1.0,
         n_structures=len(rows),
         endpoints_measured=endpoints_measured,
-        pure_a_label=pure_a.label,
-        pure_b_label=pure_b.label,
+        pure_a_label=pure_a.label if pure_a is not None else "",
+        pure_b_label=pure_b.label if pure_b is not None else "",
         measurements=measurements,
         pool_predictions=predictions,
         predicted_stable=predicted_stable,

@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -44,6 +44,17 @@ export default function CampaignDashboard({ params }: { params: Promise<{ id: st
   });
 
   const running = campaign.data?.status === "RUNNING";
+  const status = campaign.data?.status;
+
+  // Fast engines (EMT) can finish between two poll ticks; once the campaign
+  // leaves RUNNING the interval polls stop, so force one final refresh of
+  // every derived view whenever the status changes.
+  useEffect(() => {
+    if (status == null) return;
+    for (const key of ["hull", "structures", "surrogate", "phase-diagram", "candidates", "calculations", "agent-events"]) {
+      queryClient.invalidateQueries({ queryKey: [key, id] });
+    }
+  }, [status, id, queryClient]);
   const problemType = campaign.data?.problem_type;
   const isPhase = problemType === "phase_v2";
   const isProperty = problemType === "property_v3";
