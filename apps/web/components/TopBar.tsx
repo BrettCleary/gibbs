@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { signOut } from "@/lib/auth-client";
 import { cn } from "@/lib/cn";
 import { IconButton, StatusDot, TechnicalLabel } from "@/components/ui/primitives";
+import { GibbsMark } from "@/components/ui/Logo";
 
 const NAV = [
   { href: "/campaigns", label: "Campaigns" },
@@ -37,7 +38,7 @@ export function TopBar({ user }: { user: { email: string; name: string } }) {
           href="/campaigns"
           className="group flex items-center gap-2.5 rounded-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
         >
-          <Mark />
+          <GibbsMark className="text-accent" />
           <span className="font-mono text-[12px] font-medium tracking-[0.22em] text-text">
             GIBBS
           </span>
@@ -95,28 +96,5 @@ export function TopBar({ user }: { user: { email: string; name: string } }) {
         </div>
       </div>
     </header>
-  );
-}
-
-/** Wordmark glyph: an FCC-ish lattice motif. */
-function Mark() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden className="text-accent">
-      <rect
-        x="1.5"
-        y="1.5"
-        width="15"
-        height="15"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1"
-        opacity="0.5"
-      />
-      <circle cx="1.5" cy="1.5" r="1.6" fill="currentColor" />
-      <circle cx="16.5" cy="1.5" r="1.6" fill="currentColor" />
-      <circle cx="1.5" cy="16.5" r="1.6" fill="currentColor" />
-      <circle cx="16.5" cy="16.5" r="1.6" fill="currentColor" />
-      <circle cx="9" cy="9" r="2" fill="currentColor" className="text-text" />
-    </svg>
   );
 }

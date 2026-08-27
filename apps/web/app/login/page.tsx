@@ -11,6 +11,7 @@ import {
   Surface,
   TechnicalLabel,
 } from "@/components/ui/primitives";
+import { GibbsLockup } from "@/components/ui/Logo";
 
 export default function LoginPage() {
   return (
@@ -61,9 +62,7 @@ function LoginForm() {
       />
       <Surface className="w-full max-w-sm p-6">
         <div className="mb-6 flex flex-col gap-1">
-          <span className="font-mono text-[12px] font-medium tracking-[0.22em] text-text">
-            GIBBS
-          </span>
+          <GibbsLockup className="mb-1" />
           <TechnicalLabel>{mode === "signin" ? "sign in" : "create account"}</TechnicalLabel>
         </div>
 
