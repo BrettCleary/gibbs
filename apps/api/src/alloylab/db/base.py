@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -22,8 +23,20 @@ def get_engine(database_url: str | None = None) -> AsyncEngine:
         from ..config import get_settings
 
         url = database_url or get_settings().database_url
-        connect_args = {"timeout": 30} if url.startswith("sqlite") else {}
-        _engine = create_async_engine(url, echo=False, connect_args=connect_args)
+        parsed = make_url(url)
+        connect_args: dict = {}
+        if parsed.drivername.startswith("sqlite"):
+            connect_args = {"timeout": 30}
+        elif parsed.port == 6543:
+            # Supavisor's transaction pooler puts a different backend behind the
+            # socket each transaction, so asyncpg cannot reuse the server-side
+            # prepared statements it caches per connection.
+            connect_args = {"statement_cache_size": 0}
+        # pool_pre_ping: Supabase's pooler reaps idle connections, so a pooled
+        # connection can be dead by the time the next request checks it out.
+        _engine = create_async_engine(
+            url, echo=False, connect_args=connect_args, pool_pre_ping=True
+        )
         if _engine.dialect.name == "sqlite":
             # SQLite has no schemas: map science/agent/benchmarks onto "main".
             _engine = _engine.execution_options(

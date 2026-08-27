@@ -9,3 +9,11 @@ packages/api-client
 **/__pycache__
 alloylab_data
 *.db
+
+# Never bake local dev secrets/config into the image — the runtime supplies
+# ALLOYLAB_* via the platform's environment variables.
+.env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example
