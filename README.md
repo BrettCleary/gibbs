@@ -255,6 +255,12 @@ refits, injected failure → diagnose → retry → succeed — per plan section
 
 ## Beyond the plan
 
+See **[LONG_TERM_GOAL.md](LONG_TERM_GOAL.md)** for the hierarchy of objectives
+(application goal → figures of merit → candidate systems → stability → experiments),
+which decisions belong to tools versus the agent, candidate top-level goals
+(battery electrodes, magnets, thermal semiconductors), and the build order.
+
+
 The plan's nine milestones are implemented. Natural next steps: spin-polarised
 DFT and ionic relaxation for quantitative Ni-Al energetics; Alembic migrations
 (the dev SQLite path is `create_all`-managed; Postgres uses Drizzle migrations); a Postgres + Temporal deployment
