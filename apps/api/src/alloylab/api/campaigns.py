@@ -6,7 +6,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 
-from ..agent.llm import LLMDecider
 from ..agent.loop import runner_registry
 from ..config import get_settings
 from ..db.models import AgentEvent, Calculation, Campaign, Structure, SurrogateModel
@@ -201,12 +200,16 @@ async def start_campaign(campaign_id: str, session: AsyncSession = Depends(get_s
         raise HTTPException(status_code=409, detail=f"campaign is {campaign.status}")
     if runner_registry.is_running(campaign_id):
         raise HTTPException(status_code=409, detail="campaign is already running")
-    if campaign.strategy == "agent" and not LLMDecider.available():
-        raise HTTPException(
-            status_code=400,
-            detail="strategy 'agent' requires OPENAI_API_KEY in the API environment; "
-            "set it or use a heuristic strategy (random/grid/uncertainty)",
-        )
+    if campaign.strategy == "agent":
+        from ..agent.llm import model_available
+
+        ok, reason = model_available(get_settings().agent_model)
+        if not ok:
+            raise HTTPException(
+                status_code=400,
+                detail=f"strategy 'agent' unavailable: {reason}; set the key, change "
+                "ALLOYLAB_AGENT_MODEL, or use a heuristic strategy (random/grid/uncertainty)",
+            )
     campaign.status = "RUNNING"
     await session.commit()
     model = get_settings().agent_model if campaign.strategy == "agent" else "heuristic"

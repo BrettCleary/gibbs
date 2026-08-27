@@ -210,17 +210,25 @@ def _deterministic_narrative(r: dict) -> str:
     return "\n\n".join(parts)
 
 
-async def llm_narrative(report: dict, model: str) -> str | None:
-    """Optional prose pass (OpenAI Agents SDK). Numbers must come from the report."""
-    import os
+async def llm_narrative(report: dict, model) -> str | None:
+    """Optional prose pass (Pydantic AI). Numbers must come from the report.
 
-    if not os.environ.get("OPENAI_API_KEY"):
+    `model` is a provider-prefixed model string or a Pydantic AI Model instance;
+    returns None when the provider's API key is not available.
+    """
+    import json
+
+    from .agent.llm import model_available
+
+    ok, _ = model_available(model)
+    if not ok:
         return None
-    from agents import Agent, Runner
+    from pydantic_ai import Agent
 
     agent = Agent(
+        model,
+        output_type=str,
         name="alloylab-reporter",
-        model=model,
         instructions=(
             "You write the results section of a computational materials-science report. "
             "Use ONLY the numbers and facts in the provided structured report; do not invent "
@@ -228,7 +236,5 @@ async def llm_narrative(report: dict, model: str) -> str | None:
             "recommendation plainly."
         ),
     )
-    import json
-
-    result = await Runner.run(agent, input=json.dumps(report, indent=2, default=str))
-    return str(result.final_output)
+    result = await agent.run(json.dumps(report, indent=2, default=str))
+    return str(result.output)

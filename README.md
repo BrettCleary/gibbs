@@ -73,9 +73,9 @@ running against **real first-principles calculations**:
   recommendation with confidence, key results, model quality, budget and
   engine time, failure/retry summary, the full reasoning trail, and an
   explicit limitations section — built deterministically from the persisted
-  record so every number has provenance. With `OPENAI_API_KEY` set, the
-  `agent` strategy drives each decision and an LLM pass writes the prose
-  from the structured facts (it may paraphrase, never invent numbers).
+  record so every number has provenance. With a provider key set, the
+  `agent` strategy (Pydantic AI) drives each decision and an LLM pass writes
+  the prose from the structured facts (it may paraphrase, never invent numbers).
 
 Benchmark mode scores strategies against the exact hidden Hamiltonian: hull
 RMSE and missed/false stable phases for the hull problems, mean |Tc error|
@@ -87,7 +87,7 @@ V3 (real DFT) slots in without touching the loop, executor, or failure policy.
 
 | Layer | Code | Responsibility |
 |---|---|---|
-| Intelligence | `apps/api/src/alloylab/agent/` (OpenAI Agents SDK + heuristics) | scientific decisions |
+| Intelligence | `apps/api/src/alloylab/agent/` (Pydantic AI + heuristics) | scientific decisions |
 | Scientific truth | `packages/science/src/alloyscience/` (NumPy/SciPy) | numerical results |
 | Execution infra | `apps/api/src/alloylab/{jobs,db,api}/` (FastAPI, SQLAlchemy, SSE) | durable, inspectable experiments |
 
@@ -136,8 +136,13 @@ high-budget ground-truth scan.
 ### The LLM agent strategy
 
 Heuristic strategies (`random`, `grid`, `uncertainty`) run fully offline. The
-`agent` strategy uses the OpenAI Agents SDK and requires `OPENAI_API_KEY` in the
-API's environment (model configurable via `ALLOYLAB_AGENT_MODEL`, default `gpt-5`).
+`agent` strategy runs on **Pydantic AI** with structured output (`output_type`)
+and deterministic inspection tools. The model is a provider-prefixed Pydantic AI
+model string set via `ALLOYLAB_AGENT_MODEL` (default `openai:gpt-5`; e.g.
+`anthropic:claude-sonnet-4-5`, `google-gla:gemini-2.5-pro`), with the provider's
+API key in the API's environment (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, …).
+`ALLOYLAB_AGENT_MODEL=test` runs the full agent path on Pydantic AI's built-in
+`TestModel` — no key needed — which is how the harness is unit-tested.
 
 ### Real DFT (Quantum ESPRESSO)
 
@@ -194,7 +199,7 @@ The plan's nine milestones are implemented. Natural next steps: spin-polarised
 DFT and ionic relaxation for quantitative Ni-Al energetics; Alembic migrations
 (the dev database is `create_all`-managed); a Postgres + Temporal deployment
 profile; and richer LLM tooling (structure-inspection tools, self-critique of
-recommendations) once an API key is available in the environment.
+recommendations) — the Pydantic AI harness makes those tools typed and testable.
 
 Note: the dev database schema is created with `create_all` (no migrations yet);
 after pulling schema changes, delete the local `alloylab.db` file.

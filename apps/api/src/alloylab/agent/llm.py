@@ -1,10 +1,16 @@
-"""LLM scientist decider built on the OpenAI Agents SDK.
+"""LLM scientist decider built on Pydantic AI.
 
 Problem-agnostic: each problem adapter supplies its instructions, a state
 renderer, and the run-action it accepts. The LLM chooses experiments and
 interprets results; it never computes numbers. All quantities it sees come
 from the deterministic state/tools, and its output is forced into a structured
-decision schema that the problem adapter validates.
+decision schema (Pydantic AI `output_type`) that the problem adapter validates.
+
+Models are Pydantic AI model strings (provider-prefixed), e.g. `openai:gpt-5`,
+`anthropic:claude-sonnet-4-5`, `google-gla:gemini-2.5-pro`; the provider's API
+key must be present in the environment. A `Model` instance (e.g. Pydantic AI's
+`TestModel`) may be passed directly, which is how the decision path is
+unit-tested without any provider.
 """
 
 from __future__ import annotations
@@ -18,6 +24,41 @@ from pydantic import BaseModel, Field
 from .decisions import ActionType, ScientificDecision
 from .state import BaseScientificState
 from .strategies import check_stopping
+
+# Provider prefix -> environment variable holding its API key.
+PROVIDER_KEY_ENV = {
+    "openai": "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+    "google-gla": "GEMINI_API_KEY",
+    "google-vertex": "GOOGLE_APPLICATION_CREDENTIALS",
+    "groq": "GROQ_API_KEY",
+    "mistral": "MISTRAL_API_KEY",
+    "cohere": "CO_API_KEY",
+    "deepseek": "DEEPSEEK_API_KEY",
+    "xai": "XAI_API_KEY",
+    "openrouter": "OPENROUTER_API_KEY",
+}
+
+
+def provider_key_env(model: str) -> str | None:
+    """Env var required for a provider-prefixed model string (None if unknown/local)."""
+    if model in ("test", "function"):  # Pydantic AI's built-in keyless test models
+        return None
+    provider = model.split(":", 1)[0] if ":" in model else "openai"
+    return PROVIDER_KEY_ENV.get(provider)
+
+
+def model_available(model) -> tuple[bool, str]:
+    """Whether the configured model can be used: a Model instance always can; a
+    provider-prefixed string needs its API key in the environment."""
+    if not isinstance(model, str):
+        return True, "ok"
+    env = provider_key_env(model)
+    if env is None:
+        return True, "ok"  # unknown/local provider: let Pydantic AI decide at run time
+    if os.environ.get(env):
+        return True, "ok"
+    return False, f"model {model!r} requires {env} in the API environment"
 
 
 class LLMDecisionOutput(BaseModel):
@@ -58,51 +99,52 @@ class LLMDecider:
         instructions: str,
         render_state: Callable[[BaseScientificState], str],
         action_types: Sequence[ActionType],
-        model: str | None = None,
+        model=None,
     ):
         from ..config import get_settings
 
         self.instructions = instructions
         self.render_state = render_state
         self.action_types = tuple(action_types)
-        self.model = model or get_settings().agent_model
+        self.model = model if model is not None else get_settings().agent_model
         self.last_usage: dict | None = None
 
     @staticmethod
-    def available() -> bool:
-        return bool(os.environ.get("OPENAI_API_KEY"))
+    def available(model: str | None = None) -> bool:
+        from ..config import get_settings
+
+        return model_available(model if model is not None else get_settings().agent_model)[0]
 
     async def decide(self, state: BaseScientificState) -> ScientificDecision:
-        if not self.available():
-            raise RuntimeError(
-                "strategy 'agent' requires OPENAI_API_KEY; choose a heuristic strategy "
-                "or set the key"
-            )
+        ok, reason = model_available(self.model)
+        if not ok:
+            raise RuntimeError(f"strategy 'agent' unavailable: {reason}")
         # Hard guarantees stay in code: budget exhaustion always stops the loop.
         stop = check_stopping(state)
         if stop is not None and state.budget_remaining <= 0:
             return stop
 
-        from agents import Agent, Runner
+        from pydantic_ai import Agent
 
         agent = Agent(
-            name="alloylab-scientist",
-            instructions=self.instructions,
-            model=self.model,
+            self.model,
             output_type=LLMDecisionOutput,
-            tools=_build_tools(state),
+            instructions=self.instructions,
+            name="alloylab-scientist",
+            retries=2,
         )
-        result = await Runner.run(agent, input=self.render_state(state))
-        try:
-            usage = result.context_wrapper.usage
-            self.last_usage = {
-                "input_tokens": getattr(usage, "input_tokens", None),
-                "output_tokens": getattr(usage, "output_tokens", None),
-            }
-        except AttributeError:
-            self.last_usage = None
+        _register_tools(agent, state)
+        result = await agent.run(self.render_state(state))
+        usage = result.usage
+        if callable(usage):  # older Pydantic AI exposed usage() as a method
+            usage = usage()
+        self.last_usage = {
+            "input_tokens": getattr(usage, "input_tokens", None),
+            "output_tokens": getattr(usage, "output_tokens", None),
+            "requests": getattr(usage, "requests", None),
+        }
 
-        out: LLMDecisionOutput = result.final_output
+        out: LLMDecisionOutput = result.output
         action_type = out.action_type
         run_types = {ActionType.RUN_MONTE_CARLO, ActionType.RUN_STRUCTURE_ENERGY}
         if action_type in run_types and action_type not in self.action_types:
@@ -134,15 +176,12 @@ class LLMDecider:
         )
 
 
-def _build_tools(state: BaseScientificState) -> list:
+def _register_tools(agent, state: BaseScientificState) -> None:
     """Deterministic inspection tools, chosen by what the state exposes."""
-    from agents import function_tool
-
-    tools = []
 
     if hasattr(state, "acquisition_state"):  # Ising V0
 
-        @function_tool
+        @agent.tool_plain
         def get_surrogate_curve() -> str:
             """Predicted susceptibility curve chi(T) with ensemble uncertainty, as JSON."""
             surrogate = state.acquisition_state().surrogate(seed=0)
@@ -162,11 +201,9 @@ def _build_tools(state: BaseScientificState) -> list:
                 }
             )
 
-        tools.append(get_surrogate_curve)
+    if hasattr(state, "pool_predictions"):  # Alloy V1 / FCC V2 / DFT V3 / property
 
-    if hasattr(state, "pool_predictions"):  # Alloy V1
-
-        @function_tool
+        @agent.tool_plain
         def get_pool_predictions() -> str:
             """Full structure pool with predicted formation energies and uncertainties, as JSON."""
             return json.dumps(
@@ -186,7 +223,3 @@ def _build_tools(state: BaseScientificState) -> list:
                     for p in state.pool_predictions
                 ]
             )
-
-        tools.append(get_pool_predictions)
-
-    return tools
