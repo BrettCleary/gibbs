@@ -20,6 +20,7 @@ from temporalio.worker import Worker
 from .config import get_settings
 from .temporal.activities import execute_calculation
 from .temporal.workflows import RunCalculationWorkflow
+from .tracing import setup_tracing, shutdown_tracing
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("alloylab.worker")
@@ -27,6 +28,7 @@ logger = logging.getLogger("alloylab.worker")
 
 async def main() -> None:
     settings = get_settings()
+    setup_tracing()
     client = await Client.connect(settings.temporal_address)
     worker = Worker(
         client,
@@ -42,7 +44,10 @@ async def main() -> None:
         settings.database_url,
         settings.max_concurrent_jobs,
     )
-    await worker.run()
+    try:
+        await worker.run()
+    finally:
+        shutdown_tracing()
 
 
 if __name__ == "__main__":

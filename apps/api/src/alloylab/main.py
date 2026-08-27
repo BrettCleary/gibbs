@@ -10,14 +10,17 @@ from .api import benchmarks, calculations, campaigns
 from .api.auth import require_user
 from .config import get_settings
 from .db.base import dispose_db, init_db
+from .tracing import setup_tracing, shutdown_tracing
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    setup_tracing()
     await init_db()
     yield
     await runner_registry.shutdown()
     await dispose_db()
+    shutdown_tracing()
 
 
 def create_app() -> FastAPI:
