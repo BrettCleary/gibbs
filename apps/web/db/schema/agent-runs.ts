@@ -1,9 +1,10 @@
-import { index, jsonb, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
+import { index, jsonb, timestamp, varchar } from "drizzle-orm/pg-core";
 import { id } from "./_helpers";
+import { agent } from "./schemas";
 import { campaigns } from "./campaigns";
 
 /** One autonomous run of the scientist loop over a campaign. */
-export const agentRuns = pgTable(
+export const agentRuns = agent.table(
   "agent_runs",
   {
     id: id(),
@@ -17,7 +18,7 @@ export const agentRuns = pgTable(
     tokenUsage: jsonb("token_usage").$type<Record<string, unknown>>(),
   },
   (t) => [index("ix_agent_runs_campaign_id").on(t.campaignId)],
-);
+).enableRLS();
 
 export type AgentRun = typeof agentRuns.$inferSelect;
 export type NewAgentRun = typeof agentRuns.$inferInsert;

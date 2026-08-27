@@ -1,9 +1,10 @@
-import { index, integer, jsonb, pgTable, varchar } from "drizzle-orm/pg-core";
+import { index, integer, jsonb, varchar } from "drizzle-orm/pg-core";
 import { createdAt, id } from "./_helpers";
+import { science } from "./schemas";
 import { campaigns } from "./campaigns";
 
 /** A fitted surrogate: response surrogate, cluster expansion, phase boundary, ... */
-export const surrogateModels = pgTable(
+export const surrogateModels = science.table(
   "surrogate_models",
   {
     id: id(),
@@ -19,7 +20,7 @@ export const surrogateModels = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("ix_surrogate_models_campaign_id").on(t.campaignId)],
-);
+).enableRLS();
 
 export type SurrogateModel = typeof surrogateModels.$inferSelect;
 export type NewSurrogateModel = typeof surrogateModels.$inferInsert;

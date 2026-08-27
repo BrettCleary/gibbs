@@ -8,6 +8,10 @@ class Base(DeclarativeBase):
     pass
 
 
+# Postgres schemas owned by the Drizzle migrations (apps/web/db/schema/schemas.ts).
+SCHEMAS = ("science", "agent", "benchmarks")
+
+
 _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
 
@@ -20,6 +24,11 @@ def get_engine(database_url: str | None = None) -> AsyncEngine:
         url = database_url or get_settings().database_url
         connect_args = {"timeout": 30} if url.startswith("sqlite") else {}
         _engine = create_async_engine(url, echo=False, connect_args=connect_args)
+        if _engine.dialect.name == "sqlite":
+            # SQLite has no schemas: map science/agent/benchmarks onto "main".
+            _engine = _engine.execution_options(
+                schema_translate_map={name: None for name in SCHEMAS}
+            )
         _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
     return _engine
 
@@ -50,7 +59,12 @@ async def init_db(database_url: str | None = None) -> None:
             await conn.run_sync(Base.metadata.create_all)
         return
     async with engine.connect() as conn:
-        existing = set(await conn.run_sync(lambda sync: inspect(sync).get_table_names()))
+        existing: set[str] = set()
+        for schema in SCHEMAS:
+            names = await conn.run_sync(
+                lambda sync, schema=schema: inspect(sync).get_table_names(schema=schema)
+            )
+            existing.update(f"{schema}.{n}" for n in names)
     missing = sorted(set(Base.metadata.tables) - existing)
     if missing:
         raise RuntimeError(

@@ -1,8 +1,9 @@
-import { doublePrecision, integer, jsonb, pgTable, text, varchar } from "drizzle-orm/pg-core";
+import { doublePrecision, integer, jsonb, text, varchar } from "drizzle-orm/pg-core";
 import { createdAt, id } from "./_helpers";
+import { science } from "./schemas";
 
 /** A discovery campaign (Ising V0, alloy V1, FCC V2, phase, DFT, property). */
-export const campaigns = pgTable("campaigns", {
+export const campaigns = science.table("campaigns", {
   id: id(),
   name: varchar("name", { length: 200 }).notNull(),
   objective: text("objective").notNull(),
@@ -29,7 +30,7 @@ export const campaigns = pgTable("campaigns", {
   /** Final scientific report, persisted at completion. */
   report: jsonb("report").$type<Record<string, unknown>>(),
   createdAt: createdAt(),
-});
+}).enableRLS();
 
 export type Campaign = typeof campaigns.$inferSelect;
 export type NewCampaign = typeof campaigns.$inferInsert;

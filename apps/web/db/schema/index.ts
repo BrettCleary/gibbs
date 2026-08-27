@@ -5,7 +5,11 @@
  * db:generate` (drizzle-kit) into apps/web/migrations and applied to Supabase
  * Postgres with `db:migrate`. The Python API (SQLAlchemy over asyncpg) maps
  * the same tables for its queries and never creates tables in Postgres.
+ *
+ * Tables live in the `science`, `agent`, and `benchmarks` Postgres schemas
+ * (never `public`) with RLS enabled — see schemas.ts.
  */
+export * from "./schemas";
 export * from "./campaigns";
 export * from "./structures";
 export * from "./calculations";

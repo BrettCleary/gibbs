@@ -7,9 +7,10 @@
     "build": "next build",
     "start": "next start --port 3000",
     "db:generate": "dotenv -e .env.local -e .env -- drizzle-kit generate",
-    "db:migrate": "dotenv -e .env.local -e .env -- drizzle-kit migrate",
-    "db:push": "dotenv -e .env.local -e .env -- drizzle-kit push",
-    "db:studio": "dotenv -e .env.local -e .env -- drizzle-kit studio"
+    "db:migrate": "supabase migration up",
+    "db:push": "supabase db push",
+    "db:studio": "dotenv -e .env.local -e .env -- drizzle-kit studio",
+    "db:reset": "supabase db reset"
   },
   "dependencies": {
     "@alloylab/api-client": "workspace:*",

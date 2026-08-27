@@ -1,10 +1,11 @@
-import { index, jsonb, pgTable, text, varchar } from "drizzle-orm/pg-core";
+import { index, jsonb, text, varchar } from "drizzle-orm/pg-core";
 import { createdAt, id } from "./_helpers";
+import { agent } from "./schemas";
 import { agentRuns } from "./agent-runs";
 import { campaigns } from "./campaigns";
 
 /** Auditable record of every agent decision/action and job lifecycle event. */
-export const agentEvents = pgTable(
+export const agentEvents = agent.table(
   "agent_events",
   {
     id: id(),
@@ -26,7 +27,7 @@ export const agentEvents = pgTable(
     index("ix_agent_events_campaign_id").on(t.campaignId),
     index("ix_agent_events_event_type").on(t.eventType),
   ],
-);
+).enableRLS();
 
 export type AgentEvent = typeof agentEvents.$inferSelect;
 export type NewAgentEvent = typeof agentEvents.$inferInsert;

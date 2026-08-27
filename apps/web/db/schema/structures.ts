@@ -1,9 +1,10 @@
-import { doublePrecision, index, integer, jsonb, pgTable, varchar } from "drizzle-orm/pg-core";
+import { doublePrecision, index, integer, jsonb, varchar } from "drizzle-orm/pg-core";
 import { createdAt, id } from "./_helpers";
+import { science } from "./schemas";
 import { campaigns } from "./campaigns";
 
 /** A candidate atomic configuration: 2D lattice tile (V1) or 3D crystal (icet/DFT). */
-export const structures = pgTable(
+export const structures = science.table(
   "structures",
   {
     id: id(),
@@ -31,7 +32,7 @@ export const structures = pgTable(
     index("ix_structures_campaign_id").on(t.campaignId),
     index("ix_structures_label").on(t.label),
   ],
-);
+).enableRLS();
 
 export type Structure = typeof structures.$inferSelect;
 export type NewStructure = typeof structures.$inferInsert;

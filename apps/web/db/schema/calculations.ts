@@ -1,5 +1,6 @@
-import { index, jsonb, pgTable, text, timestamp, varchar, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { index, jsonb, text, timestamp, varchar, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { createdAt, id } from "./_helpers";
+import { science } from "./schemas";
 import { campaigns } from "./campaigns";
 import { structures } from "./structures";
 
@@ -7,7 +8,7 @@ import { structures } from "./structures";
  * One simulation job: Monte Carlo run, oracle energy query, or a real
  * DFT/EMT calculation. Strongly typed — the agent never runs shell commands.
  */
-export const calculations = pgTable(
+export const calculations = science.table(
   "calculations",
   {
     id: id(),
@@ -44,7 +45,7 @@ export const calculations = pgTable(
     index("ix_calculations_structure_id").on(t.structureId),
     index("ix_calculations_status").on(t.status),
   ],
-);
+).enableRLS();
 
 export type Calculation = typeof calculations.$inferSelect;
 export type NewCalculation = typeof calculations.$inferInsert;
