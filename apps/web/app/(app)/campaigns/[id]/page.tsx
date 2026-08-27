@@ -51,7 +51,15 @@ export default function CampaignDashboard({ params }: { params: Promise<{ id: st
   // every derived view whenever the status changes.
   useEffect(() => {
     if (status == null) return;
-    for (const key of ["hull", "structures", "surrogate", "phase-diagram", "candidates", "calculations", "agent-events"]) {
+    for (const key of [
+      "hull",
+      "structures",
+      "surrogate",
+      "phase-diagram",
+      "candidates",
+      "calculations",
+      "agent-events",
+    ]) {
       queryClient.invalidateQueries({ queryKey: [key, id] });
     }
   }, [status, id, queryClient]);
@@ -145,7 +153,14 @@ export default function CampaignDashboard({ params }: { params: Promise<{ id: st
   // Problem-specific headline metric.
   let headline: React.ReactNode;
   if (isProperty) {
-    headline = <Metric label="objective" value="max B · stable · ordered" tone="good" detail={`strategy ${c.strategy}`} />;
+    headline = (
+      <Metric
+        label="objective"
+        value="max B · stable · ordered"
+        tone="good"
+        detail={`strategy ${c.strategy}`}
+      />
+    );
   } else if (isPhase) {
     const slices = phaseDiagram.data?.slices ?? [];
     const fitted = slices.filter((sl) => sl.tc_mean != null);
@@ -154,7 +169,11 @@ export default function CampaignDashboard({ params }: { params: Promise<{ id: st
       <Metric
         label="phase boundary"
         tone="warn"
-        value={fitted.length === 0 ? "no boundary yet" : `${fitted.length}/${slices.length} slices · max σ ${maxStd?.toFixed(0)} K`}
+        value={
+          fitted.length === 0
+            ? "no boundary yet"
+            : `${fitted.length}/${slices.length} slices · max σ ${maxStd?.toFixed(0)} K`
+        }
         detail={`boundary v${phaseDiagram.data?.model_version ?? "—"} · strategy ${c.strategy}`}
       />
     );
@@ -172,7 +191,11 @@ export default function CampaignDashboard({ params }: { params: Promise<{ id: st
       <Metric
         label="Tc estimate"
         tone="warn"
-        value={s?.tc_mean != null ? `${s.tc_mean.toFixed(3)} ± ${s.tc_std?.toFixed(3) ?? "?"}` : "no model yet"}
+        value={
+          s?.tc_mean != null
+            ? `${s.tc_mean.toFixed(3)} ± ${s.tc_std?.toFixed(3) ?? "?"}`
+            : "no model yet"
+        }
         detail={`surrogate v${s?.model_version ?? "—"} · strategy ${c.strategy}`}
       />
     );
@@ -240,7 +263,9 @@ export default function CampaignDashboard({ params }: { params: Promise<{ id: st
         </div>
 
         {mutationError != null && (
-          <ErrorNote>{String((mutationError as any)?.detail ?? mutationError)}</ErrorNote>
+          <ErrorNote>
+            {String((mutationError as { detail?: unknown })?.detail ?? mutationError)}
+          </ErrorNote>
         )}
 
         {/* instrument strip */}

@@ -52,7 +52,8 @@ export function ElementSelect({
     );
   }, [catalog.data, query]);
 
-  const supported = (e: ElementRead) => (e.engines as Record<string, boolean>)[engine] !== false && e.symbol !== exclude;
+  const supported = (e: ElementRead) =>
+    (e.engines as Record<string, boolean>)[engine] !== false && e.symbol !== exclude;
   const selected = catalog.data?.find((e) => e.symbol === value);
 
   useEffect(() => {
@@ -90,9 +91,18 @@ export function ElementSelect({
         }}
         onKeyDown={(e) => {
           if (!open) return;
-          if (e.key === "ArrowDown") { e.preventDefault(); setCursor((c) => Math.min(c + 1, items.length - 1)); }
-          if (e.key === "ArrowUp") { e.preventDefault(); setCursor((c) => Math.max(c - 1, 0)); }
-          if (e.key === "Enter") { e.preventDefault(); if (items[cursor]) choose(items[cursor]); }
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setCursor((c) => Math.min(c + 1, items.length - 1));
+          }
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setCursor((c) => Math.max(c - 1, 0));
+          }
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (items[cursor]) choose(items[cursor]);
+          }
           if (e.key === "Escape") setOpen(false);
         }}
         className={cn("font-mono", !selected && value && "text-oxide")}
@@ -108,9 +118,13 @@ export function ElementSelect({
           role="listbox"
           className="scroll-thin absolute z-20 mt-1 max-h-64 w-72 overflow-y-auto rounded-sm border border-line bg-surface shadow-lg"
         >
-          {catalog.isLoading && <li className="px-3 py-2 text-[12px] text-text-muted">Loading elements…</li>}
+          {catalog.isLoading && (
+            <li className="px-3 py-2 text-[12px] text-text-muted">Loading elements…</li>
+          )}
           {items.length === 0 && !catalog.isLoading && (
-            <li className="px-3 py-2 text-[12px] text-text-muted">No element matches "{query}"</li>
+            <li className="px-3 py-2 text-[12px] text-text-muted">
+              No element matches &ldquo;{query}&rdquo;
+            </li>
           )}
           {items.map((e, i) => {
             const ok = supported(e);
@@ -121,7 +135,10 @@ export function ElementSelect({
                 aria-selected={e.symbol === value}
                 aria-disabled={!ok}
                 onMouseEnter={() => setCursor(i)}
-                onMouseDown={(ev) => { ev.preventDefault(); choose(e); }}
+                onMouseDown={(ev) => {
+                  ev.preventDefault();
+                  choose(e);
+                }}
                 title={
                   !ok
                     ? e.symbol === exclude
@@ -129,7 +146,7 @@ export function ElementSelect({
                       : engine === "emt"
                         ? "no EMT parameters for this element"
                         : "no pseudopotential on disk — run: python -m alloylab.pseudos " + e.symbol
-                    : e.note ?? undefined
+                    : (e.note ?? undefined)
                 }
                 className={cn(
                   "flex cursor-pointer items-baseline gap-3 px-3 py-1.5 text-[13px]",

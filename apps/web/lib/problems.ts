@@ -1,12 +1,7 @@
 /** Shared vocabulary for problem types so labels stay consistent across pages. */
 
 export type ProblemType =
-  | "property_v3"
-  | "dft_v3"
-  | "phase_v2"
-  | "fcc_v2"
-  | "alloy_v1"
-  | "ising_v0";
+  "property_v3" | "dft_v3" | "phase_v2" | "fcc_v2" | "alloy_v1" | "ising_v0";
 
 export const PROBLEMS: Record<
   ProblemType,

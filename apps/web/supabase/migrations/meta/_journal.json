@@ -15,6 +15,20 @@
       "when": 1787806033642,
       "tag": "0001_schemas",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787810786699,
+      "tag": "0002_auth",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787811417011,
+      "tag": "0003_auth_account_issuer",
+      "breakpoints": true
     }
   ]
 }

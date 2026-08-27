@@ -1,0 +1,2 @@
+ALTER TABLE "app_auth"."account" ADD COLUMN "issuer" text NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "ux_account_issuer_account_id" ON "app_auth"."account" USING btree ("issuer","account_id");

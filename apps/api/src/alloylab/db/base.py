@@ -9,7 +9,7 @@ class Base(DeclarativeBase):
 
 
 # Postgres schemas owned by the Drizzle migrations (apps/web/db/schema/schemas.ts).
-SCHEMAS = ("science", "agent", "benchmarks")
+SCHEMAS = ("science", "agent", "benchmarks", "app_auth")
 
 
 _engine: AsyncEngine | None = None

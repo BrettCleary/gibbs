@@ -1,0 +1,36 @@
+name: Backend tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: backend-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    name: pytest (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: alloyscience
+            path: packages/science
+          - package: alloylab
+            path: apps/api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install dependencies
+        run: uv sync --all-packages --all-extras --frozen
+
+      - name: Run tests
+        run: uv run --package ${{ matrix.package }} pytest ${{ matrix.path }}/tests -q

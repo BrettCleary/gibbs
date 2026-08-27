@@ -2,7 +2,7 @@
 
 import { ExternalLink } from "lucide-react";
 import type { Calculation } from "@alloylab/api-client";
-import { API_URL } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { DataValue, EmptyState, StatusBadge, Table, Td, Th, Tr } from "@/components/ui/primitives";
 
 function target(c: Calculation): string {
@@ -59,9 +59,11 @@ export function CalculationsTable({ calculations }: { calculations: Calculation[
               <Td className="whitespace-nowrap">
                 {c.stdout_artifact ? (
                   <a
-                    href={`${API_URL}/calculations/${c.id}/log`}
-                    target="_blank"
-                    rel="noreferrer"
+                    href={`/calculations/${c.id}/log`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      void openLog(c.id);
+                    }}
                     title="open engine log"
                     className="inline-flex items-center gap-1 font-mono text-[12px] text-accent-bright underline decoration-accent/40 decoration-dotted underline-offset-4 hover:decoration-accent"
                   >
@@ -69,7 +71,9 @@ export function CalculationsTable({ calculations }: { calculations: Calculation[
                     <ExternalLink className="h-3 w-3 opacity-60" />
                   </a>
                 ) : (
-                  <DataValue dim className="text-[12px]">{c.id.slice(0, 8)}</DataValue>
+                  <DataValue dim className="text-[12px]">
+                    {c.id.slice(0, 8)}
+                  </DataValue>
                 )}
                 {c.retry_of && (
                   <span className="ml-2 font-mono text-[10px] text-brass">
@@ -92,9 +96,13 @@ export function CalculationsTable({ calculations }: { calculations: Calculation[
                 <DataValue className="text-[12.5px]">{result(c)}</DataValue>
               </Td>
               <Td className="text-[12px] text-text-secondary">
-                {c.failure_category && <span className="font-mono text-oxide">{c.failure_category}</span>}
+                {c.failure_category && (
+                  <span className="font-mono text-oxide">{c.failure_category}</span>
+                )}
                 {c.resolution && <span> → {c.resolution}</span>}
-                {c.reason_for_change && <span className="text-text-muted"> ({c.reason_for_change})</span>}
+                {c.reason_for_change && (
+                  <span className="text-text-muted"> ({c.reason_for_change})</span>
+                )}
               </Td>
             </Tr>
           ))}
@@ -102,4 +110,13 @@ export function CalculationsTable({ calculations }: { calculations: Calculation[
       </Table>
     </div>
   );
+}
+
+/** The log endpoint needs the bearer token, so fetch it and open the result in a new tab. */
+async function openLog(id: string) {
+  const res = await apiFetch(`/calculations/${id}/log`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(new Blob([blob], { type: "text/plain" }));
+  window.open(url, "_blank", "noopener");
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }

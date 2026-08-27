@@ -1,19 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { LogOut } from "lucide-react";
 import { api } from "@/lib/api";
+import { signOut } from "@/lib/auth-client";
 import { cn } from "@/lib/cn";
-import { StatusDot, TechnicalLabel } from "@/components/ui/primitives";
+import { IconButton, StatusDot, TechnicalLabel } from "@/components/ui/primitives";
 
 const NAV = [
   { href: "/campaigns", label: "Campaigns" },
   { href: "/benchmarks", label: "Benchmarks" },
 ];
 
-export function TopBar() {
+export function TopBar({ user }: { user: { email: string; name: string } }) {
   const pathname = usePathname();
+  const router = useRouter();
 
   // Lightweight liveness probe: reuses the campaigns list the pages already fetch.
   const live = useQuery({
@@ -55,9 +58,7 @@ export function TopBar() {
                 )}
               >
                 {item.label}
-                {active && (
-                  <span className="absolute inset-x-2.5 -bottom-[13px] h-px bg-accent" />
-                )}
+                {active && <span className="absolute inset-x-2.5 -bottom-[13px] h-px bg-accent" />}
               </Link>
             );
           })}
@@ -76,6 +77,21 @@ export function TopBar() {
               {live.isError ? "api offline" : live.data ? "api online" : "connecting"}
             </TechnicalLabel>
           </span>
+          <span className="flex items-center gap-2 border-l border-line pl-5">
+            <span className="font-mono text-[11px] text-text-secondary" title={user.name}>
+              {user.email}
+            </span>
+            <IconButton
+              label="Sign out"
+              onClick={async () => {
+                await signOut();
+                router.replace("/login");
+                router.refresh();
+              }}
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </IconButton>
+          </span>
         </div>
       </div>
     </header>
@@ -86,7 +102,16 @@ export function TopBar() {
 function Mark() {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden className="text-accent">
-      <rect x="1.5" y="1.5" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.5" />
+      <rect
+        x="1.5"
+        y="1.5"
+        width="15"
+        height="15"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1"
+        opacity="0.5"
+      />
       <circle cx="1.5" cy="1.5" r="1.6" fill="currentColor" />
       <circle cx="16.5" cy="1.5" r="1.6" fill="currentColor" />
       <circle cx="1.5" cy="16.5" r="1.6" fill="currentColor" />

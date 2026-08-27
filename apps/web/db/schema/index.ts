@@ -6,7 +6,7 @@
  * Postgres with `db:migrate`. The Python API (SQLAlchemy over asyncpg) maps
  * the same tables for its queries and never creates tables in Postgres.
  *
- * Tables live in the `science`, `agent`, and `benchmarks` Postgres schemas
+ * Tables live in the `science`, `agent`, `benchmarks`, and `app_auth` Postgres schemas
  * (never `public`) with RLS enabled — see schemas.ts.
  */
 export * from "./schemas";
@@ -18,3 +18,4 @@ export * from "./agent-runs";
 export * from "./agent-events";
 export * from "./benchmark-runs";
 export * from "./relations";
+export * from "./auth";

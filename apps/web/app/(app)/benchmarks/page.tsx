@@ -94,20 +94,39 @@ export default function BenchmarksPage() {
             </Select>
           </Field>
           <Field label="budget / run" className="w-28">
-            <Input type="number" min={4} max={60} value={budget} onChange={(e) => setBudget(Number(e.target.value))} />
+            <Input
+              type="number"
+              min={4}
+              max={60}
+              value={budget}
+              onChange={(e) => setBudget(Number(e.target.value))}
+            />
           </Field>
           <Field label="seeds" className="w-24">
-            <Input type="number" min={1} max={10} value={nSeeds} onChange={(e) => setNSeeds(Number(e.target.value))} />
+            <Input
+              type="number"
+              min={1}
+              max={10}
+              value={nSeeds}
+              onChange={(e) => setNSeeds(Number(e.target.value))}
+            />
           </Field>
           <div className="flex items-center gap-3">
-            <Button type="submit" variant="primary" icon={<Play className="h-3.5 w-3.5" />} loading={create.isPending}>
+            <Button
+              type="submit"
+              variant="primary"
+              icon={<Play className="h-3.5 w-3.5" />}
+              loading={create.isPending}
+            >
               {create.isPending ? "Launching" : "Run benchmark"}
             </Button>
-            <span className="font-mono text-[11px] text-text-muted">random · grid · uncertainty</span>
+            <span className="font-mono text-[11px] text-text-muted">
+              random · grid · uncertainty
+            </span>
           </div>
           {create.error && (
             <ErrorNote className="basis-full">
-              {String((create.error as any)?.detail ?? create.error)}
+              {String((create.error as { detail?: unknown })?.detail ?? create.error)}
             </ErrorNote>
           )}
         </form>
@@ -137,10 +156,25 @@ export default function BenchmarksPage() {
   );
 }
 
-type IsingStats = { mean_tc_error: number; max_tc_error: number; mean_tc_std: number; n_runs: number };
-type AlloyStats = { mean_hull_rmse: number; mean_missed_stable: number; mean_false_stable: number; n_runs: number };
+type IsingStats = {
+  mean_tc_error: number;
+  max_tc_error: number;
+  mean_tc_std: number;
+  n_runs: number;
+};
+type AlloyStats = {
+  mean_hull_rmse: number;
+  mean_missed_stable: number;
+  mean_false_stable: number;
+  n_runs: number;
+};
 type PhaseStats = { mean_boundary_error: number; max_boundary_error: number; n_runs: number };
-type PropertyStats = { mean_regret_gpa: number; max_regret_gpa: number; frac_truly_stable: number; n_runs: number };
+type PropertyStats = {
+  mean_regret_gpa: number;
+  max_regret_gpa: number;
+  frac_truly_stable: number;
+  n_runs: number;
+};
 type Stats = IsingStats & AlloyStats & PhaseStats & PropertyStats;
 
 function BenchmarkCard({ benchmark: b }: { benchmark: BenchmarkRun }) {
@@ -150,7 +184,13 @@ function BenchmarkCard({ benchmark: b }: { benchmark: BenchmarkRun }) {
   const isAlloy = problem === "alloy" || problem === "fcc";
   const per = (b.summary?.per_strategy ?? {}) as Record<string, Stats>;
   const score = (s: Stats) =>
-    isProperty ? s.mean_regret_gpa : isPhase ? s.mean_boundary_error : isAlloy ? s.mean_hull_rmse : s.mean_tc_error;
+    isProperty
+      ? s.mean_regret_gpa
+      : isPhase
+        ? s.mean_boundary_error
+        : isAlloy
+          ? s.mean_hull_rmse
+          : s.mean_tc_error;
   const ranked = Object.entries(per).sort((x, y) => score(x[1]) - score(y[1]));
   const best = ranked[0]?.[0];
 
@@ -188,15 +228,20 @@ function BenchmarkCard({ benchmark: b }: { benchmark: BenchmarkRun }) {
         }
         aside={
           <span className="font-mono">
-            budget {String(b.config?.budget)} · {(b.config?.seeds as number[] | undefined)?.length ?? "?"} seeds
-            {!isAlloy && b.summary?.tc_true != null && ` · true Tc ${Number(b.summary.tc_true).toFixed(3)}`}
+            budget {String(b.config?.budget)} ·{" "}
+            {(b.config?.seeds as number[] | undefined)?.length ?? "?"} seeds
+            {!isAlloy &&
+              b.summary?.tc_true != null &&
+              ` · true Tc ${Number(b.summary.tc_true).toFixed(3)}`}
             {" · "}
             {new Date(b.created_at).toLocaleString()}
           </span>
         }
       />
       {b.error && <ErrorNote className="m-4">{b.error}</ErrorNote>}
-      {b.status === "RUNNING" && <LoadingNote>Running ground truth and strategy comparisons</LoadingNote>}
+      {b.status === "RUNNING" && (
+        <LoadingNote>Running ground truth and strategy comparisons</LoadingNote>
+      )}
       {ranked.length > 0 && (
         <Table>
           <thead>
@@ -226,7 +271,9 @@ function BenchmarkCard({ benchmark: b }: { benchmark: BenchmarkRun }) {
                   </span>
                 </Td>
                 <Td align="right">
-                  <DataValue dim className="text-[12.5px]">{String(b.config?.budget)}</DataValue>
+                  <DataValue dim className="text-[12.5px]">
+                    {String(b.config?.budget)}
+                  </DataValue>
                 </Td>
                 {columns.map(([h, fn]) => (
                   <Td key={h} align="right">
@@ -234,7 +281,9 @@ function BenchmarkCard({ benchmark: b }: { benchmark: BenchmarkRun }) {
                   </Td>
                 ))}
                 <Td align="right">
-                  <DataValue dim className="text-[12.5px]">{stats.n_runs}</DataValue>
+                  <DataValue dim className="text-[12.5px]">
+                    {stats.n_runs}
+                  </DataValue>
                 </Td>
               </Tr>
             ))}

@@ -130,7 +130,8 @@ pnpm --filter @alloylab/api dev
 pnpm --filter @alloylab/web dev
 ```
 
-Open http://localhost:3000/campaigns, create a campaign, press **Start**, and
+Open http://localhost:3000 — you land on **/login**; sign up with any email
+and password (no email verification), then create a campaign, press **Start**, and
 watch the agent select temperatures, recover from injected failures, and tighten
 the Tc estimate. The **Benchmarks** page compares strategies against a
 high-budget ground-truth scan.
@@ -194,6 +195,24 @@ pnpm --filter @alloylab/api dev                # the API
 env-gated test `ALLOYLAB_TEMPORAL_TEST=1 pytest apps/api/tests/test_executor.py`
 runs a full campaign through a real local Temporal server.
 
+### Authentication (Better Auth)
+
+The web app is gated by [Better Auth](https://www.better-auth.com) with plain
+email + password sign-in (`apps/web/lib/auth.ts`, tables in the `app_auth`
+Postgres schema — Supabase owns `auth`). Set `BETTER_AUTH_SECRET` (and
+`BETTER_AUTH_URL` for a hosted deploy) in `apps/web/.env.local`; see
+`.env.example`. `middleware.ts` redirects anonymous visitors to `/login`, and
+`app/(app)/layout.tsx` verifies the session server-side.
+
+The FastAPI backend requires the same session on **every** endpoint except
+`/health` (`alloylab/api/auth.py`, applied router-wide in `main.py`). The browser
+sends the session token as `Authorization: Bearer …` — Better Auth's `bearer`
+plugin hands it out on sign-in and the client stores it — and the API looks it
+up in `app_auth.session` (shared database, no extra config). `EventSource`
+cannot set headers, so the SSE route accepts `?token=` when the request negotiates
+`text/event-stream`. In tests the dependency is stubbed (`tests/conftest.py`);
+`tests/test_auth.py` exercises the real check.
+
 ### Database: Supabase + Drizzle
 
 The schema of record lives in **`apps/web/db/schema/`** (one Drizzle file per
@@ -202,7 +221,7 @@ drizzle-kit into **`apps/web/supabase/migrations/`** — the Supabase CLI's own
 migration folder — so `supabase db reset` / `migration up` / `db push` apply
 them directly. Drizzle generates, Supabase applies: one migration folder, one
 migration tracker.
-Tables live in three Postgres schemas that mirror the code's layers — never in
+Tables live in four Postgres schemas that mirror the code's layers — never in
 `public`, which Supabase exposes to anon-key clients via PostgREST:
 
 | schema | tables |
@@ -210,6 +229,7 @@ Tables live in three Postgres schemas that mirror the code's layers — never in
 | `science` | campaigns, structures, calculations, surrogate_models — the scientific record |
 | `agent` | agent_runs, agent_events — the decision trail |
 | `benchmarks` | benchmark_runs |
+| `app_auth` | user, session, account, verification — Better Auth |
 
 Row-level security is enabled on every table (defense-in-depth; no policies,
 so nothing is readable through the REST API). The API and the Drizzle client

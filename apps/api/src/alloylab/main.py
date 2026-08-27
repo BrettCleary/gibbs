@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .agent.loop import runner_registry
 from .api import benchmarks, calculations, campaigns
+from .api.auth import require_user
 from .config import get_settings
 from .db.base import dispose_db, init_db
 
@@ -34,9 +35,11 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.include_router(campaigns.router)
-    app.include_router(calculations.router)
-    app.include_router(benchmarks.router)
+    # Every data endpoint requires a valid Better Auth session; only /health is open.
+    authenticated = [Depends(require_user)]
+    app.include_router(campaigns.router, dependencies=authenticated)
+    app.include_router(calculations.router, dependencies=authenticated)
+    app.include_router(benchmarks.router, dependencies=authenticated)
 
     @app.get("/health", tags=["meta"])
     async def health() -> dict:

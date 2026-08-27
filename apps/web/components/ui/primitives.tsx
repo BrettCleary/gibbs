@@ -32,10 +32,7 @@ export function Surface({
 /** A nested, translucent surface inside a panel. */
 export function Inset({ className, ...rest }: ComponentProps<"div">) {
   return (
-    <div
-      className={cn("rounded-sm border border-line bg-white/[0.025]", className)}
-      {...rest}
-    />
+    <div className={cn("rounded-sm border border-line bg-white/[0.025]", className)} {...rest} />
   );
 }
 
@@ -76,23 +73,14 @@ export function TechnicalLabel({
 }) {
   return (
     <span
-      className={cn(
-        "font-mono text-[10px] uppercase tracking-[0.18em] text-text-muted",
-        className,
-      )}
+      className={cn("font-mono text-[10px] uppercase tracking-[0.18em] text-text-muted", className)}
     >
       {children}
     </span>
   );
 }
 
-export function SectionLabel({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
+export function SectionLabel({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <h2
       className={cn(
@@ -120,13 +108,9 @@ export function PageTitle({
     <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
       <div className="min-w-0 max-w-3xl">
         {eyebrow && <TechnicalLabel className="mb-2 block">{eyebrow}</TechnicalLabel>}
-        <h1 className="text-2xl font-medium tracking-tight text-text md:text-[28px]">
-          {title}
-        </h1>
+        <h1 className="text-2xl font-medium tracking-tight text-text md:text-[28px]">{title}</h1>
         {description && (
-          <p className="mt-2 text-[13.5px] leading-relaxed text-text-secondary">
-            {description}
-          </p>
+          <p className="mt-2 text-[13.5px] leading-relaxed text-text-secondary">{description}</p>
         )}
       </div>
       {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
@@ -179,11 +163,7 @@ export function DataValue({
 }) {
   return (
     <span
-      className={cn(
-        "font-mono tabular-nums",
-        dim ? "text-text-muted" : "text-text",
-        className,
-      )}
+      className={cn("font-mono tabular-nums", dim ? "text-text-muted" : "text-text", className)}
     >
       {children}
     </span>
@@ -219,7 +199,15 @@ const TONE_DOT: Record<Tone, string> = {
   bad: "bg-oxide",
 };
 
-export function StatusDot({ tone, pulse, className }: { tone: Tone; pulse?: boolean; className?: string }) {
+export function StatusDot({
+  tone,
+  pulse,
+  className,
+}: {
+  tone: Tone;
+  pulse?: boolean;
+  className?: string;
+}) {
   return (
     <span
       className={cn(
@@ -273,10 +261,8 @@ const BUTTON_VARIANT: Record<ButtonVariant, string> = {
     "border-line bg-white/[0.03] text-text hover:bg-white/[0.06] hover:border-line-hover active:bg-white/[0.08]",
   ghost:
     "border-transparent text-text-secondary hover:text-text hover:bg-white/[0.04] active:bg-white/[0.06]",
-  good:
-    "border-verdigris/40 bg-verdigris/15 text-verdigris hover:bg-verdigris/25 hover:border-verdigris/60 active:bg-verdigris/30",
-  warn:
-    "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 hover:border-brass/60 active:bg-brass/30",
+  good: "border-verdigris/40 bg-verdigris/15 text-verdigris hover:bg-verdigris/25 hover:border-verdigris/60 active:bg-verdigris/30",
+  warn: "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 hover:border-brass/60 active:bg-brass/30",
 };
 
 export function Button({

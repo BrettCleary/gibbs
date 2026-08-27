@@ -8,3 +8,4 @@ import { pgSchema } from "drizzle-orm/pg-core";
 export const science = pgSchema("science"); // campaigns, structures, calculations, surrogate models
 export const agent = pgSchema("agent"); // agent runs and the decision/event trail
 export const benchmarks = pgSchema("benchmarks"); // strategy benchmark runs
+export const appAuth = pgSchema("app_auth"); // Better Auth users/sessions (Supabase owns `auth`)

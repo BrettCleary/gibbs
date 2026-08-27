@@ -13,9 +13,15 @@ async def client(tmp_path, monkeypatch):
     await db_base.init_db()
 
     from alloylab.agent.loop import runner_registry
+    from alloylab.api.auth import require_user
+    from alloylab.db.models import AuthUser
     from alloylab.main import create_app
 
     app = create_app()
+    # Endpoint tests exercise the routes, not sign-in: stub the auth dependency.
+    app.dependency_overrides[require_user] = lambda: AuthUser(
+        id="test-user", name="Test", email="test@example.com"
+    )
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c

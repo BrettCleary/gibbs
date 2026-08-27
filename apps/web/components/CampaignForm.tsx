@@ -112,9 +112,21 @@ export function CampaignForm({
                 }
               >
                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                  <ElementSelect value={form.element_a} onChange={(v) => set("element_a", v)} engine={elementEngine} exclude={form.element_b} placeholder="A" />
+                  <ElementSelect
+                    value={form.element_a}
+                    onChange={(v) => set("element_a", v)}
+                    engine={elementEngine}
+                    exclude={form.element_b}
+                    placeholder="A"
+                  />
                   <span className="text-text-muted">–</span>
-                  <ElementSelect value={form.element_b} onChange={(v) => set("element_b", v)} engine={elementEngine} exclude={form.element_a} placeholder="B" />
+                  <ElementSelect
+                    value={form.element_b}
+                    onChange={(v) => set("element_b", v)}
+                    engine={elementEngine}
+                    exclude={form.element_a}
+                    placeholder="B"
+                  />
                 </div>
               </Field>
             )}
@@ -123,7 +135,11 @@ export function CampaignForm({
                 <option value="agent">agent — LLM scientist</option>
                 <option value="uncertainty">uncertainty sampling</option>
                 <option value="grid">
-                  {isPhase ? "slice round-robin + grid" : isAlloy ? "composition coverage" : "grid coverage"}
+                  {isPhase
+                    ? "slice round-robin + grid"
+                    : isAlloy
+                      ? "composition coverage"
+                      : "grid coverage"}
                 </option>
                 <option value="random">random</option>
               </Select>
@@ -227,7 +243,10 @@ export function CampaignForm({
 
               {isDft && (
                 <Field label="energy engine" className="col-span-2">
-                  <Select value={form.dft_engine} onChange={(e) => set("dft_engine", e.target.value)}>
+                  <Select
+                    value={form.dft_engine}
+                    onChange={(e) => set("dft_engine", e.target.value)}
+                  >
                     <option value="emt">EMT classical potential (fast)</option>
                     <option value="espresso">Quantum ESPRESSO (real DFT, slow)</option>
                   </Select>

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { AgentEvent } from "@alloylab/api-client";
-import { api, API_URL } from "@/lib/api";
+import { api, apiUrlWithToken } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { EmptyState, type Tone } from "@/components/ui/primitives";
 
@@ -56,7 +56,7 @@ export function EventFeed({ campaignId, live }: { campaignId: string; live: bool
 
   useEffect(() => {
     if (!live) return;
-    const source = new EventSource(`${API_URL}/campaigns/${campaignId}/events`);
+    const source = new EventSource(apiUrlWithToken(`/campaigns/${campaignId}/events`));
     const handler = (e: MessageEvent) => {
       try {
         const event = JSON.parse(e.data) as LiveEvent;
@@ -115,7 +115,12 @@ export function EventFeed({ campaignId, live }: { campaignId: string; live: bool
               <span className="shrink-0 font-mono text-[10px] tabular-nums text-text-muted">
                 {new Date(e.created_at).toLocaleTimeString()}
               </span>
-              <span className={cn("shrink-0 font-mono text-[10px] uppercase tracking-[0.14em]", TONE_TEXT[tone])}>
+              <span
+                className={cn(
+                  "shrink-0 font-mono text-[10px] uppercase tracking-[0.14em]",
+                  TONE_TEXT[tone],
+                )}
+              >
                 {e.event_type.replace(/_/g, " ")}
               </span>
             </div>

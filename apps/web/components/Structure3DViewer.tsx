@@ -11,13 +11,39 @@ import type { StructureRead } from "@alloylab/api-client";
 /** Element rendering: the lower atomic number in a cell is drawn neutral, the
  *  higher one in the accent color; radius grows gently with Z. */
 export const ELEMENT_NAMES: Record<number, string> = {
-  13: "Al", 26: "Fe", 27: "Co", 28: "Ni", 29: "Cu", 46: "Pd", 47: "Ag", 78: "Pt", 79: "Au", 82: "Pb",
-  22: "Ti", 23: "V", 24: "Cr", 25: "Mn", 30: "Zn", 40: "Zr", 41: "Nb", 42: "Mo", 45: "Rh", 77: "Ir", 74: "W",
+  13: "Al",
+  26: "Fe",
+  27: "Co",
+  28: "Ni",
+  29: "Cu",
+  46: "Pd",
+  47: "Ag",
+  78: "Pt",
+  79: "Au",
+  82: "Pb",
+  22: "Ti",
+  23: "V",
+  24: "Cr",
+  25: "Mn",
+  30: "Zn",
+  40: "Zr",
+  41: "Nb",
+  42: "Mo",
+  45: "Rh",
+  77: "Ir",
+  74: "W",
 };
-export function elementStyle(z: number, numbersInCell: number[]): { color: string; name: string; r: number } {
+export function elementStyle(
+  z: number,
+  numbersInCell: number[],
+): { color: string; name: string; r: number } {
   const sorted = [...new Set(numbersInCell)].sort((a, b) => a - b);
   const isSecond = sorted.length > 1 && z === sorted[sorted.length - 1];
-  return { color: isSecond ? "#a4b4d0" : "#c9cdd3", name: ELEMENT_NAMES[z] ?? `Z${z}`, r: 10 + Math.min(z, 80) / 25 };
+  return {
+    color: isSecond ? "#a4b4d0" : "#c9cdd3",
+    name: ELEMENT_NAMES[z] ?? `Z${z}`,
+    r: 10 + Math.min(z, 80) / 25,
+  };
 }
 
 type V3 = [number, number, number];
@@ -33,8 +59,10 @@ function scale(a: V3, s: number): V3 {
 function project(p: V3): { x: number; y: number; depth: number } {
   const yaw = Math.PI / 7;
   const pitch = Math.PI / 5.5;
-  const cy = Math.cos(yaw), sy = Math.sin(yaw);
-  const cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const cy = Math.cos(yaw),
+    sy = Math.sin(yaw);
+  const cp = Math.cos(pitch),
+    sp = Math.sin(pitch);
   const x1 = p[0] * cy + p[1] * sy;
   const y1 = -p[0] * sy + p[1] * cy;
   const y2 = y1 * cp + p[2] * sp;
@@ -65,13 +93,23 @@ export function Structure3DViewer({ structure }: { structure: StructureRead }) {
         }
 
     // Edges of the repeated parallelepiped.
-    const a = scale(lat[0], REPEAT), b = scale(lat[1], REPEAT), c = scale(lat[2], REPEAT);
-    const corners: V3[] = [
-      [0, 0, 0], a, b, c, add(a, b), add(a, c), add(b, c), add(add(a, b), c),
-    ];
+    const a = scale(lat[0], REPEAT),
+      b = scale(lat[1], REPEAT),
+      c = scale(lat[2], REPEAT);
+    const corners: V3[] = [[0, 0, 0], a, b, c, add(a, b), add(a, c), add(b, c), add(add(a, b), c)];
     const pairs: [number, number][] = [
-      [0, 1], [0, 2], [0, 3], [1, 4], [1, 5], [2, 4], [2, 6], [3, 5], [3, 6],
-      [4, 7], [5, 7], [6, 7],
+      [0, 1],
+      [0, 2],
+      [0, 3],
+      [1, 4],
+      [1, 5],
+      [2, 4],
+      [2, 6],
+      [3, 5],
+      [3, 6],
+      [4, 7],
+      [5, 7],
+      [6, 7],
     ];
     const proj = corners.map(project);
     const edges = pairs.map(([i, j]) => ({ p1: proj[i], p2: proj[j] }));
@@ -79,18 +117,21 @@ export function Structure3DViewer({ structure }: { structure: StructureRead }) {
     // Normalize to viewBox.
     const xs = [...atoms.map((p) => p.x), ...proj.map((p) => p.x)];
     const ys = [...atoms.map((p) => p.y), ...proj.map((p) => p.y)];
-    const minX = Math.min(...xs), maxX = Math.max(...xs);
-    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    const minX = Math.min(...xs),
+      maxX = Math.max(...xs);
+    const minY = Math.min(...ys),
+      maxY = Math.max(...ys);
     const s = Math.min((W - 60) / (maxX - minX || 1), (H - 60) / (maxY - minY || 1));
     const tx = (x: number) => 30 + (x - minX) * s;
     const ty = (y: number) => 30 + (y - minY) * s;
 
     return {
-      atoms: atoms
-        .map((p) => ({ ...p, x: tx(p.x), y: ty(p.y) }))
-        .sort((p, q) => p.depth - q.depth),
+      atoms: atoms.map((p) => ({ ...p, x: tx(p.x), y: ty(p.y) })).sort((p, q) => p.depth - q.depth),
       edges: edges.map((e) => ({
-        x1: tx(e.p1.x), y1: ty(e.p1.y), x2: tx(e.p2.x), y2: ty(e.p2.y),
+        x1: tx(e.p1.x),
+        y1: ty(e.p1.y),
+        x2: tx(e.p2.x),
+        y2: ty(e.p2.y),
       })),
     };
   }, [structure]);
@@ -100,7 +141,8 @@ export function Structure3DViewer({ structure }: { structure: StructureRead }) {
   }
 
   const depths = atoms.map((a) => a.depth);
-  const minD = Math.min(...depths), maxD = Math.max(...depths);
+  const minD = Math.min(...depths),
+    maxD = Math.max(...depths);
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="max-h-72 w-full">

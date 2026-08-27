@@ -61,7 +61,11 @@ export default function CampaignsPage() {
         description="Each campaign hands the autonomous scientist an objective and a finite simulation budget. It forms hypotheses, chooses calculations, diagnoses failures, updates its models, and explains what it found."
         actions={
           !showForm && (
-            <Button variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setShowForm(true)}>
+            <Button
+              variant="primary"
+              icon={<Plus className="h-3.5 w-3.5" />}
+              onClick={() => setShowForm(true)}
+            >
               New campaign
             </Button>
           )
@@ -73,7 +77,11 @@ export default function CampaignsPage() {
           onSubmit={(body) => create.mutate(body)}
           onCancel={() => setShowForm(false)}
           pending={create.isPending}
-          error={create.error ? String((create.error as any)?.detail ?? create.error) : null}
+          error={
+            create.error
+              ? String((create.error as { detail?: unknown })?.detail ?? create.error)
+              : null
+          }
         />
       )}
 
@@ -90,7 +98,11 @@ export default function CampaignsPage() {
             title="No campaigns yet"
             description="Create one to launch the autonomous scientist. The default problem searches for the stiffest Ni–Al ordering that is thermodynamically stable and stays ordered at 1200 K."
             action={
-              <Button variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setShowForm(true)}>
+              <Button
+                variant="primary"
+                icon={<Plus className="h-3.5 w-3.5" />}
+                onClick={() => setShowForm(true)}
+              >
                 New campaign
               </Button>
             }

@@ -23,12 +23,9 @@ const M = { top: 18, right: 20, bottom: 44, left: 64 };
 
 export function PhaseDiagramChart({ slices, tMin, tMax, selectedX, onSelect }: Props) {
   const x = (v: number) => M.left + v * (W - M.left - M.right);
-  const y = (t: number) =>
-    M.top + ((tMax - t) / (tMax - tMin)) * (H - M.top - M.bottom);
+  const y = (t: number) => M.top + ((tMax - t) / (tMax - tMin)) * (H - M.top - M.bottom);
 
-  const boundary = slices
-    .filter((s) => s.tc_mean != null)
-    .sort((a, b) => a.x - b.x);
+  const boundary = slices.filter((s) => s.tc_mean != null).sort((a, b) => a.x - b.x);
 
   const boundaryPath =
     boundary.length > 1
@@ -50,7 +47,13 @@ export function PhaseDiagramChart({ slices, tMin, tMax, selectedX, onSelect }: P
         return (
           <g key={`x${i}`}>
             <line x1={x(v)} x2={x(v)} y1={M.top} y2={H - M.bottom} stroke="var(--border)" />
-            <text x={x(v)} y={H - M.bottom + 18} textAnchor="middle" fontSize={11} fill="var(--text-dim)">
+            <text
+              x={x(v)}
+              y={H - M.bottom + 18}
+              textAnchor="middle"
+              fontSize={11}
+              fill="var(--text-dim)"
+            >
               {v.toFixed(1)}
             </text>
           </g>
@@ -145,9 +148,23 @@ export function PhaseDiagramChart({ slices, tMin, tMax, selectedX, onSelect }: P
               />
             )}
             {selected && (
-              <circle cx={x(s.x)} cy={y(s.tc_mean)} r={9} fill="none" stroke="var(--warn)" strokeWidth={1.5} />
+              <circle
+                cx={x(s.x)}
+                cy={y(s.tc_mean)}
+                r={9}
+                fill="none"
+                stroke="var(--warn)"
+                strokeWidth={1.5}
+              />
             )}
-            <circle cx={x(s.x)} cy={y(s.tc_mean)} r={4.5} fill="var(--warn)" stroke="var(--bg)" strokeWidth={1} />
+            <circle
+              cx={x(s.x)}
+              cy={y(s.tc_mean)}
+              r={4.5}
+              fill="var(--warn)"
+              stroke="var(--bg)"
+              strokeWidth={1}
+            />
             <text x={x(s.x) + 8} y={y(s.tc_mean) - 8} fontSize={11} fill="var(--warn)">
               {s.tc_edge_pinned
                 ? `≲ ${s.tc_mean.toFixed(0)} K (edge)`
@@ -160,11 +177,17 @@ export function PhaseDiagramChart({ slices, tMin, tMax, selectedX, onSelect }: P
       {/* legend */}
       <g fontSize={11} fill="var(--text-dim)">
         <circle cx={M.left + 12} cy={M.top + 8} r={4.5} fill="var(--warn)" />
-        <text x={M.left + 22} y={M.top + 12}>T̂c(x) ± σ (boundary)</text>
+        <text x={M.left + 22} y={M.top + 12}>
+          T̂c(x) ± σ (boundary)
+        </text>
         <circle cx={M.left + 172} cy={M.top + 8} r={2.5} fill="var(--good)" />
-        <text x={M.left + 182} y={M.top + 12}>MC run (ordered)</text>
+        <text x={M.left + 182} y={M.top + 12}>
+          MC run (ordered)
+        </text>
         <circle cx={M.left + 302} cy={M.top + 8} r={2.5} fill="var(--text-dim)" />
-        <text x={M.left + 312} y={M.top + 12}>MC run (disordered)</text>
+        <text x={M.left + 312} y={M.top + 12}>
+          MC run (disordered)
+        </text>
       </g>
     </svg>
   );

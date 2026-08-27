@@ -41,7 +41,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
     );
   }
 
-  const cand = r.recommendation?.candidate as Record<string, any> | null | undefined;
+  const cand = r.recommendation?.candidate as Record<string, unknown> | null | undefined;
   const narrative = (r.llm_narrative ?? r.narrative ?? "").split("\n\n").filter(Boolean);
   const failures = Object.entries((r.failures.by_category ?? {}) as Record<string, unknown>);
 
@@ -69,7 +69,10 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
 
       {/* -------------------------------------------- recommendation moment */}
       <section className="relative overflow-hidden rounded-md border border-verdigris/25 bg-verdigris/[0.05] px-6 py-6 md:px-8 md:py-7">
-        <div aria-hidden className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-verdigris/10 blur-3xl" />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-verdigris/10 blur-3xl"
+        />
         <SectionLabel className="text-verdigris/80">Recommendation</SectionLabel>
         {r.recommendation?.text ? (
           <p className="mt-3 max-w-2xl text-[17px] leading-relaxed text-text md:text-[19px]">
@@ -82,13 +85,31 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
         )}
         {cand && (
           <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-verdigris/15 pt-5 sm:grid-cols-4">
-            <Metric label="structure" value={cand.label} tone="good" />
+            <Metric label="structure" value={String(cand.label)} tone="good" />
             <Metric label="x_B" value={Number(cand.x).toFixed(3)} />
             <Metric label="bulk modulus" value={`${Number(cand.bulk_modulus).toFixed(0)} GPa`} />
             <Metric label="ΔE_form" value={`${Number(cand.e_form).toFixed(3)} eV`} />
-            <Metric label="0 K" value={cand.stable_0k ? "stable" : "unstable"} tone={cand.stable_0k ? "good" : "bad"} />
-            <Metric label="at threshold" value={String(cand.stability_at_threshold)} tone={cand.stability_at_threshold === "ordered" ? "good" : cand.stability_at_threshold === "disordered" ? "bad" : "default"} />
-            <Metric label="source" value={cand.measured ? "measured" : "predicted"} tone={cand.measured ? "default" : "accent"} />
+            <Metric
+              label="0 K"
+              value={cand.stable_0k ? "stable" : "unstable"}
+              tone={cand.stable_0k ? "good" : "bad"}
+            />
+            <Metric
+              label="at threshold"
+              value={String(cand.stability_at_threshold)}
+              tone={
+                cand.stability_at_threshold === "ordered"
+                  ? "good"
+                  : cand.stability_at_threshold === "disordered"
+                    ? "bad"
+                    : "default"
+              }
+            />
+            <Metric
+              label="source"
+              value={cand.measured ? "measured" : "predicted"}
+              tone={cand.measured ? "default" : "accent"}
+            />
           </div>
         )}
       </section>
@@ -129,10 +150,22 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
             rows={[
               ["model", `${String(r.model.type ?? "—")} v${String(r.model.version ?? "—")}`],
               ["training points", String(r.model.n_training_points ?? "—")],
-              r.model.loocv_rmse != null && ["CE LOOCV RMSE", `${Number(r.model.loocv_rmse).toFixed(4)} eV/atom`],
-              r.model.bulk_modulus_loocv_gpa != null && ["B LOOCV", `${Number(r.model.bulk_modulus_loocv_gpa).toFixed(1)} GPa`],
-              r.model.tc_mean != null && ["Tc", `${Number(r.model.tc_mean).toFixed(3)} ± ${Number(r.model.tc_std).toFixed(3)}`],
-              r.model.max_tc_std != null && ["max σ(Tc)", `${Number(r.model.max_tc_std).toFixed(0)} K`],
+              r.model.loocv_rmse != null && [
+                "CE LOOCV RMSE",
+                `${Number(r.model.loocv_rmse).toFixed(4)} eV/atom`,
+              ],
+              r.model.bulk_modulus_loocv_gpa != null && [
+                "B LOOCV",
+                `${Number(r.model.bulk_modulus_loocv_gpa).toFixed(1)} GPa`,
+              ],
+              r.model.tc_mean != null && [
+                "Tc",
+                `${Number(r.model.tc_mean).toFixed(3)} ± ${Number(r.model.tc_std).toFixed(3)}`,
+              ],
+              r.model.max_tc_std != null && [
+                "max σ(Tc)",
+                `${Number(r.model.max_tc_std).toFixed(0)} K`,
+              ],
             ]}
           />
         </Section>
@@ -142,7 +175,8 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
             rows={[
               ["budget used", `${String(r.budget.used)} / ${String(r.budget.total)}`],
               ...Object.entries((r.budget.successful_by_type ?? {}) as Record<string, unknown>).map(
-                ([k, v]) => [k.toLowerCase().replace("_", " "), `${String(v)} succeeded`] as [string, string],
+                ([k, v]) =>
+                  [k.toLowerCase().replace("_", " "), `${String(v)} succeeded`] as [string, string],
               ),
               ["failed / retried", `${String(r.budget.failed)} / ${String(r.budget.retries)}`],
               ["engine time", `${Number(r.budget.total_compute_seconds).toFixed(0)} s`],
@@ -185,8 +219,12 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
               <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-muted">
                 {String(i + 1).padStart(2, "0")} · {new Date(d.at as string).toLocaleTimeString()}
               </div>
-              <p className="mt-1 text-[13.5px] leading-relaxed text-text">{d.hypothesis as string}</p>
-              <p className="mt-0.5 text-[13px] leading-relaxed text-text-secondary">→ {d.action as string}</p>
+              <p className="mt-1 text-[13.5px] leading-relaxed text-text">
+                {d.hypothesis as string}
+              </p>
+              <p className="mt-0.5 text-[13px] leading-relaxed text-text-secondary">
+                → {d.action as string}
+              </p>
             </li>
           ))}
         </ol>
@@ -218,7 +256,13 @@ function Facts({
           const [k, v] = row as [string, string];
           return (
             <div key={k} className="flex items-baseline justify-between gap-4 px-4 py-2">
-              <dt className={keyTone === "bad" ? "font-mono text-[12px] text-oxide" : "text-[12.5px] text-text-secondary"}>
+              <dt
+                className={
+                  keyTone === "bad"
+                    ? "font-mono text-[12px] text-oxide"
+                    : "text-[12.5px] text-text-secondary"
+                }
+              >
                 {k}
               </dt>
               <dd>

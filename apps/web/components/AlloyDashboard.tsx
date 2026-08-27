@@ -106,7 +106,9 @@ export function AlloyDashboard({ campaignId, running }: { campaignId: string; ru
                       )}
                     >
                       <DataValue className="text-[12.5px] text-verdigris">{p.label}</DataValue>
-                      <DataValue dim className="text-[12px]">x={p.x.toFixed(3)}</DataValue>
+                      <DataValue dim className="text-[12px]">
+                        x={p.x.toFixed(3)}
+                      </DataValue>
                       <DataValue className="ml-auto text-[12px]">
                         {p.e_form != null ? p.e_form.toFixed(4) : "—"}
                         {!p.measured && p.e_form_std != null && (
