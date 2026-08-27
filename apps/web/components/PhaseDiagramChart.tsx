@@ -67,14 +67,14 @@ export function PhaseDiagramChart({ slices, tMin, tMax, selectedX, onSelect }: P
           </g>
         );
       })}
-      <text x={(W + M.left) / 2} y={H - 6} textAnchor="middle" fontSize={12} fill="var(--text-dim)">
+      <text x={(W + M.left) / 2} y={H - 6} textAnchor="middle" fontSize={11} fill="var(--text-dim)">
         composition x_Al
       </text>
       <text
         x={14}
         y={(H - M.bottom + M.top) / 2}
         textAnchor="middle"
-        fontSize={12}
+        fontSize={11}
         fill="var(--text-dim)"
         transform={`rotate(-90 14 ${(H - M.bottom + M.top) / 2})`}
       >
@@ -92,7 +92,7 @@ export function PhaseDiagramChart({ slices, tMin, tMax, selectedX, onSelect }: P
             x={x(boundary.reduce((a, s) => a + s.x, 0) / boundary.length)}
             y={y(tMin + 0.12 * (tMax - tMin))}
             textAnchor="middle"
-            fontSize={12}
+            fontSize={11}
             fill="var(--good)"
           >
             ordered
@@ -101,7 +101,7 @@ export function PhaseDiagramChart({ slices, tMin, tMax, selectedX, onSelect }: P
             x={x(boundary.reduce((a, s) => a + s.x, 0) / boundary.length)}
             y={y(tMax - 0.08 * (tMax - tMin))}
             textAnchor="middle"
-            fontSize={12}
+            fontSize={11}
             fill="var(--text-dim)"
           >
             disordered solid solution
@@ -147,7 +147,7 @@ export function PhaseDiagramChart({ slices, tMin, tMax, selectedX, onSelect }: P
             {selected && (
               <circle cx={x(s.x)} cy={y(s.tc_mean)} r={9} fill="none" stroke="var(--warn)" strokeWidth={1.5} />
             )}
-            <circle cx={x(s.x)} cy={y(s.tc_mean)} r={4.5} fill="var(--warn)" stroke="#0b0f14" strokeWidth={1} />
+            <circle cx={x(s.x)} cy={y(s.tc_mean)} r={4.5} fill="var(--warn)" stroke="var(--bg)" strokeWidth={1} />
             <text x={x(s.x) + 8} y={y(s.tc_mean) - 8} fontSize={11} fill="var(--warn)">
               {s.tc_edge_pinned
                 ? `≲ ${s.tc_mean.toFixed(0)} K (edge)`

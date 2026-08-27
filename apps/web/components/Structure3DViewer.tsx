@@ -9,8 +9,8 @@ import { useMemo } from "react";
 import type { StructureRead } from "@alloylab/api-client";
 
 const ELEMENT_STYLE: Record<number, { color: string; name: string; r: number }> = {
-  28: { color: "#aeb9c6", name: "Ni", r: 11 },
-  13: { color: "#4cc2ff", name: "Al", r: 13 },
+  28: { color: "#c9cdd3", name: "Ni", r: 11 },
+  13: { color: "#a4b4d0", name: "Al", r: 13 },
 };
 
 type V3 = [number, number, number];
@@ -112,7 +112,7 @@ export function Structure3DViewer({ structure }: { structure: StructureRead }) {
             r={r}
             fill={style.color}
             opacity={0.45 + 0.55 * t}
-            stroke="#0b0f14"
+            stroke="var(--bg)"
             strokeWidth={1}
           />
         );

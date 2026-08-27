@@ -65,14 +65,14 @@ export function HullChart({ points, hullX, hullE, selectedLabel, onSelect }: Pro
       })}
       {/* zero line */}
       <line x1={M.left} x2={W - M.right} y1={y(0)} y2={y(0)} stroke="var(--text-dim)" strokeWidth={1} strokeDasharray="2 3" />
-      <text x={(W + M.left) / 2} y={H - 6} textAnchor="middle" fontSize={12} fill="var(--text-dim)">
+      <text x={(W + M.left) / 2} y={H - 6} textAnchor="middle" fontSize={11} fill="var(--text-dim)">
         composition x (B fraction)
       </text>
       <text
         x={14}
         y={(H - M.bottom + M.top) / 2}
         textAnchor="middle"
-        fontSize={12}
+        fontSize={11}
         fill="var(--text-dim)"
         transform={`rotate(-90 14 ${(H - M.bottom + M.top) / 2})`}
       >
@@ -127,7 +127,7 @@ export function HullChart({ points, hullX, hullE, selectedLabel, onSelect }: Pro
       <g fontSize={11} fill="var(--text-dim)">
         <circle cx={M.left + 12} cy={M.top + 8} r={3.5} fill="var(--text)" />
         <text x={M.left + 22} y={M.top + 12}>measured (oracle)</text>
-        <circle cx={M.left + 152} cy={M.top + 8} r={3.5} fill="var(--bg)" stroke="var(--accent)" strokeWidth={1.5} />
+        <circle cx={M.left + 152} cy={M.top + 8} r={3.5} fill="var(--panel)" stroke="var(--accent)" strokeWidth={1.5} />
         <text x={M.left + 162} y={M.top + 12}>CE prediction ±σ</text>
         <circle cx={M.left + 288} cy={M.top + 8} r={4.5} fill="var(--good)" />
         <text x={M.left + 300} y={M.top + 12}>predicted stable / hull</text>

@@ -85,14 +85,14 @@ export function ResponseChart(props: Props) {
           </g>
         );
       })}
-      <text x={(W + M.left) / 2} y={H - 6} textAnchor="middle" fontSize={12} fill="var(--text-dim)">
+      <text x={(W + M.left) / 2} y={H - 6} textAnchor="middle" fontSize={11} fill="var(--text-dim)">
         {props.xLabel ?? "temperature T (J/k_B)"}
       </text>
       <text
         x={14}
         y={(H - M.bottom + M.top) / 2}
         textAnchor="middle"
-        fontSize={12}
+        fontSize={11}
         fill="var(--text-dim)"
         transform={`rotate(-90 14 ${(H - M.bottom + M.top) / 2})`}
       >

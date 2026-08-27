@@ -2,13 +2,41 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Play } from "lucide-react";
 import type { BenchmarkRun } from "@alloylab/api-client";
 import { api } from "@/lib/api";
-import { StatusBadge } from "@/components/StatusBadge";
+import {
+  Button,
+  DataValue,
+  EmptyState,
+  ErrorNote,
+  Field,
+  Input,
+  LoadingNote,
+  PageTitle,
+  PanelHeader,
+  Select,
+  StatusBadge,
+  Surface,
+  Table,
+  Td,
+  Th,
+  Tr,
+} from "@/components/ui/primitives";
+
+type Problem = "ising" | "alloy" | "fcc" | "phase" | "property";
+
+const PROBLEM_LABEL: Record<Problem, string> = {
+  property: "stiff & stable search",
+  phase: "Ni–Al phase diagram",
+  fcc: "FCC Ni–Al (icet)",
+  alloy: "binary alloy",
+  ising: "ising",
+};
 
 export default function BenchmarksPage() {
   const queryClient = useQueryClient();
-  const [problem, setProblem] = useState<"ising" | "alloy" | "fcc" | "phase" | "property">("property");
+  const [problem, setProblem] = useState<Problem>("property");
   const [budget, setBudget] = useState(10);
   const [nSeeds, setNSeeds] = useState(3);
 
@@ -18,8 +46,7 @@ export default function BenchmarksPage() {
       const { data } = await api.GET("/benchmarks");
       return data ?? [];
     },
-    refetchInterval: (q) =>
-      q.state.data?.some((b) => b.status === "RUNNING") ? 3000 : false,
+    refetchInterval: (q) => (q.state.data?.some((b) => b.status === "RUNNING") ? 3000 : false),
   });
 
   const create = useMutation({
@@ -42,215 +69,178 @@ export default function BenchmarksPage() {
   });
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-lg font-semibold">Benchmark Mode</h1>
-          <p className="mt-1 max-w-2xl text-[13px] text-[var(--text-dim)]">
-            Does smarter experiment selection reconstruct the ground truth with
-            fewer expensive queries? Ising runs score the Tc estimate against a
-            high-budget scan; alloy runs score hull reconstruction (missed and
-            false stable phases, hull error) against the exact hidden Hamiltonian
-            — a fresh one per seed.
-          </p>
-        </div>
+    <div className="flex flex-col gap-8">
+      <PageTitle
+        eyebrow="Evaluation"
+        title="Benchmark mode"
+        description="Does smarter experiment selection reconstruct the ground truth with fewer expensive queries? Every strategy gets the same budget against the same hidden Hamiltonian — a fresh one per seed — and is scored on regret, hull reconstruction, or boundary error."
+      />
+
+      <Surface>
         <form
-          className="flex items-end gap-3"
+          className="flex flex-wrap items-end gap-4 px-5 py-4"
           onSubmit={(e) => {
             e.preventDefault();
             create.mutate();
           }}
         >
-          <label className="flex flex-col gap-1 text-[12px] text-[var(--text-dim)]">
-            problem
-            <select
-              value={problem}
-              onChange={(e) => setProblem(e.target.value as "ising" | "alloy" | "fcc" | "phase" | "property")}
-              className="mono rounded-sm border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1.5 text-sm text-[var(--text)]"
-            >
-              <option value="property">stiff &amp; stable search</option>
-              <option value="phase">Ni–Al phase diagram</option>
-              <option value="fcc">FCC Ni–Al (icet)</option>
-              <option value="alloy">binary alloy</option>
-              <option value="ising">ising</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-[12px] text-[var(--text-dim)]">
-            budget / run
-            <input
-              type="number"
-              min={4}
-              max={60}
-              value={budget}
-              onChange={(e) => setBudget(Number(e.target.value))}
-              className="mono w-24 rounded-sm border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1.5 text-sm text-[var(--text)]"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-[12px] text-[var(--text-dim)]">
-            seeds
-            <input
-              type="number"
-              min={1}
-              max={10}
-              value={nSeeds}
-              onChange={(e) => setNSeeds(Number(e.target.value))}
-              className="mono w-20 rounded-sm border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1.5 text-sm text-[var(--text)]"
-            />
-          </label>
-          <button
-            type="submit"
-            disabled={create.isPending}
-            className="rounded-sm bg-[var(--accent)] px-4 py-1.5 text-sm font-medium text-black disabled:opacity-50"
-          >
-            {create.isPending ? "Launching…" : "Run benchmark"}
-          </button>
+          <Field label="problem" className="w-56">
+            <Select value={problem} onChange={(e) => setProblem(e.target.value as Problem)}>
+              {(Object.keys(PROBLEM_LABEL) as Problem[]).map((p) => (
+                <option key={p} value={p}>
+                  {PROBLEM_LABEL[p]}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="budget / run" className="w-28">
+            <Input type="number" min={4} max={60} value={budget} onChange={(e) => setBudget(Number(e.target.value))} />
+          </Field>
+          <Field label="seeds" className="w-24">
+            <Input type="number" min={1} max={10} value={nSeeds} onChange={(e) => setNSeeds(Number(e.target.value))} />
+          </Field>
+          <div className="flex items-center gap-3">
+            <Button type="submit" variant="primary" icon={<Play className="h-3.5 w-3.5" />} loading={create.isPending}>
+              {create.isPending ? "Launching" : "Run benchmark"}
+            </Button>
+            <span className="font-mono text-[11px] text-text-muted">random · grid · uncertainty</span>
+          </div>
+          {create.error && (
+            <ErrorNote className="basis-full">
+              {String((create.error as any)?.detail ?? create.error)}
+            </ErrorNote>
+          )}
         </form>
-      </div>
+      </Surface>
 
+      {benchmarks.isLoading && <LoadingNote>Loading benchmarks</LoadingNote>}
+      {benchmarks.isError && (
+        <Surface>
+          <EmptyState
+            title="API unreachable"
+            description="The web app could not reach the AlloyLab API, so no benchmark runs can be listed or launched."
+          />
+        </Surface>
+      )}
+      {benchmarks.data?.length === 0 && (
+        <Surface>
+          <EmptyState
+            title="No benchmarks yet"
+            description="Launch one above. Runs compute a high-budget ground truth first, then score each strategy with the same finite budget."
+          />
+        </Surface>
+      )}
       {(benchmarks.data ?? []).map((b) => (
         <BenchmarkCard key={b.id} benchmark={b} />
       ))}
-      {benchmarks.data?.length === 0 && (
-        <div className="panel px-4 py-8 text-center text-[var(--text-dim)]">
-          No benchmarks yet.
-        </div>
-      )}
     </div>
   );
 }
 
-type IsingStats = {
-  mean_tc_error: number;
-  max_tc_error: number;
-  mean_tc_std: number;
-  n_runs: number;
-};
-type AlloyStats = {
-  mean_hull_rmse: number;
-  mean_missed_stable: number;
-  mean_false_stable: number;
-  n_runs: number;
-};
-type PhaseStats = {
-  mean_boundary_error: number;
-  max_boundary_error: number;
-  n_runs: number;
-};
-type PropertyStats = {
-  mean_regret_gpa: number;
-  max_regret_gpa: number;
-  frac_truly_stable: number;
-  n_runs: number;
-};
+type IsingStats = { mean_tc_error: number; max_tc_error: number; mean_tc_std: number; n_runs: number };
+type AlloyStats = { mean_hull_rmse: number; mean_missed_stable: number; mean_false_stable: number; n_runs: number };
+type PhaseStats = { mean_boundary_error: number; max_boundary_error: number; n_runs: number };
+type PropertyStats = { mean_regret_gpa: number; max_regret_gpa: number; frac_truly_stable: number; n_runs: number };
+type Stats = IsingStats & AlloyStats & PhaseStats & PropertyStats;
 
 function BenchmarkCard({ benchmark: b }: { benchmark: BenchmarkRun }) {
-  const problem = String(b.summary?.problem ?? b.config?.problem ?? "ising");
+  const problem = String(b.summary?.problem ?? b.config?.problem ?? "ising") as Problem;
   const isPhase = problem === "phase";
   const isProperty = problem === "property";
   const isAlloy = problem === "alloy" || problem === "fcc";
-  type Stats = IsingStats & AlloyStats & PhaseStats & PropertyStats;
   const per = (b.summary?.per_strategy ?? {}) as Record<string, Stats>;
   const score = (s: Stats) =>
     isProperty ? s.mean_regret_gpa : isPhase ? s.mean_boundary_error : isAlloy ? s.mean_hull_rmse : s.mean_tc_error;
-  const best = Object.entries(per).sort((x, y) => score(x[1]) - score(y[1]))[0]?.[0];
+  const ranked = Object.entries(per).sort((x, y) => score(x[1]) - score(y[1]));
+  const best = ranked[0]?.[0];
+
+  const columns: Array<[string, (s: Stats) => string]> = isProperty
+    ? [
+        ["mean regret (GPa)", (s) => s.mean_regret_gpa.toFixed(1)],
+        ["max regret (GPa)", (s) => s.max_regret_gpa.toFixed(1)],
+        ["truly stable", (s) => `${(s.frac_truly_stable * 100).toFixed(0)}%`],
+      ]
+    : isPhase
+      ? [
+          ["mean |Tc error| (K)", (s) => s.mean_boundary_error.toFixed(0)],
+          ["max |Tc error| (K)", (s) => s.max_boundary_error.toFixed(0)],
+        ]
+      : isAlloy
+        ? [
+            ["mean hull RMSE", (s) => s.mean_hull_rmse.toFixed(4)],
+            ["missed stable / run", (s) => s.mean_missed_stable.toFixed(1)],
+            ["false stable / run", (s) => s.mean_false_stable.toFixed(1)],
+          ]
+        : [
+            ["mean |Tc error|", (s) => s.mean_tc_error.toFixed(4)],
+            ["max |Tc error|", (s) => s.max_tc_error.toFixed(4)],
+            ["mean reported σ(Tc)", (s) => s.mean_tc_std.toFixed(4)],
+          ];
 
   return (
-    <div className="panel">
-      <div className="flex items-center gap-4 border-b border-[var(--border)] px-4 py-2.5">
-        <span className="mono text-[11px] text-[var(--text-dim)]">
-          {new Date(b.created_at).toLocaleString()}
-        </span>
-        <StatusBadge status={b.status} />
-        <span className="mono text-[12px] text-[var(--text-dim)]">
-          {isProperty ? "stiff & stable search" : isPhase ? "Ni–Al phase diagram" : problem === "fcc" ? "FCC Ni–Al" : problem === "alloy" ? "binary alloy" : "ising"} · budget {String(b.config?.budget)} ·{" "}
-          {(b.config?.seeds as number[] | undefined)?.length ?? "?"} seeds
-          {!isAlloy && b.summary?.tc_true != null &&
-            ` · ground-truth Tc = ${Number(b.summary.tc_true).toFixed(3)}`}
-        </span>
-        {b.error && <span className="text-sm text-[var(--bad)]">{b.error}</span>}
-      </div>
-      {b.status === "RUNNING" && (
-        <p className="px-4 py-4 text-sm text-[var(--text-dim)]">
-          Running ground truth and strategy comparisons…
-        </p>
-      )}
-      {Object.keys(per).length > 0 && (
-        <table className="w-full text-sm">
+    <Surface className="animate-fade-up">
+      <PanelHeader
+        title={
+          <span className="flex flex-wrap items-center gap-3">
+            <span>{PROBLEM_LABEL[problem] ?? problem}</span>
+            <StatusBadge status={b.status} />
+          </span>
+        }
+        aside={
+          <span className="font-mono">
+            budget {String(b.config?.budget)} · {(b.config?.seeds as number[] | undefined)?.length ?? "?"} seeds
+            {!isAlloy && b.summary?.tc_true != null && ` · true Tc ${Number(b.summary.tc_true).toFixed(3)}`}
+            {" · "}
+            {new Date(b.created_at).toLocaleString()}
+          </span>
+        }
+      />
+      {b.error && <ErrorNote className="m-4">{b.error}</ErrorNote>}
+      {b.status === "RUNNING" && <LoadingNote>Running ground truth and strategy comparisons</LoadingNote>}
+      {ranked.length > 0 && (
+        <Table>
           <thead>
-            <tr className="mono border-b border-[var(--border)] text-left text-[11px] text-[var(--text-dim)]">
-              <th className="px-4 py-2">strategy</th>
-              <th className="px-4 py-2">queries</th>
-              {isProperty ? (
-                <>
-                  <th className="px-4 py-2">mean regret (GPa)</th>
-                  <th className="px-4 py-2">max regret (GPa)</th>
-                  <th className="px-4 py-2">recommendation truly stable</th>
-                </>
-              ) : isPhase ? (
-                <>
-                  <th className="px-4 py-2">mean |Tc error| (K)</th>
-                  <th className="px-4 py-2">max |Tc error| (K)</th>
-                  <th className="px-4 py-2">—</th>
-                </>
-              ) : isAlloy ? (
-                <>
-                  <th className="px-4 py-2">mean hull RMSE</th>
-                  <th className="px-4 py-2">missed stable / run</th>
-                  <th className="px-4 py-2">false stable / run</th>
-                </>
-              ) : (
-                <>
-                  <th className="px-4 py-2">mean |Tc error|</th>
-                  <th className="px-4 py-2">max |Tc error|</th>
-                  <th className="px-4 py-2">mean reported σ(Tc)</th>
-                </>
-              )}
-              <th className="px-4 py-2">runs</th>
+            <tr>
+              <Th>Strategy</Th>
+              <Th align="right">Queries</Th>
+              {columns.map(([h]) => (
+                <Th key={h} align="right">
+                  {h}
+                </Th>
+              ))}
+              <Th align="right">Runs</Th>
             </tr>
           </thead>
           <tbody>
-            {Object.entries(per)
-              .sort((x, y) => score(x[1]) - score(y[1]))
-              .map(([name, stats]) => (
-                <tr key={name} className="border-b border-[var(--border)] last:border-b-0">
-                  <td className="mono px-4 py-2">
-                    {name}
+            {ranked.map(([name, stats], i) => (
+              <Tr key={name} selected={name === best}>
+                <Td>
+                  <span className="flex items-center gap-2">
+                    <span className="font-mono text-[10px] text-text-muted">{i + 1}</span>
+                    <DataValue className="text-[12.5px]">{name}</DataValue>
                     {name === best && (
-                      <span className="ml-2 text-[11px] text-[var(--good)]">◂ best</span>
+                      <span className="rounded-xs border border-verdigris/40 px-1 font-mono text-[9px] uppercase tracking-[0.14em] text-verdigris">
+                        best
+                      </span>
                     )}
-                  </td>
-                  <td className="mono px-4 py-2">{String(b.config?.budget)}</td>
-                  {isProperty ? (
-                    <>
-                      <td className="mono px-4 py-2">{stats.mean_regret_gpa.toFixed(1)}</td>
-                      <td className="mono px-4 py-2">{stats.max_regret_gpa.toFixed(1)}</td>
-                      <td className="mono px-4 py-2">{(stats.frac_truly_stable * 100).toFixed(0)}%</td>
-                    </>
-                  ) : isPhase ? (
-                    <>
-                      <td className="mono px-4 py-2">{stats.mean_boundary_error.toFixed(0)}</td>
-                      <td className="mono px-4 py-2">{stats.max_boundary_error.toFixed(0)}</td>
-                      <td className="mono px-4 py-2">—</td>
-                    </>
-                  ) : isAlloy ? (
-                    <>
-                      <td className="mono px-4 py-2">{stats.mean_hull_rmse.toFixed(4)}</td>
-                      <td className="mono px-4 py-2">{stats.mean_missed_stable.toFixed(1)}</td>
-                      <td className="mono px-4 py-2">{stats.mean_false_stable.toFixed(1)}</td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="mono px-4 py-2">{stats.mean_tc_error.toFixed(4)}</td>
-                      <td className="mono px-4 py-2">{stats.max_tc_error.toFixed(4)}</td>
-                      <td className="mono px-4 py-2">{stats.mean_tc_std.toFixed(4)}</td>
-                    </>
-                  )}
-                  <td className="mono px-4 py-2">{stats.n_runs}</td>
-                </tr>
-              ))}
+                  </span>
+                </Td>
+                <Td align="right">
+                  <DataValue dim className="text-[12.5px]">{String(b.config?.budget)}</DataValue>
+                </Td>
+                {columns.map(([h, fn]) => (
+                  <Td key={h} align="right">
+                    <DataValue className="text-[12.5px]">{fn(stats)}</DataValue>
+                  </Td>
+                ))}
+                <Td align="right">
+                  <DataValue dim className="text-[12.5px]">{stats.n_runs}</DataValue>
+                </Td>
+              </Tr>
+            ))}
           </tbody>
-        </table>
+        </Table>
       )}
-    </div>
+    </Surface>
   );
 }

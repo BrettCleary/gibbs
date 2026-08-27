@@ -3,56 +3,74 @@
 /**
  * Structure viewer for the 2D lattice problem: renders the periodic tile
  * repeated 3x3 so the ordering pattern is visually obvious (plan section 19's
- * "same composition ≠ same material").
+ * "same composition ≠ same material"). 3D cells defer to Structure3DViewer.
  */
 
 import type { StructureRead, HullPoint } from "@alloylab/api-client";
+import { DataValue, TechnicalLabel } from "@/components/ui/primitives";
 import { Structure3DViewer } from "./Structure3DViewer";
 
 const REPEAT = 3;
 const CELL = 22;
 
-export function StructureViewer({
-  structure,
+function Legend({
+  swatches,
   point,
 }: {
-  structure: StructureRead;
+  swatches: Array<{ color: string; label: string; square?: boolean }>;
   point?: HullPoint | null;
 }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 font-mono text-[11px] text-text-secondary">
+      {swatches.map((s) => (
+        <span key={s.label} className="flex items-center gap-1.5">
+          <span
+            className={s.square ? "inline-block h-2.5 w-2.5 rounded-xs" : "inline-block h-2.5 w-2.5 rounded-full"}
+            style={{ background: s.color }}
+          />
+          {s.label}
+        </span>
+      ))}
+      {point?.e_form != null && (
+        <span>
+          ΔE_form = {point.e_form.toFixed(4)}
+          {!point.measured && point.e_form_std != null
+            ? ` ± ${point.e_form_std.toFixed(4)}`
+            : ""}
+          <span className="text-text-muted"> {point.measured ? "measured" : "predicted"}</span>
+        </span>
+      )}
+      {point?.predicted_stable && <span className="text-verdigris">on predicted hull</span>}
+    </div>
+  );
+}
+
+export function StructureViewer({ structure, point }: { structure: StructureRead; point?: HullPoint | null }) {
   const is3d = (structure.atomic_numbers?.length ?? 0) > 0;
+
+  const header = (meta: string) => (
+    <div className="flex flex-wrap items-baseline justify-between gap-2">
+      <DataValue className="text-[14px] font-medium">{structure.label}</DataValue>
+      <TechnicalLabel className="normal-case tracking-[0.06em]">{meta}</TechnicalLabel>
+    </div>
+  );
+
   if (is3d) {
     return (
-      <div className="flex flex-col gap-2 p-4">
-        <div className="flex items-baseline justify-between">
-          <span className="mono text-sm font-bold">{structure.label}</span>
-          <span className="mono text-[11px] text-[var(--text-dim)]">
-            {structure.chemical_formula} · x_Al={structure.composition.toFixed(3)} ·{" "}
-            {structure.n_sites}-atom cell (shown 2×2×2)
-          </span>
-        </div>
+      <div className="flex flex-col gap-3 p-4">
+        {header(`${structure.chemical_formula} · x_Al=${structure.composition.toFixed(3)} · ${structure.n_sites}-atom cell, shown 2×2×2`)}
         <Structure3DViewer structure={structure} />
-        <div className="mono flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-[var(--text-dim)]">
-          <span>
-            <span className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-[#aeb9c6] align-middle" /> Ni
-          </span>
-          <span>
-            <span className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-[var(--accent)] align-middle" /> Al
-          </span>
-          {point?.e_form != null && (
-            <span>
-              ΔE_form = {point.e_form.toFixed(4)}
-              {!point.measured && point.e_form_std != null
-                ? ` ± ${point.e_form_std.toFixed(4)} (predicted)`
-                : " (measured)"}
-            </span>
-          )}
-          {point?.predicted_stable && (
-            <span className="text-[var(--good)]">on predicted hull</span>
-          )}
-        </div>
+        <Legend
+          swatches={[
+            { color: "#c9cdd3", label: "Ni" },
+            { color: "var(--accent)", label: "Al" },
+          ]}
+          point={point}
+        />
       </div>
     );
   }
+
   const occ = structure.occupations;
   const rows = occ.length;
   const cols = occ[0]?.length ?? 0;
@@ -61,18 +79,8 @@ export function StructureViewer({
 
   return (
     <div className="flex flex-col gap-3 p-4">
-      <div className="flex items-baseline justify-between">
-        <span className="mono text-sm font-bold">{structure.label}</span>
-        <span className="mono text-[11px] text-[var(--text-dim)]">
-          {structure.chemical_formula} · x={structure.composition.toFixed(3)} ·{" "}
-          {structure.shape[0]}×{structure.shape[1]} tile
-        </span>
-      </div>
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        className="max-h-64 w-full"
-        style={{ maxWidth: width * 1.5 }}
-      >
+      {header(`${structure.chemical_formula} · x=${structure.composition.toFixed(3)} · ${structure.shape[0]}×${structure.shape[1]} tile`)}
+      <svg viewBox={`0 0 ${width} ${height}`} className="max-h-64 w-full" style={{ maxWidth: width * 1.5 }}>
         {Array.from({ length: rows * REPEAT }, (_, i) =>
           Array.from({ length: cols * REPEAT }, (_, j) => {
             const v = occ[i % rows][j % cols];
@@ -84,12 +92,11 @@ export function StructureViewer({
                 width={CELL - 1}
                 height={CELL - 1}
                 rx={2}
-                fill={v === 1 ? "var(--accent)" : "#2a3644"}
+                fill={v === 1 ? "var(--accent)" : "var(--panel-2)"}
               />
             );
           }),
         )}
-        {/* tile boundary of the repeating unit */}
         <rect
           x={cols * CELL}
           y={rows * CELL}
@@ -101,25 +108,13 @@ export function StructureViewer({
           strokeDasharray="4 3"
         />
       </svg>
-      <div className="mono flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-[var(--text-dim)]">
-        <span>
-          <span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-[#2a3644] align-middle" /> A
-        </span>
-        <span>
-          <span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-[var(--accent)] align-middle" /> B
-        </span>
-        {point?.e_form != null && (
-          <span>
-            ΔE_form = {point.e_form.toFixed(4)}
-            {!point.measured && point.e_form_std != null
-              ? ` ± ${point.e_form_std.toFixed(4)} (predicted)`
-              : " (measured)"}
-          </span>
-        )}
-        {point?.predicted_stable && (
-          <span className="text-[var(--good)]">on predicted hull</span>
-        )}
-      </div>
+      <Legend
+        swatches={[
+          { color: "var(--panel-2)", label: "A", square: true },
+          { color: "var(--accent)", label: "B", square: true },
+        ]}
+        point={point}
+      />
     </div>
   );
 }

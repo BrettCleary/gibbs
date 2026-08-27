@@ -1,30 +1,159 @@
 @import "tailwindcss";
 
+/* ------------------------------------------------------------------
+ * AlloyLab visual system — technical noir / instrumentation.
+ *
+ * Layers (darkest → lightest):   bg → elevated → surface → surface-light
+ * Text (brightest → dimmest):    text → text-secondary → text-muted
+ * Accent budget:                 steel blue (sparse), brass (Tc / warnings),
+ *                                oxide red (failures), verdigris (stable / good)
+ * Radius language:               2–4px, industrial.
+ * ------------------------------------------------------------------ */
+
+@theme inline {
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+@theme {
+  --color-bg: #0a0b0d;
+  --color-bg-elevated: #0f1216;
+  --color-surface: #161a20;
+  --color-surface-light: #232830;
+  --color-steel: #54575d;
+
+  --color-text: #dedbd8;
+  --color-text-secondary: #a6a39f;
+  --color-text-muted: #66696f;
+
+  --color-accent: #a4b4d0;
+  --color-accent-bright: #b5c9ea;
+  --color-brass: #c4a256;
+  --color-brass-dim: #9a7a32;
+  --color-oxide: #c26f63;
+  --color-oxide-dim: #582823;
+  --color-verdigris: #8fbf9f;
+  --color-verdigris-dim: #2a4a3a;
+
+  --color-line: rgba(255, 255, 255, 0.06);
+  --color-line-hover: rgba(255, 255, 255, 0.11);
+  --color-line-strong: rgba(255, 255, 255, 0.16);
+  --color-grid: #12161c;
+
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+  --radius-md: 4px;
+}
+
+/* Legacy chart tokens — the SVG charts reference these by name. */
 :root {
-  --bg: #0b0f14;
-  --panel: #111820;
-  --panel-2: #0e141b;
-  --border: #1e2a36;
-  --text: #cfd8e3;
-  --text-dim: #7d8a99;
-  --accent: #4cc2ff;
-  --good: #3ecf8e;
-  --warn: #e8b64c;
-  --bad: #e86a6a;
+  --bg: var(--color-bg);
+  --panel: var(--color-bg-elevated);
+  --panel-2: var(--color-surface);
+  --border: rgba(255, 255, 255, 0.07);
+  --text: var(--color-text);
+  --text-dim: var(--color-text-secondary);
+  --text-muted: var(--color-text-muted);
+  --accent: var(--color-accent);
+  --good: var(--color-verdigris);
+  --warn: var(--color-brass);
+  --bad: var(--color-oxide);
+  --grid: var(--color-grid);
+}
+
+html {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-feature-settings: "tnum";
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-feature-settings: "tnum", "ss01";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-.panel {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 4px;
+::selection {
+  background: rgba(164, 180, 208, 0.25);
 }
 
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+/* Fine measurement grid, felt more than seen. */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, var(--color-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-grid) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.35) 60%, transparent);
+}
+
+/* Charts: mono instrumentation labels everywhere. */
+svg text {
+  font-family: var(--font-mono);
+  letter-spacing: 0.01em;
+}
+
+/* Native form controls share the surface language. */
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%23a6a39f' stroke-width='1.3'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+select option {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+input[type="number"]::-webkit-inner-spin-button {
+  opacity: 0.35;
+}
+
+/* Thin scrollbars inside panels. */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-surface-light) transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--color-surface-light);
+  border-radius: 3px;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.animate-pulse-dot {
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-fade-up {
+  animation: fade-up 180ms ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-dot,
+  .animate-fade-up {
+    animation: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
 }
