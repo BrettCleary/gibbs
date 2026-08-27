@@ -15,6 +15,11 @@ function connectionString(): string {
   const url =
     process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? process.env.POSTGRES_URL_NON_POOLING;
   if (!url) {
+    // Next evaluates route modules during `next build` (page-data collection)
+    // but never opens a connection; don't fail the build over a missing var.
+    if (process.env.NEXT_PHASE === "phase-production-build") {
+      return "postgresql://build:build@127.0.0.1:5432/build";
+    }
     throw new Error(
       "DATABASE_URL (or POSTGRES_URL) is not set (Supabase Postgres connection string)",
     );
