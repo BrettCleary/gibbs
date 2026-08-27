@@ -23,11 +23,14 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # ---- runtime: slim image, no compiler ----
 FROM python:3.12-slim-bookworm
-ENV PYTHONUNBUFFERED=1 PATH="/app/.venv/bin:$PATH" PORT=8000
+ENV PYTHONUNBUFFERED=1 PATH="/app/.venv/bin:$PATH"
 WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/apps/api /app/apps/api
 COPY --from=builder /app/packages/science /app/packages/science
 COPY infra/pseudopotentials infra/pseudopotentials
-EXPOSE 8000
-CMD ["sh", "-c", "uvicorn alloylab.main:app --host 0.0.0.0 --port ${PORT}"]
+EXPOSE 80
+# Absolute venv path, not `uvicorn`: Vercel's container runtime injects its own
+# environment at start-up and clobbers the PATH set above (exit 127 otherwise).
+# PORT defaults to 80 — the port Vercel routes to unless PORT is set in project settings.
+CMD ["sh", "-c", "exec /app/.venv/bin/uvicorn alloylab.main:app --host 0.0.0.0 --port ${PORT:-80}"]
