@@ -10,8 +10,15 @@ import * as schema from "./schema";
  * statements must stay disabled, which `prepare: false` handles.
  */
 function connectionString(): string {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is not set (Supabase Postgres connection string)");
+  // DATABASE_URL for local dev; POSTGRES_URL / POSTGRES_URL_NON_POOLING are
+  // injected by the Vercel <-> Supabase integration.
+  const url =
+    process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? process.env.POSTGRES_URL_NON_POOLING;
+  if (!url) {
+    throw new Error(
+      "DATABASE_URL (or POSTGRES_URL) is not set (Supabase Postgres connection string)",
+    );
+  }
   return url;
 }
 

@@ -5,7 +5,10 @@ export default defineConfig({
   schema: "./db/schema",
   out: "./supabase/migrations",
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? "postgresql://postgres:postgres@127.0.0.1:54332/postgres",
+    url:
+      process.env.DATABASE_URL ??
+      process.env.POSTGRES_URL_NON_POOLING ??
+      "postgresql://postgres:postgres@127.0.0.1:54332/postgres",
   },
   strict: true,
   verbose: true,
