@@ -32,11 +32,31 @@ def get_session_factory() -> async_sessionmaker[AsyncSession]:
 
 
 async def init_db(database_url: str | None = None) -> None:
+    """Prepare the database.
+
+    Postgres (Supabase): the schema is owned by Drizzle migrations
+    (apps/web/migrations, `pnpm --filter @alloylab/web db:migrate`); we only
+    verify the tables exist and fail with a clear message otherwise.
+    SQLite (tests / zero-config dev): tables are created from the mirrored
+    SQLAlchemy models.
+    """
+    from sqlalchemy import inspect
+
     from . import models  # noqa: F401  (register tables)
 
     engine = get_engine(database_url)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    if engine.dialect.name == "sqlite":
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        return
+    async with engine.connect() as conn:
+        existing = set(await conn.run_sync(lambda sync: inspect(sync).get_table_names()))
+    missing = sorted(set(Base.metadata.tables) - existing)
+    if missing:
+        raise RuntimeError(
+            f"database is missing tables {missing}; apply the Drizzle migrations first: "
+            "pnpm --filter @alloylab/web db:migrate (DATABASE_URL must point at the same database)"
+        )
 
 
 async def dispose_db() -> None:

@@ -8,7 +8,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Runtime configuration. Override with ALLOYLAB_* environment variables."""
 
-    database_url: str = "sqlite+aiosqlite:///./alloylab.db"
+    # Supabase Postgres (schema managed by Drizzle in apps/web). The default is
+    # the local Supabase stack (`supabase start`); set ALLOYLAB_DATABASE_URL to a
+    # hosted project's session-pooler URI as postgresql+asyncpg://... . A
+    # sqlite+aiosqlite:// URL is still accepted for zero-config dev and tests.
+    database_url: str = "postgresql+asyncpg://postgres:postgres@127.0.0.1:54332/postgres"
     cors_origins: list[str] = ["http://localhost:3000"]
     max_concurrent_jobs: int = 2
     # LLM agent (Pydantic AI). Provider-prefixed model string, e.g. "openai:gpt-5",
@@ -26,7 +30,12 @@ class Settings(BaseSettings):
     temporal_task_queue: str = "alloylab-calculations"
     job_timeout_seconds: int = 1800
 
-    model_config = SettingsConfigDict(env_prefix="ALLOYLAB_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="ALLOYLAB_",
+        # Works from the repo root (`uv run ...`) and from apps/api (`pnpm --filter @alloylab/api dev`).
+        env_file=(".env", "apps/api/.env"),
+        extra="ignore",
+    )
 
 
 @lru_cache

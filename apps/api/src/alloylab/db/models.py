@@ -3,10 +3,17 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON as _JSON
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
+
+# The schema of record is the Drizzle definition in apps/web/db/schema (jsonb
+# on Postgres). These models mirror it for the Python query layer; SQLite (tests
+# / zero-config dev) gets plain JSON.
+JSON = JSONB().with_variant(_JSON(), "sqlite")
 
 
 def _uuid() -> str:

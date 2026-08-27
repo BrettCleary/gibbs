@@ -44,6 +44,7 @@ source = { editable = "apps/api" }
 dependencies = [
     { name = "aiosqlite" },
     { name = "alloyscience" },
+    { name = "asyncpg" },
     { name = "fastapi" },
     { name = "pydantic" },
     { name = "pydantic-ai" },
@@ -60,15 +61,12 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
 ]
-postgres = [
-    { name = "asyncpg" },
-]
 
 [package.metadata]
 requires-dist = [
     { name = "aiosqlite", specifier = ">=0.20" },
     { name = "alloyscience", editable = "packages/science" },
-    { name = "asyncpg", marker = "extra == 'postgres'", specifier = ">=0.29" },
+    { name = "asyncpg", specifier = ">=0.29" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27" },
     { name = "pydantic", specifier = ">=2.7" },
@@ -81,7 +79,7 @@ requires-dist = [
     { name = "temporalio", specifier = ">=1.32.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
 ]
-provides-extras = ["postgres", "dev"]
+provides-extras = ["dev"]
 
 [[package]]
 name = "alloyscience"
