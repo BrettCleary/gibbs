@@ -94,3 +94,48 @@ def test_espresso_real_scf_on_pure_ni(pool, tmp_path):
     assert result.details["scf_iterations"] is not None
     assert Path(result.log_path).is_file()
     assert "JOB DONE" in Path(result.log_path).read_text(errors="replace")
+
+
+def test_espresso_volume_scan_eos_math(pool, monkeypatch):
+    """E(V) scan -> parabola minimum and bulk modulus, with a mocked SCF."""
+    from alloyscience.calculators.base import EnergyResult
+    from alloyscience.calculators.espresso import EspressoFccCalculator
+
+    pure_ni = next(s for s in pool if s.x == 0.0)
+    v0 = abs(__import__("numpy").linalg.det(__import__("numpy").array(pure_ni.cell)))
+    k = 5.0  # eV per unit scale^2 curvature -> known B
+    s_min = 1.02
+
+    def fake_single_point(self, structure, scale, workdir):
+        return EnergyResult(energy_per_atom=k * (scale - s_min) ** 2 - 10.0, lattice_scale=scale,
+                            details={"scf_iterations": 3})
+
+    monkeypatch.setattr(EspressoFccCalculator, "_single_point", fake_single_point)
+    cfg = EspressoConfig(pw_command="/bin/ls", pseudo_dir="/nonexistent", n_volumes=5)
+    monkeypatch.setattr("alloyscience.calculators.espresso.espresso_available", lambda c: (True, "ok"))
+    r = EspressoFccCalculator(cfg).compute(pure_ni, workdir=Path("/tmp/eos-test"))
+    assert r.lattice_scale == pytest.approx(s_min, abs=1e-6)
+    assert r.energy_per_atom == pytest.approx(-10.0, abs=1e-6)
+    expected_b = (2 * k) / (9 * v0 * s_min) * 160.21766
+    assert r.details["bulk_modulus_gpa"] == pytest.approx(expected_b, rel=1e-6)
+
+
+@pytest.mark.skipif(
+    not os.environ.get("ALLOYLAB_PW_COMMAND"),
+    reason="set ALLOYLAB_PW_COMMAND to run the real E(V) scan",
+)
+def test_espresso_real_bulk_modulus_of_ni(pool, tmp_path):
+    cfg = EspressoConfig(
+        pw_command=os.environ["ALLOYLAB_PW_COMMAND"],
+        pseudo_dir=os.environ.get("ALLOYLAB_PSEUDO_DIR", "infra/pseudopotentials"),
+        kspacing=0.35, n_volumes=5,
+    )
+    ok, reason = espresso_available(cfg)
+    if not ok:
+        pytest.skip(reason)
+    pure_ni = next(s for s in pool if s.x == 0.0)
+    r = EspressoFccCalculator(cfg).compute(pure_ni, workdir=tmp_path / "eos")
+    # PBE bulk modulus of fcc Ni ~ 190-200 GPa; demo settings within a broad window.
+    assert 120 < r.details["bulk_modulus_gpa"] < 280
+    assert 0.95 < r.lattice_scale < 1.06
+    assert len(r.details["energies_ev"]) == 5

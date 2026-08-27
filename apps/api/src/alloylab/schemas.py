@@ -53,6 +53,7 @@ DEFAULT_OBJECTIVES = {
 class PropertyEngine(str, Enum):
     hidden = "hidden"
     emt = "emt"
+    espresso = "espresso"
 
 
 class DftEngine(str, Enum):
@@ -308,6 +309,27 @@ class CandidatesView(BaseModel):
     model_version: int | None
     top_candidate_label: str | None
     candidates: list[CandidateRead]
+
+
+class CampaignReport(BaseModel):
+    campaign_id: str
+    generated_at: str
+    title: str
+    objective: str
+    status: str
+    strategy: str
+    problem_type: str
+    budget: dict[str, Any]
+    engines: list[str]
+    model: dict[str, Any]
+    key_results: list[str]
+    recommendation: dict[str, Any]
+    stopping_rationale: str | None
+    failures: dict[str, Any]
+    decision_trail: list[dict[str, Any]]
+    limitations: list[str]
+    narrative: str | None
+    llm_narrative: str | None = None
 
 
 class BenchmarkProblem(str, Enum):

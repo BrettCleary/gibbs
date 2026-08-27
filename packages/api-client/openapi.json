@@ -476,6 +476,49 @@
         }
       }
     },
+    "/campaigns/{campaign_id}/report": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Get Report",
+        "description": "Final scientific report (plan section 16). Persisted at completion;\ngenerated on the fly for campaigns still in progress.",
+        "operationId": "get_report_campaigns__campaign_id__report_get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/campaigns/{campaign_id}/candidates": {
       "get": {
         "tags": [
@@ -1675,6 +1718,141 @@
         ],
         "title": "CampaignRead"
       },
+      "CampaignReport": {
+        "properties": {
+          "campaign_id": {
+            "type": "string",
+            "title": "Campaign Id"
+          },
+          "generated_at": {
+            "type": "string",
+            "title": "Generated At"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "objective": {
+            "type": "string",
+            "title": "Objective"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "strategy": {
+            "type": "string",
+            "title": "Strategy"
+          },
+          "problem_type": {
+            "type": "string",
+            "title": "Problem Type"
+          },
+          "budget": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Budget"
+          },
+          "engines": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Engines"
+          },
+          "model": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Model"
+          },
+          "key_results": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Key Results"
+          },
+          "recommendation": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Recommendation"
+          },
+          "stopping_rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stopping Rationale"
+          },
+          "failures": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Failures"
+          },
+          "decision_trail": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Decision Trail"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          },
+          "narrative": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Narrative"
+          },
+          "llm_narrative": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Narrative"
+          }
+        },
+        "type": "object",
+        "required": [
+          "campaign_id",
+          "generated_at",
+          "title",
+          "objective",
+          "status",
+          "strategy",
+          "problem_type",
+          "budget",
+          "engines",
+          "model",
+          "key_results",
+          "recommendation",
+          "stopping_rationale",
+          "failures",
+          "decision_trail",
+          "limitations",
+          "narrative"
+        ],
+        "title": "CampaignReport"
+      },
       "CampaignStatus": {
         "type": "string",
         "enum": [
@@ -2147,7 +2325,8 @@
         "type": "string",
         "enum": [
           "hidden",
-          "emt"
+          "emt",
+          "espresso"
         ],
         "title": "PropertyEngine"
       },

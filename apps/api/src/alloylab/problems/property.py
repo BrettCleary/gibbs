@@ -342,9 +342,19 @@ class PropertyProblem(AlloyProblem):
         if decision.action_type == ActionType.RUN_STRUCTURE_ENERGY:
             ids = await super().create_calculations(session, campaign, decision)
             engine = (campaign.problem_config or {}).get("engine", "hidden")
+            labels = {
+                "emt": "ase.calculators.emt.EMT",
+                "espresso": "quantum-espresso pw.x (E(V) scan)",
+            }
             for cid in ids:
                 calc = await session.get(Calculation, cid)
-                calc.engine = "ase.calculators.emt.EMT" if engine == "emt" else "hidden CE + hidden bulk-modulus oracle"
+                calc.engine = labels.get(engine, "hidden CE + hidden bulk-modulus oracle")
+                if engine == "espresso":
+                    params = dict(calc.input_parameters)
+                    espresso_cfg = (campaign.problem_config or {}).get("espresso", {})
+                    params["electron_maxstep"] = int(espresso_cfg.get("electron_maxstep", 60))
+                    params["mixing_beta"] = float(espresso_cfg.get("mixing_beta", 0.4))
+                    calc.input_parameters = params
             await session.commit()
             return ids
         latest = await latest_surrogate_model(session, campaign.id)

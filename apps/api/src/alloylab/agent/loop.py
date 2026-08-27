@@ -155,6 +155,7 @@ async def run_campaign_loop(campaign_id: str, agent_run_id: str, executor: JobEx
                 finalize = getattr(problem, "finalize", None)
                 if finalize is not None:
                     await finalize(session, campaign, agent_run_id)
+                await _persist_report(session, campaign, agent_run_id)
                 break
 
             if decision.action_type == ActionType.ABANDON_CALCULATION:
@@ -234,6 +235,30 @@ async def _create_retry(
     session.add(retry)
     await session.commit()
     return retry.id
+
+
+async def _persist_report(session: AsyncSession, campaign: Campaign, agent_run_id: str) -> None:
+    """Milestone 9 'explain results': build and store the final report."""
+    from ..report import build_report, llm_narrative
+
+    report = await build_report(session, campaign)
+    try:
+        prose = await llm_narrative(report, get_settings().agent_model)
+        if prose:
+            report["llm_narrative"] = prose
+    except Exception as exc:  # noqa: BLE001 — narrative is optional
+        report["llm_narrative_error"] = str(exc)
+    campaign.report = report
+    await session.commit()
+    await emit(
+        session,
+        campaign.id,
+        "REPORT_GENERATED",
+        agent_run_id=agent_run_id,
+        action="Final scientific report generated",
+        tool_output_reference=f"campaign_report:{campaign.id}",
+        payload={"key_results": report["key_results"], "n_limitations": len(report["limitations"])},
+    )
 
 
 async def _refresh_budget(session: AsyncSession, campaign: Campaign) -> None:

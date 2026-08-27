@@ -42,6 +42,10 @@ class EspressoConfig:
     mixing_beta: float = 0.4
     mixing_mode: str = "local-TF"  # robust for metallic, elongated cells
     electron_maxstep: int = 60
+    # E(V) scan for bulk modulus (Milestone 9): n_volumes single-points at
+    # isotropic scales around the Vegard lattice; 0/1 = single-point only.
+    n_volumes: int = 1
+    volume_scan_span: float = 0.06  # +/- fractional lattice-scale span
 
     def to_dict(self) -> dict:
         return {
@@ -56,6 +60,8 @@ class EspressoConfig:
             "mixing_beta": self.mixing_beta,
             "mixing_mode": self.mixing_mode,
             "electron_maxstep": self.electron_maxstep,
+            "n_volumes": self.n_volumes,
+            "volume_scan_span": self.volume_scan_span,
         }
 
     @classmethod
@@ -90,8 +96,6 @@ class EspressoFccCalculator:
         self.overrides = overrides or {}
 
     def compute(self, structure: FccStructure, workdir: Path | None = None) -> EnergyResult:
-        from ase.calculators.espresso import Espresso, EspressoProfile
-
         ok, reason = espresso_available(self.config)
         if not ok:
             raise SimulationFailure(
@@ -99,8 +103,59 @@ class EspressoFccCalculator:
             )
         workdir = Path(workdir) if workdir is not None else Path("espresso-run")
         workdir.mkdir(parents=True, exist_ok=True)
+        base_scale = vegard_scale(structure)
+        if self.config.n_volumes <= 1:
+            return self._single_point(structure, base_scale, workdir)
+        return self._volume_scan(structure, base_scale, workdir)
 
-        scale = vegard_scale(structure)
+    def _volume_scan(self, structure: FccStructure, base_scale: float, workdir: Path) -> EnergyResult:
+        """E(V) at n_volumes isotropic scales -> parabolic minimum, bulk modulus.
+
+        B = V d2E/dV2 = (d2E/ds2) / (9 V0 s) at the minimum (V = V0 s^3).
+        Each point is a full SCF in its own subdirectory (all logs kept).
+        """
+        n = int(self.config.n_volumes)
+        span = float(self.config.volume_scan_span)
+        scales = base_scale * (1.0 + np.linspace(-span, span, n))
+        energies, iterations = [], []
+        for k, s in enumerate(scales):
+            r = self._single_point(structure, float(s), workdir / f"v{k}")
+            energies.append(r.energy_per_atom * structure.n_sites)
+            iterations.append(r.details.get("scf_iterations"))
+        e = np.array(energies)
+        a, b, c = np.polyfit(scales, e, 2)
+        if a <= 0:
+            raise SimulationFailure(
+                category="EOS_FIT_FAILED",
+                message="E(V) scan is not convex; cannot extract a bulk modulus",
+                metadata={"scales": [float(v) for v in scales], "energies": [float(v) for v in e]},
+            )
+        s_opt = float(-b / (2.0 * a))
+        s_opt = float(min(max(s_opt, scales[0]), scales[-1]))
+        e_opt = float(a * s_opt**2 + b * s_opt + c)
+        v0 = float(abs(np.linalg.det(np.array(structure.cell))))
+        bulk_modulus_gpa = float((2.0 * a) / (9.0 * v0 * s_opt) * 160.21766)
+        return EnergyResult(
+            energy_per_atom=e_opt / structure.n_sites,
+            lattice_scale=s_opt,
+            details={
+                "engine": "quantum-espresso pw.x (scf x E(V) scan)",
+                "n_volumes": n,
+                "scales": [float(v) for v in scales],
+                "energies_ev": [float(v) for v in e],
+                "optimal_lattice_constant": 3.52 * s_opt,
+                "bulk_modulus_gpa": bulk_modulus_gpa,
+                "scf_iterations": iterations,
+                "vegard_lattice_scale": base_scale,
+                "spin_polarised": False,
+            },
+            log_path=str(workdir / f"v{n // 2}" / "espresso.pwo"),
+        )
+
+    def _single_point(self, structure: FccStructure, scale: float, workdir: Path) -> EnergyResult:
+        from ase.calculators.espresso import Espresso, EspressoProfile
+
+        workdir.mkdir(parents=True, exist_ok=True)
         atoms = structure_to_atoms(structure, scale=scale)
         electron_maxstep = int(self.overrides.get("electron_maxstep", self.config.electron_maxstep))
         mixing_beta = float(self.overrides.get("mixing_beta", self.config.mixing_beta))

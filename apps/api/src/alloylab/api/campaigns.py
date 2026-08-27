@@ -19,6 +19,7 @@ from ..schemas import (
     CampaignCreate,
     CandidateRead,
     CandidatesView,
+    CampaignReport,
     CampaignRead,
     CampaignSurrogateView,
     HullPoint,
@@ -108,13 +109,26 @@ async def create_campaign(body: CampaignCreate, session: AsyncSession = Depends(
             "kind": "property",
             "engine": body.property_engine.value,
             "t_threshold": body.temperature_threshold,
-            "max_size": 5,
+            "max_size": 3 if body.property_engine.value == "espresso" else 5,
             "hamiltonian": hidden.to_dict(),
             "b_model": HiddenBulkModulusModel.random(seed).to_dict(),
             "e_pure_a": hidden.energy_per_site(pure_a),
             "e_pure_b": hidden.energy_per_site(pure_b),
             "oracle_seed": seed % 1_000_000,
         }
+        if body.property_engine.value == "espresso":
+            from alloyscience.calculators import EspressoConfig, espresso_available
+
+            espresso_config = EspressoConfig(
+                pw_command=get_settings().pw_command,
+                pseudo_dir=get_settings().pseudo_dir,
+                kspacing=0.35,
+                n_volumes=5,  # E(V) scan -> real bulk modulus (Milestone 9)
+            )
+            ok, reason = espresso_available(espresso_config)
+            if not ok:
+                raise HTTPException(status_code=400, detail=f"Quantum ESPRESSO engine unavailable: {reason}")
+            config["espresso"] = espresso_config.to_dict()
         campaign.problem_config = config
     elif body.problem_type.value == "dft_v3":
         # No hidden physics here — a real energy engine answers the queries.
@@ -362,6 +376,18 @@ async def get_hull_view(campaign_id: str, session: AsyncSession = Depends(get_se
         stable_labels=state.predicted_stable,
         endpoints_measured=state.endpoints_measured,
     )
+
+
+@router.get("/{campaign_id}/report", response_model=CampaignReport)
+async def get_report(campaign_id: str, session: AsyncSession = Depends(get_session)):
+    """Final scientific report (plan section 16). Persisted at completion;
+    generated on the fly for campaigns still in progress."""
+    campaign = await _get_campaign(session, campaign_id)
+    if campaign.report:
+        return CampaignReport(**campaign.report)
+    from ..report import build_report
+
+    return CampaignReport(**(await build_report(session, campaign)))
 
 
 @router.get("/{campaign_id}/candidates", response_model=CandidatesView)

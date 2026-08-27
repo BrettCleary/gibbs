@@ -1,7 +1,7 @@
 # AlloyLab — Autonomous Alloy Scientist
 
 An autonomous computational materials-science platform (see `project_description.md`
-for the full plan). This repository currently implements **Milestones 1–8**: the
+for the full plan). This repository implements **all nine milestones of the plan**: the
 complete product loop — agent decisions, typed simulation jobs, surrogate models
 with uncertainty, failure recovery, live mission-control UI, and strategy
 benchmarks — built on synthetic problems first (as the plan prescribes) and now
@@ -65,6 +65,17 @@ running against **real first-principles calculations**:
   tool) and disqualifies candidates that disorder. A `FINAL_RECOMMENDATION`
   event closes the campaign; benchmark mode scores strategies by regret in GPa
   against the truly best stable intermetallic.
+- **Full autonomous campaign (Milestone 9)** — the whole chain on the real
+  engine: choose structures → run DFT (Quantum ESPRESSO with an E(V) scan for
+  bulk moduli, `property_engine=espresso`) → fit CE → verify with MC → rank →
+  **explain**. Every completed campaign persists a structured scientific
+  report (`GET /campaigns/{id}/report`, `/campaigns/[id]/report` in the UI):
+  recommendation with confidence, key results, model quality, budget and
+  engine time, failure/retry summary, the full reasoning trail, and an
+  explicit limitations section — built deterministically from the persisted
+  record so every number has provenance. With `OPENAI_API_KEY` set, the
+  `agent` strategy drives each decision and an LLM pass writes the prose
+  from the structured facts (it may paraphrase, never invent numbers).
 
 Benchmark mode scores strategies against the exact hidden Hamiltonian: hull
 RMSE and missed/false stable phases for the hull problems, mean |Tc error|
@@ -177,11 +188,13 @@ The integration suite runs a **full synthetic campaign end-to-end without
 OpenAI or Quantum ESPRESSO** — deterministic decisions, real Monte Carlo, model
 refits, injected failure → diagnose → retry → succeed — per plan section 34.
 
-## What's next (per the plan)
+## Beyond the plan
 
-- Milestone 9: the full autonomous campaign — chain structure selection → DFT
-  → CE → MC → candidate ranking → final recommendation end-to-end on the real
-  engines, with the LLM scientist driving every stage
+The plan's nine milestones are implemented. Natural next steps: spin-polarised
+DFT and ionic relaxation for quantitative Ni-Al energetics; Alembic migrations
+(the dev database is `create_all`-managed); a Postgres + Temporal deployment
+profile; and richer LLM tooling (structure-inspection tools, self-critique of
+recommendations) once an API key is available in the environment.
 
 Note: the dev database schema is created with `create_all` (no migrations yet);
 after pulling schema changes, delete the local `alloylab.db` file.

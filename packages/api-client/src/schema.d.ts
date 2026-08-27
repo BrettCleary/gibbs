@@ -181,6 +181,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/campaigns/{campaign_id}/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Report
+         * @description Final scientific report (plan section 16). Persisted at completion;
+         *     generated on the fly for campaigns still in progress.
+         */
+        get: operations["get_report_campaigns__campaign_id__report_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/campaigns/{campaign_id}/candidates": {
         parameters: {
             query?: never;
@@ -649,6 +670,55 @@ export interface components {
              */
             created_at: string;
         };
+        /** CampaignReport */
+        CampaignReport: {
+            /** Campaign Id */
+            campaign_id: string;
+            /** Generated At */
+            generated_at: string;
+            /** Title */
+            title: string;
+            /** Objective */
+            objective: string;
+            /** Status */
+            status: string;
+            /** Strategy */
+            strategy: string;
+            /** Problem Type */
+            problem_type: string;
+            /** Budget */
+            budget: {
+                [key: string]: unknown;
+            };
+            /** Engines */
+            engines: string[];
+            /** Model */
+            model: {
+                [key: string]: unknown;
+            };
+            /** Key Results */
+            key_results: string[];
+            /** Recommendation */
+            recommendation: {
+                [key: string]: unknown;
+            };
+            /** Stopping Rationale */
+            stopping_rationale: string | null;
+            /** Failures */
+            failures: {
+                [key: string]: unknown;
+            };
+            /** Decision Trail */
+            decision_trail: {
+                [key: string]: unknown;
+            }[];
+            /** Limitations */
+            limitations: string[];
+            /** Narrative */
+            narrative: string | null;
+            /** Llm Narrative */
+            llm_narrative?: string | null;
+        };
         /**
          * CampaignStatus
          * @enum {string}
@@ -828,7 +898,7 @@ export interface components {
          * PropertyEngine
          * @enum {string}
          */
-        PropertyEngine: "hidden" | "emt";
+        PropertyEngine: "hidden" | "emt" | "espresso";
         /** StartResponse */
         StartResponse: {
             /** Campaign Id */
@@ -1245,6 +1315,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AlloyHullView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_report_campaigns__campaign_id__report_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignReport"];
                 };
             };
             /** @description Validation Error */

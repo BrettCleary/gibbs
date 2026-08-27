@@ -47,6 +47,8 @@ class Campaign(Base):
     # exposed through the API or to the agent; used only by the executor and
     # by benchmark ground-truth evaluation.
     problem_config: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # Final scientific report (Milestone 9), persisted at campaign completion.
+    report: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 

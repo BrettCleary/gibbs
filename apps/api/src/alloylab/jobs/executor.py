@@ -203,7 +203,9 @@ def _execute(
         return _execute_monte_carlo(calculation_id, params)
     if calculation_type == "STRUCTURE_ENERGY":
         kind = problem_config.get("kind")
-        if kind == "ase_calculator" or (kind == "property" and problem_config.get("engine") == "emt"):
+        if kind == "ase_calculator" or (
+            kind == "property" and problem_config.get("engine") in ("emt", "espresso")
+        ):
             return _execute_ase_calculator(calculation_id, params, problem_config, structure_data)
         if kind == "property":
             return _execute_property_oracle(calculation_id, params, problem_config, structure_data)

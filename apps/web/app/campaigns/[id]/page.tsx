@@ -141,6 +141,9 @@ export default function CampaignDashboard({
               ■ {c.stopping_rationale}
             </p>
           )}
+          <a href={`/campaigns/${id}/report`} className="mono mt-2 inline-block text-[11px] text-[var(--accent)] underline decoration-dotted">
+            {c.status === "COMPLETED" ? "open final report →" : "open provisional report →"}
+          </a>
         </div>
         <div className="mono text-[12px]">
           <div className="text-[var(--text-dim)]">
