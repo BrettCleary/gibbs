@@ -13,8 +13,6 @@
     "db:reset": "supabase db reset",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
     "test": "vitest run"
   },
   "dependencies": {
@@ -40,7 +38,6 @@
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.3",
     "postcss": "^8.4.0",
-    "prettier": "^3.9.6",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.6.0",
     "vitest": "^4.1.11"
