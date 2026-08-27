@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import json
 import os
 from functools import lru_cache
-from typing import Any
+from typing import Annotated, Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from pydantic import field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 # Postgres URIs injected by the Vercel <-> Supabase integration, in preference
 # order, used when ALLOYLAB_DATABASE_URL is not set. POSTGRES_URL is the
@@ -53,7 +54,10 @@ class Settings(BaseSettings):
     # hosted project's session-pooler URI as postgresql+asyncpg://... . A
     # sqlite+aiosqlite:// URL is still accepted for zero-config dev and tests.
     database_url: str = "postgresql+asyncpg://postgres:postgres@127.0.0.1:54332/postgres"
-    cors_origins: list[str] = ["http://localhost:3000"]
+    # Browser origins allowed to call the API — the deployed apps/web URL in
+    # production. NoDecode + the validator below so the environment variable can
+    # be a plain comma-separated list as well as a JSON array.
+    cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
     max_concurrent_jobs: int = 2
     # LLM agent (Pydantic AI). Provider-prefixed model string, e.g. "openai:gpt-5",
     # "anthropic:claude-sonnet-4-5", "google-gla:gemini-2.5-pro"; the provider's
@@ -80,6 +84,16 @@ class Settings(BaseSettings):
                     data["database_url"] = url
                     break
         return data
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _split_cors_origins(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            text = value.strip()
+            if text.startswith("["):
+                return json.loads(text)
+            return [origin.strip() for origin in text.split(",") if origin.strip()]
+        return value
 
     @field_validator("database_url")
     @classmethod
