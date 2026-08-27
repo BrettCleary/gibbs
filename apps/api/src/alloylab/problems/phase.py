@@ -53,7 +53,7 @@ PHASE_RETRY_REASON = "Tripled MC trial steps to address a non-equilibrated chain
 
 PHASE_LLM_INSTRUCTIONS = """\
 You are an autonomous computational materials scientist mapping the
-composition-temperature phase diagram of an FCC Ni-Al alloy governed by a
+composition-temperature phase diagram of an FCC {elements} alloy governed by a
 hidden cluster expansion. At fixed composition slices you may run canonical
 Monte Carlo at temperatures of your choice (in Kelvin); each run is expensive
 and returns the heat capacity (whose peak marks the order/disorder transition)
@@ -264,11 +264,11 @@ class PhaseHeuristicDecider:
 class PhaseLLMDecider:
     name = "agent"
 
-    def __init__(self):
+    def __init__(self, instructions: str = PHASE_LLM_INSTRUCTIONS):
         from ..agent.llm import LLMDecider
 
         self._llm = LLMDecider(
-            instructions=PHASE_LLM_INSTRUCTIONS,
+            instructions=instructions,
             render_state=render_phase_state,
             action_types=(ActionType.RUN_MONTE_CARLO,),
         )
@@ -332,7 +332,8 @@ class PhaseProblem:
 
     def decider(self, campaign: Campaign) -> Decider:
         if campaign.strategy == "agent":
-            return PhaseLLMDecider()
+            pair = "-".join((campaign.problem_config or {}).get("elements", ["Ni", "Al"]))
+            return PhaseLLMDecider(instructions=PHASE_LLM_INSTRUCTIONS.replace("{elements}", pair))
         return PhaseHeuristicDecider(campaign.strategy, seed=stable_seed(campaign.id))
 
     def validate(self, state: PhaseState, decision: ScientificDecision) -> ScientificDecision:

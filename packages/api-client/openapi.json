@@ -70,6 +70,32 @@
         }
       }
     },
+    "/campaigns/elements": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "List Elements",
+        "description": "The element catalog for the campaign form, with per-engine support.\n\nEspresso support means a pseudopotential is present in the configured\npseudo_dir (fetch with `python -m alloylab.pseudos <El>`).",
+        "operationId": "list_elements_campaigns_elements_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ElementRead"
+                  },
+                  "type": "array",
+                  "title": "Response List Elements Campaigns Elements Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/campaigns/{campaign_id}": {
       "get": {
         "tags": [
@@ -1531,6 +1557,21 @@
             "$ref": "#/components/schemas/StrategyName",
             "default": "agent"
           },
+          "elements": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elements",
+            "description": "The two element symbols [A, B] for FCC alloy problems (fcc_v2, phase_v2, dft_v3, property_v3); composition x is the fraction of B. Default Ni-Al. EMT supports Al, Cu, Ag, Au, Ni, Pd, Pt; Quantum ESPRESSO needs a pseudopotential per element."
+          },
           "property_engine": {
             "$ref": "#/components/schemas/PropertyEngine",
             "description": "Energy/property engine for property_v3 campaigns: hidden synthetic oracle (benchmarkable) or EMT (real classical potential).",
@@ -1620,6 +1661,14 @@
           "strategy": {
             "type": "string",
             "title": "Strategy"
+          },
+          "elements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Elements",
+            "default": []
           },
           "temperature_min": {
             "type": "number",
@@ -2091,6 +2140,64 @@
           "espresso"
         ],
         "title": "DftEngine"
+      },
+      "ElementRead": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "atomic_number": {
+            "type": "integer",
+            "title": "Atomic Number"
+          },
+          "structure": {
+            "type": "string",
+            "title": "Structure"
+          },
+          "fcc_native": {
+            "type": "boolean",
+            "title": "Fcc Native"
+          },
+          "a_fcc": {
+            "type": "number",
+            "title": "A Fcc"
+          },
+          "engines": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Engines"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "symbol",
+          "name",
+          "atomic_number",
+          "structure",
+          "fcc_native",
+          "a_fcc",
+          "engines"
+        ],
+        "title": "ElementRead",
+        "description": "One entry of the element catalog offered by the campaign form."
       },
       "HTTPValidationError": {
         "properties": {

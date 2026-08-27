@@ -83,7 +83,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
         {cand && (
           <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-verdigris/15 pt-5 sm:grid-cols-4">
             <Metric label="structure" value={cand.label} tone="good" />
-            <Metric label="x_Al" value={Number(cand.x).toFixed(3)} />
+            <Metric label="x_B" value={Number(cand.x).toFixed(3)} />
             <Metric label="bulk modulus" value={`${Number(cand.bulk_modulus).toFixed(0)} GPa`} />
             <Metric label="ΔE_form" value={`${Number(cand.e_form).toFixed(3)} eV`} />
             <Metric label="0 K" value={cand.stable_0k ? "stable" : "unstable"} tone={cand.stable_0k ? "good" : "bad"} />

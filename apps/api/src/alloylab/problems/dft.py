@@ -28,7 +28,7 @@ DFT_RETRY_REASON = (
 )
 
 DFT_LLM_INSTRUCTIONS = """\
-You are an autonomous computational materials scientist searching FCC Ni-Al
+You are an autonomous computational materials scientist searching FCC {elements}
 orderings with REAL first-principles calculations. Each energy query runs an
 actual DFT (or classical-potential) calculation — expensive, minutes per
 structure — so every query must count. Your objective: identify which ordered
@@ -61,7 +61,7 @@ class DftProblem(FccProblem):
 
     def decider(self, campaign: Campaign) -> Decider:
         if campaign.strategy == "agent":
-            return AlloyLLMDecider(instructions=self.llm_instructions)
+            return AlloyLLMDecider(instructions=self.instructions_for(campaign))
         return AlloyHeuristicDecider(
             campaign.strategy,
             seed=stable_seed(campaign.id),
@@ -86,15 +86,16 @@ class DftProblem(FccProblem):
             return
         await super().initialize(session, campaign)
         engine = self._engine(campaign)
+        elements = (campaign.problem_config or {}).get("elements", ["Ni", "Al"])
         await emit_agent_event(
             session,
             campaign.id,
             "ENGINE_SELECTED",
             action=(
-                "Energy engine: Quantum ESPRESSO pw.x (real DFT, single-point SCF at "
+                f"Energy engine for {elements[0]}-{elements[1]}: Quantum ESPRESSO pw.x (real DFT at the "
                 "Vegard-scaled lattice)"
                 if engine == "espresso"
-                else "Energy engine: ASE EMT classical potential (volume-optimised)"
+                else f"Energy engine for {elements[0]}-{elements[1]}: ASE EMT classical potential (volume-optimised)"
             ),
             payload={"engine": engine},
         )

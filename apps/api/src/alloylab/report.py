@@ -176,8 +176,23 @@ def _limitations(campaign: Campaign, metrics: dict, failed, retries, calcs) -> l
             else "single-point energies at Vegard-scaled lattices (no relaxation)"
         )
         out.append(f"DFT settings are demo-grade: non-spin-polarised PBE, modest k-point mesh, {geometry}. Formation energies are qualitatively, not quantitatively, reliable.")
+    if cfg.get("elements"):
+        from alloyscience.calculators import element_info
+
+        for sym in cfg["elements"]:
+            try:
+                info = element_info(sym)
+            except ValueError:
+                continue
+            if not info.fcc_native:
+                out.append(
+                    f"{sym} is {info.structure.upper()} at ambient conditions; this campaign models a "
+                    f"hypothetical FCC {'-'.join(cfg['elements'])} lattice (a = {info.a_fcc:.2f} Å, equal atomic volume), "
+                    "not the real ground-state crystal structure."
+                )
     if engine == "emt":
-        out.append("EMT is a classical effective-medium potential; it is not reliable for Ni-Al intermetallic energetics (it predicts phase separation).")
+        pair = "-".join(cfg.get("elements", ["Ni", "Al"]))
+        out.append(f"EMT is a classical effective-medium potential fitted to pure-element properties; its {pair} mixing energetics are only qualitative (for Ni-Al it predicts phase separation).")
     if cfg.get("hamiltonian") is not None and engine in (None, "hidden"):
         out.append("Energies come from a synthetic hidden Hamiltonian/cluster expansion; results validate the method, not real Ni-Al thermodynamics.")
     if metrics.get("loocv_rmse") is not None and metrics.get("n_training_points", 0) < 12:

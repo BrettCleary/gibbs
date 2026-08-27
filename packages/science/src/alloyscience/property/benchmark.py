@@ -24,11 +24,11 @@ PROPERTY_STRATEGIES = ("random", "coverage", "uncertainty", "property")
 DEFAULT_MAX_SIZE = 5
 
 
-@lru_cache(maxsize=2)
-def property_pool(max_size: int = DEFAULT_MAX_SIZE):
-    """Structure pool on the MC-safe (4.5 A) cluster space, so fitted ECIs can
-    drive canonical MC verification directly."""
-    system = phase_system()
+@lru_cache(maxsize=8)
+def property_pool(max_size: int = DEFAULT_MAX_SIZE, a: float = 3.52, species: tuple[str, str] = ("Ni", "Al")):
+    """Structure pool on the MC-safe short-cutoff cluster space, so fitted ECIs
+    can drive canonical MC verification directly. Any element pair."""
+    system = phase_system(a, species)
     return system, tuple(system.enumerate_pool(max_size=max_size))
 
 

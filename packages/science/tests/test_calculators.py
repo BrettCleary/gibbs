@@ -139,3 +139,51 @@ def test_espresso_real_bulk_modulus_of_ni(pool, tmp_path):
     assert 120 < r.details["bulk_modulus_gpa"] < 280
     assert 0.95 < r.lattice_scale < 1.06
     assert len(r.details["energies_ev"]) == 5
+
+
+def test_lattice_constants_from_reference_data():
+    from alloyscience.calculators import fcc_lattice_constant, parent_lattice_constant
+
+    assert fcc_lattice_constant("Cu") == pytest.approx(3.61, abs=0.02)
+    assert fcc_lattice_constant("Au") == pytest.approx(4.08, abs=0.02)
+    # BCC Fe -> equal-atomic-volume FCC cell: a = 2.87 * 2^(1/3)
+    assert fcc_lattice_constant("Fe") == pytest.approx(2.87 * 2 ** (1 / 3), rel=1e-3)
+    with pytest.raises(ValueError):
+        fcc_lattice_constant("Xx")
+
+
+def test_vegard_and_parent_for_any_pair():
+    from alloyscience.calculators import parent_lattice_constant
+    from alloyscience.fcc.system import cached_system_and_pool, cutoffs_for
+
+    a_cu = 3.61
+    system, pool = cached_system_and_pool(a=a_cu, cutoffs=cutoffs_for(a_cu), species=("Cu", "Au"), max_size=3)
+    assert system.n_parameters == cached_system_and_pool(max_size=3)[0].n_parameters  # same pair shells as Ni-Al
+    pure_cu = next(s for s in pool if s.x == 0.0); pure_au = next(s for s in pool if s.x == 1.0)
+    assert parent_lattice_constant(pure_au) == pytest.approx(a_cu, rel=1e-6)
+    assert vegard_scale(pure_cu) == pytest.approx(1.0)
+    assert vegard_scale(pure_au) == pytest.approx(4.08 / a_cu, rel=1e-3)
+    mixed = next(s for s in pool if 0 < s.x < 1)
+    expected = ((1 - mixed.x) * 3.61 + mixed.x * 4.08) / a_cu
+    assert vegard_scale(mixed) == pytest.approx(expected, rel=1e-3)
+    assert "Cu" in mixed.chemical_formula and "Au" in mixed.chemical_formula
+
+
+def test_emt_rejects_unsupported_elements(pool):
+    from alloyscience.fcc.system import FccStructure
+
+    s = pool[0]
+    fake = FccStructure(label="x", x=0.0, n_sites=s.n_sites, chemical_formula="Fe", cluster_vector=s.cluster_vector,
+                        cell=s.cell, positions=s.positions, atomic_numbers=tuple(26 for _ in s.atomic_numbers))
+    with pytest.raises(SimulationFailure) as exc:
+        EmtFccCalculator().compute(fake)
+    assert exc.value.category == "ENGINE_UNAVAILABLE"
+
+
+def test_resolve_pseudopotentials(tmp_path):
+    from alloyscience.calculators import resolve_pseudopotentials
+
+    (tmp_path / "Cu.pbe-dn-kjpaw_psl.1.0.0.UPF").write_text("x")
+    (tmp_path / "Cu.pz-old.UPF").write_text("x")
+    found, missing = resolve_pseudopotentials(tmp_path, ["Cu", "Au"])
+    assert found == {"Cu": "Cu.pbe-dn-kjpaw_psl.1.0.0.UPF"} and missing == ["Au"]

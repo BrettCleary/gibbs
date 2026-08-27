@@ -13,6 +13,7 @@ import {
   TechnicalLabel,
 } from "@/components/ui/primitives";
 import { PROBLEMS, type ProblemType } from "@/lib/problems";
+import { ElementSelect } from "@/components/ElementSelect";
 
 export function CampaignForm({
   onSubmit,
@@ -26,7 +27,9 @@ export function CampaignForm({
   error: string | null;
 }) {
   const [form, setForm] = useState({
-    name: "Stiffest stable Ni–Al intermetallic",
+    name: "Stiffest stable intermetallic",
+    element_a: "Ni",
+    element_b: "Al",
     problem_type: "property_v3" as ProblemType,
     strategy: "uncertainty",
     simulation_budget: 15,
@@ -49,6 +52,8 @@ export function CampaignForm({
   const isProperty = form.problem_type === "property_v3";
   const isIsing = form.problem_type === "ising_v0";
   const isAlloy = !isPhase && !isIsing;
+  const hasElements = form.problem_type !== "ising_v0" && form.problem_type !== "alloy_v1";
+  const elementEngine = isDft ? form.dft_engine : isProperty ? form.property_engine : "hidden";
   const info = PROBLEMS[form.problem_type];
 
   return (
@@ -61,6 +66,7 @@ export function CampaignForm({
             problem_type: form.problem_type as CampaignCreate["problem_type"],
             objective: "",
             strategy: form.strategy as CampaignCreate["strategy"],
+            elements: hasElements ? [form.element_a.trim(), form.element_b.trim()] : null,
             dft_engine: form.dft_engine as CampaignCreate["dft_engine"],
             property_engine: form.property_engine as CampaignCreate["property_engine"],
             temperature_threshold: Number(form.temperature_threshold),
@@ -86,14 +92,32 @@ export function CampaignForm({
                 value={form.problem_type}
                 onChange={(e) => set("problem_type", e.target.value as ProblemType)}
               >
-                <option value="property_v3">Stiff &amp; stable Ni–Al search (M8)</option>
-                <option value="dft_v3">Real DFT / EMT, Ni–Al (M6)</option>
-                <option value="phase_v2">Ni–Al phase diagram, MC (M5)</option>
-                <option value="fcc_v2">FCC Ni–Al, icet (V2)</option>
+                <option value="property_v3">Stiff &amp; stable intermetallic search (M8)</option>
+                <option value="dft_v3">Real DFT / EMT hull discovery (M6)</option>
+                <option value="phase_v2">Phase diagram, MC (M5)</option>
+                <option value="fcc_v2">FCC hull, hidden CE (V2)</option>
                 <option value="alloy_v1">Binary alloy (V1)</option>
                 <option value="ising_v0">Ising critical region (V0)</option>
               </Select>
             </Field>
+            {hasElements && (
+              <Field
+                label="element pair A – B"
+                hint={
+                  elementEngine === "emt"
+                    ? "EMT supports Al, Cu, Ag, Au, Ni, Pd, Pt. x is the fraction of B."
+                    : elementEngine === "espresso"
+                      ? "elements with a pseudopotential on disk. x is the fraction of B."
+                      : "any catalog metal; A sets the parent FCC lattice constant. x is the fraction of B."
+                }
+              >
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                  <ElementSelect value={form.element_a} onChange={(v) => set("element_a", v)} engine={elementEngine} exclude={form.element_b} placeholder="A" />
+                  <span className="text-text-muted">–</span>
+                  <ElementSelect value={form.element_b} onChange={(v) => set("element_b", v)} engine={elementEngine} exclude={form.element_a} placeholder="B" />
+                </div>
+              </Field>
+            )}
             <Field label="strategy">
               <Select value={form.strategy} onChange={(e) => set("strategy", e.target.value)}>
                 <option value="agent">agent — LLM scientist</option>

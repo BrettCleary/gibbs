@@ -463,9 +463,14 @@ class AlloyProblem:
     async def build_state(self, session: AsyncSession, campaign: Campaign) -> AlloyState:
         return await build_alloy_state(session, campaign)
 
+    def instructions_for(self, campaign: Campaign) -> str:
+        """LLM instructions with the campaign's element pair substituted."""
+        pair = "-".join((campaign.problem_config or {}).get("elements", campaign.elements or ["A", "B"]))
+        return self.llm_instructions.replace("{elements}", pair)
+
     def decider(self, campaign: Campaign) -> Decider:
         if campaign.strategy == "agent":
-            return AlloyLLMDecider(instructions=self.llm_instructions)
+            return AlloyLLMDecider(instructions=self.instructions_for(campaign))
         return AlloyHeuristicDecider(campaign.strategy, seed=stable_seed(campaign.id))
 
     def validate(self, state: AlloyState, decision: ScientificDecision) -> ScientificDecision:

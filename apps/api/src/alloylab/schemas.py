@@ -38,16 +38,33 @@ DEFAULT_OBJECTIVES = {
     "model with a finite Monte Carlo budget.",
     ProblemType.alloy_v1: "Discover the stable ordered structures of a binary alloy "
     "with a hidden Hamiltonian, using as few oracle energy queries as possible.",
-    ProblemType.fcc_v2: "Discover the stable ordered FCC Ni-Al structures governed "
+    ProblemType.fcc_v2: "Discover the stable ordered FCC {elements} structures governed "
     "by a hidden cluster expansion, using as few oracle energy queries as possible.",
     ProblemType.phase_v2: "Map the order/disorder phase boundary Tc(x) of an FCC "
-    "Ni-Al alloy with a finite canonical Monte Carlo budget, prioritising the "
+    "{elements} alloy with a finite canonical Monte Carlo budget, prioritising the "
     "most uncertain boundaries.",
-    ProblemType.dft_v3: "Discover the stable ordered FCC Ni-Al structures with real "
+    ProblemType.dft_v3: "Discover the stable ordered FCC {elements} structures with real "
     "first-principles calculations, using as few expensive runs as possible.",
-    ProblemType.property_v3: "Find the FCC Ni-Al ordering with the highest bulk modulus "
+    ProblemType.property_v3: "Find the FCC {elements} ordering with the highest bulk modulus "
     "that is thermodynamically stable and remains ordered below the threshold temperature.",
 }
+
+class ElementRead(BaseModel):
+    """One entry of the element catalog offered by the campaign form."""
+
+    symbol: str
+    name: str
+    atomic_number: int
+    structure: str
+    fcc_native: bool
+    a_fcc: float
+    engines: dict[str, bool]  # engine -> supported for this element
+    note: str | None = None
+
+
+# Problems whose parent lattice is FCC with two real element species.
+FCC_PROBLEMS = {ProblemType.fcc_v2, ProblemType.phase_v2, ProblemType.dft_v3, ProblemType.property_v3}
+DEFAULT_ELEMENTS = ["Ni", "Al"]
 
 
 class PropertyEngine(str, Enum):
@@ -76,6 +93,12 @@ class CampaignCreate(BaseModel):
         "(each strictly between 0 and 1; default [0.25, 0.5, 0.75]).",
     )
     strategy: StrategyName = StrategyName.agent
+    elements: list[str] | None = Field(
+        default=None,
+        description="The two element symbols [A, B] for FCC alloy problems (fcc_v2, phase_v2, "
+        "dft_v3, property_v3); composition x is the fraction of B. Default Ni-Al. EMT supports "
+        "Al, Cu, Ag, Au, Ni, Pd, Pt; Quantum ESPRESSO needs a pseudopotential per element.",
+    )
     property_engine: PropertyEngine = Field(
         default=PropertyEngine.hidden,
         description="Energy/property engine for property_v3 campaigns: hidden synthetic "
@@ -119,8 +142,27 @@ class CampaignCreate(BaseModel):
                 not 0.0 < x < 1.0 for x in self.composition_slices
             ):
                 raise ValueError("composition_slices must be non-empty, each in (0, 1)")
+        if self.elements is not None:
+            from ase.data import atomic_numbers
+
+            symbols = [e.strip().capitalize() for e in self.elements]
+            if len(symbols) != 2 or symbols[0] == symbols[1]:
+                raise ValueError("elements must be exactly two distinct element symbols, e.g. ['Cu', 'Au']")
+            unknown = [e for e in symbols if e not in atomic_numbers]
+            if unknown:
+                raise ValueError(f"unknown element symbol(s): {unknown}")
+            from alloyscience.calculators import CATALOG_SYMBOLS
+
+            off_catalog = [e for e in symbols if e not in CATALOG_SYMBOLS]
+            if off_catalog:
+                raise ValueError(
+                    f"{off_catalog} not in the supported element catalog (GET /elements); "
+                    "only common alloying metals can be placed on the FCC parent lattice"
+                )
+            self.elements = symbols
         if not self.objective:
-            self.objective = DEFAULT_OBJECTIVES[self.problem_type]
+            pair = "-".join(self.elements or DEFAULT_ELEMENTS)
+            self.objective = DEFAULT_OBJECTIVES[self.problem_type].format(elements=pair)
         return self
 
 
@@ -130,6 +172,7 @@ class CampaignRead(BaseModel):
     objective: str
     problem_type: str
     strategy: str
+    elements: list[str] = []
     temperature_min: float
     temperature_max: float
     composition_min: float | None = None

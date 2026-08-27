@@ -20,14 +20,13 @@ from ..events import emit_agent_event
 from .alloy import AlloyProblem, _load_pool
 
 FCC_LLM_INSTRUCTIONS = """\
-You are an autonomous computational materials scientist searching FCC Ni-Al
+You are an autonomous computational materials scientist searching FCC {elements}
 orderings. A hidden cluster expansion governs structure energies; you can only
 learn it through expensive per-structure energy queries (a simulated DFT
 oracle). Your objective: identify which ordered structures are
 thermodynamically stable (on the formation-energy convex hull) using as few
-queries as possible. Ordered phases such as L1_2 Ni3Al (x_Al = 0.25) and L1_0
-NiAl (x_Al = 0.5) are physically plausible candidates, but only the data
-decides.
+queries as possible. Ordered phases such as L1_2 A3B (x = 0.25), L1_0 AB (x = 0.5) and L1_2 AB3
+(x = 0.75) are physically plausible candidates, but only the data decides.
 
 Rules:
 - You never compute physical quantities yourself; every number you cite must
@@ -79,8 +78,13 @@ class FccProblem(AlloyProblem):
 
         x_min = campaign.composition_min if campaign.composition_min is not None else 0.0
         x_max = campaign.composition_max if campaign.composition_max is not None else 1.0
-        max_size = int((campaign.problem_config or {}).get("max_size", DEFAULT_MAX_SIZE))
-        system, full_pool = cached_system_and_pool(max_size=max_size)
+        cfg = campaign.problem_config or {}
+        max_size = int(cfg.get("max_size", DEFAULT_MAX_SIZE))
+        elements = tuple(cfg.get("elements", ["Ni", "Al"]))
+        a_parent = float(cfg.get("a_parent", 3.52))
+        from alloyscience.fcc.system import cutoffs_for
+
+        system, full_pool = cached_system_and_pool(a_parent, cutoffs_for(a_parent), elements, max_size)
         pool = [
             s
             for s in full_pool
@@ -107,8 +111,8 @@ class FccProblem(AlloyProblem):
             session,
             campaign.id,
             "POOL_ENUMERATED",
-            action=f"icet enumerated {len(pool)} cluster-vector-distinct FCC Ni-Al "
-            f"orderings (cells up to {max_size} atoms, {system.n_parameters}-parameter "
-            f"cluster space) in x_Al ∈ [{x_min:.2f}, {x_max:.2f}]",
+            action=f"icet enumerated {len(pool)} cluster-vector-distinct FCC {elements[0]}-{elements[1]} "
+            f"orderings (a = {a_parent:.3f} Å, cells up to {max_size} atoms, {system.n_parameters}-parameter "
+            f"cluster space) in x_{elements[1]} ∈ [{x_min:.2f}, {x_max:.2f}]",
             payload={"n_structures": len(pool), "n_ce_parameters": system.n_parameters},
         )

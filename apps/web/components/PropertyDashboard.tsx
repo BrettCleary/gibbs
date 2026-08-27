@@ -72,7 +72,7 @@ function BulkModulusChart({
           </g>
         );
       })}
-      <text x={(W + M.left) / 2} y={H - 6} textAnchor="middle" fontSize={11} fill="var(--text-dim)">composition x_Al</text>
+      <text x={(W + M.left) / 2} y={H - 6} textAnchor="middle" fontSize={11} fill="var(--text-dim)">composition x (fraction of B)</text>
       <text x={14} y={(H - M.bottom + M.top) / 2} textAnchor="middle" fontSize={11} fill="var(--text-dim)" transform={`rotate(-90 14 ${(H - M.bottom + M.top) / 2})`}>bulk modulus B (GPa)</text>
       {candidates.map((c) => {
         if (!Number.isFinite(c.bulk_modulus)) return null;
@@ -177,7 +177,7 @@ export function PropertyDashboard({ campaignId, running }: { campaignId: string;
               <tr>
                 <Th>#</Th>
                 <Th>Label</Th>
-                <Th align="right">x_Al</Th>
+                <Th align="right">x_B</Th>
                 <Th align="right">ΔE_form (eV)</Th>
                 <Th align="right">Above hull</Th>
                 <Th align="right">B (GPa)</Th>

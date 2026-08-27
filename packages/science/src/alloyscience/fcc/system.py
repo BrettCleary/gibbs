@@ -19,9 +19,18 @@ from functools import lru_cache
 import numpy as np
 
 DEFAULT_A = 3.52  # Ni lattice constant, Angstrom
-DEFAULT_CUTOFFS = (5.5,)  # pairs out to ~1.5 a
+DEFAULT_CUTOFFS = (5.5,)  # pairs out to ~1.5 a (for a = 3.52)
 DEFAULT_SPECIES = ("Ni", "Al")
 DEFAULT_MAX_SIZE = 5  # atoms per enumerated cell
+# Cutoffs in units of the lattice constant, so any element pair gets the same
+# number of pair shells as the Ni-Al reference (5.5 / 3.52).
+RELATIVE_CUTOFFS = tuple(c / DEFAULT_A for c in DEFAULT_CUTOFFS)
+PHASE_RELATIVE_CUTOFFS = (4.5 / DEFAULT_A,)  # MC-safe short cutoff (see phase/mc.py)
+
+
+def cutoffs_for(a: float, relative: tuple[float, ...] = RELATIVE_CUTOFFS) -> tuple[float, ...]:
+    """Absolute cutoffs (A) for a parent lattice constant `a`."""
+    return tuple(round(r * a, 4) for r in relative)
 
 
 @dataclass(frozen=True)

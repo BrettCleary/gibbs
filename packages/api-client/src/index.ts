@@ -19,6 +19,7 @@ export type PhaseSliceView = components["schemas"]["PhaseSliceView"];
 export type CandidatesView = components["schemas"]["CandidatesView"];
 export type CandidateRead = components["schemas"]["CandidateRead"];
 export type CampaignReport = components["schemas"]["CampaignReport"];
+export type ElementRead = components["schemas"]["ElementRead"];
 
 export function createApiClient(baseUrl: string) {
   return createClient<paths>({ baseUrl });

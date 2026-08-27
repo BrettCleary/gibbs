@@ -19,18 +19,19 @@ from functools import lru_cache
 import numpy as np
 
 from ..ising.simulator import _blocked_derived, _blocked_mean
-from ..fcc.system import FccSystem
+from ..fcc.system import PHASE_RELATIVE_CUTOFFS, FccSystem, cutoffs_for
 
 KB_EV = 8.617333262e-5  # Boltzmann constant, eV/K
-PHASE_CUTOFFS = (4.5,)
+PHASE_CUTOFFS = (4.5,)  # for a = 3.52; other lattice constants scale via cutoffs_for
 DEFAULT_SUPERCELL_REPEAT = 4
 DEFAULT_TRIAL_STEPS = 20_000
 
 
-@lru_cache(maxsize=2)
+@lru_cache(maxsize=8)
 def phase_system(a: float = 3.52, species: tuple[str, str] = ("Ni", "Al")) -> FccSystem:
-    """Cluster space used by the phase problem (short cutoffs, MC-safe)."""
-    return FccSystem(a=a, cutoffs=PHASE_CUTOFFS, species=species)
+    """Cluster space used by the phase problem (short cutoffs so a 4x4x4
+    primitive supercell has no calculator self-interaction), for any element pair."""
+    return FccSystem(a=a, cutoffs=cutoffs_for(a, PHASE_RELATIVE_CUTOFFS), species=species)
 
 
 @dataclass(frozen=True)

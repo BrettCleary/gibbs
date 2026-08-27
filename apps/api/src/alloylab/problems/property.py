@@ -54,7 +54,7 @@ ORDERED_SRO_THRESHOLD = -0.15
 VERIFICATION_TRIAL_STEPS = 20_000
 
 PROPERTY_LLM_INSTRUCTIONS = """\
-You are an autonomous computational materials scientist searching FCC Ni-Al
+You are an autonomous computational materials scientist searching FCC {elements}
 orderings for the STIFFEST alloy that is (i) thermodynamically stable (on the
 0 K formation-energy hull) and (ii) stays ORDERED below a threshold
 temperature. Each structure query returns energy and bulk modulus (expensive);
@@ -245,11 +245,11 @@ class PropertyHeuristicDecider:
 class PropertyLLMDecider:
     name = "agent"
 
-    def __init__(self):
+    def __init__(self, instructions: str = PROPERTY_LLM_INSTRUCTIONS):
         from ..agent.llm import LLMDecider
 
         self._llm = LLMDecider(
-            instructions=PROPERTY_LLM_INSTRUCTIONS, render_state=render_property_state,
+            instructions=instructions, render_state=render_property_state,
             action_types=(ActionType.RUN_STRUCTURE_ENERGY, ActionType.RUN_MONTE_CARLO),
         )
         self.last_usage = None
@@ -296,8 +296,10 @@ class PropertyProblem(AlloyProblem):
     async def initialize(self, session: AsyncSession, campaign: Campaign) -> None:
         if await _load_pool(session, campaign.id):
             return
-        max_size = int((campaign.problem_config or {}).get("max_size", 5))
-        system, pool = property_pool(max_size)
+        cfg = campaign.problem_config or {}
+        max_size = int(cfg.get("max_size", 5))
+        elements = tuple(cfg.get("elements", ["Ni", "Al"]))
+        system, pool = property_pool(max_size, float(cfg.get("a_parent", 3.52)), elements)
         for s in pool:
             session.add(Structure(
                 campaign_id=campaign.id, label=s.label, chemical_formula=s.chemical_formula,
@@ -310,7 +312,7 @@ class PropertyProblem(AlloyProblem):
         engine = (campaign.problem_config or {}).get("engine", "hidden")
         await emit_agent_event(
             session, campaign.id, "POOL_ENUMERATED",
-            action=f"Enumerated {len(pool)} FCC Ni-Al orderings ({system.n_parameters}-parameter cluster space); "
+            action=f"Enumerated {len(pool)} FCC {elements[0]}-{elements[1]} orderings ({system.n_parameters}-parameter cluster space); "
                    f"objective: max bulk modulus, stable at 0 K and ordered below {t_thr:.0f} K; "
                    f"energy/property engine: {engine}",
             payload={"n_structures": len(pool), "t_threshold": t_thr, "engine": engine},
@@ -321,7 +323,7 @@ class PropertyProblem(AlloyProblem):
 
     def decider(self, campaign: Campaign) -> Decider:
         if campaign.strategy == "agent":
-            return PropertyLLMDecider()
+            return PropertyLLMDecider(instructions=self.instructions_for(campaign))
         return PropertyHeuristicDecider(campaign.strategy, seed=stable_seed(campaign.id))
 
     def validate(self, state: PropertyState, decision: ScientificDecision) -> ScientificDecision:

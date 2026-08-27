@@ -68,7 +68,7 @@ export function PhaseDiagramChart({ slices, tMin, tMax, selectedX, onSelect }: P
         );
       })}
       <text x={(W + M.left) / 2} y={H - 6} textAnchor="middle" fontSize={11} fill="var(--text-dim)">
-        composition x_Al
+        composition x (fraction of B)
       </text>
       <text
         x={14}

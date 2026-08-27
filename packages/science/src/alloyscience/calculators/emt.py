@@ -13,17 +13,22 @@ from pathlib import Path
 import numpy as np
 from scipy.optimize import minimize_scalar
 
+from ..errors import SimulationFailure
 from ..fcc.system import FccStructure
 from .base import EnergyResult, structure_to_atoms, vegard_scale
 
 EV_PER_A3_TO_GPA = 160.21766
 
+# Elements ASE's EMT is parameterised for (bulk metals only).
+EMT_ELEMENTS = frozenset({"Al", "Cu", "Ag", "Au", "Ni", "Pd", "Pt"})
+
 
 class EmtFccCalculator:
     name = "emt"
 
-    def __init__(self, scale_bounds: tuple[float, float] = (0.90, 1.35)):
+    def __init__(self, scale_bounds: tuple[float, float] = (0.90, 1.35), a_parent: float = 3.52):
         self.scale_bounds = scale_bounds
+        self.a_parent = a_parent
 
     def _energy_at_scale(self, structure: FccStructure, scale: float) -> float:
         from ase.calculators.emt import EMT
@@ -33,6 +38,15 @@ class EmtFccCalculator:
         return float(atoms.get_potential_energy())
 
     def compute(self, structure: FccStructure, workdir: Path | None = None) -> EnergyResult:
+        from ase.data import chemical_symbols
+
+        unsupported = sorted({chemical_symbols[z] for z in structure.atomic_numbers} - EMT_ELEMENTS)
+        if unsupported:
+            raise SimulationFailure(
+                category="ENGINE_UNAVAILABLE",
+                message=f"EMT has no parameters for {unsupported}; supported: {sorted(EMT_ELEMENTS)}",
+                metadata={"engine": "emt", "unsupported_elements": unsupported},
+            )
         result = minimize_scalar(
             lambda s: self._energy_at_scale(structure, s),
             bounds=self.scale_bounds,
@@ -52,14 +66,13 @@ class EmtFccCalculator:
         v0 = float(abs(np.linalg.det(np.array(structure.cell))))
         bulk_modulus_gpa = float(d2e_ds2 / (9.0 * v0 * s_opt) * EV_PER_A3_TO_GPA)
 
-        a_ni = 3.52
         return EnergyResult(
             energy_per_atom=e_opt / n,
             lattice_scale=s_opt,
             details={
                 "engine": "ase.calculators.emt.EMT",
                 "volume_optimised": True,
-                "optimal_lattice_constant": a_ni * s_opt,
+                "optimal_lattice_constant": self.a_parent * s_opt,
                 "vegard_lattice_scale": vegard_scale(structure),
                 "bulk_modulus_gpa": bulk_modulus_gpa,
             },

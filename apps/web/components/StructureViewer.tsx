@@ -8,7 +8,7 @@
 
 import type { StructureRead, HullPoint } from "@alloylab/api-client";
 import { DataValue, TechnicalLabel } from "@/components/ui/primitives";
-import { Structure3DViewer } from "./Structure3DViewer";
+import { ELEMENT_NAMES, Structure3DViewer } from "./Structure3DViewer";
 
 const REPEAT = 3;
 const CELL = 22;
@@ -47,6 +47,11 @@ function Legend({
 
 export function StructureViewer({ structure, point }: { structure: StructureRead; point?: HullPoint | null }) {
   const is3d = (structure.atomic_numbers?.length ?? 0) > 0;
+  const zs = [...new Set(structure.atomic_numbers ?? [])].sort((a, b) => a - b);
+  const name = (z: number | undefined) => (z == null ? "?" : (ELEMENT_NAMES[z] ?? `Z${z}`));
+  // Element A is the parent (x = 0); with one species present, use composition to tell A from B.
+  const [elA, elB] =
+    zs.length === 2 ? [name(zs[0]), name(zs[1])] : structure.composition >= 1 ? ["A", name(zs[0])] : [name(zs[0]), "B"];
 
   const header = (meta: string) => (
     <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -58,12 +63,12 @@ export function StructureViewer({ structure, point }: { structure: StructureRead
   if (is3d) {
     return (
       <div className="flex flex-col gap-3 p-4">
-        {header(`${structure.chemical_formula} · x_Al=${structure.composition.toFixed(3)} · ${structure.n_sites}-atom cell, shown 2×2×2`)}
+        {header(`${structure.chemical_formula} · x_${elB}=${structure.composition.toFixed(3)} · ${structure.n_sites}-atom cell, shown 2×2×2`)}
         <Structure3DViewer structure={structure} />
         <Legend
           swatches={[
-            { color: "#c9cdd3", label: "Ni" },
-            { color: "var(--accent)", label: "Al" },
+            { color: "#c9cdd3", label: elA },
+            { color: "var(--accent)", label: elB },
           ]}
           point={point}
         />

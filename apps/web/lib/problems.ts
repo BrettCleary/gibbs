@@ -14,7 +14,7 @@ export const PROBLEMS: Record<
 > = {
   property_v3: {
     short: "Property search",
-    long: "Stiffest stable Ni–Al ordering, verified ordered at threshold T",
+    long: "Stiffest stable ordering, verified ordered at threshold T",
     milestone: "M8 · stiff & stable",
     budgetLabel: "query budget",
   },
@@ -31,7 +31,7 @@ export const PROBLEMS: Record<
     budgetLabel: "MC budget",
   },
   fcc_v2: {
-    short: "FCC Ni–Al",
+    short: "FCC alloy",
     long: "icet cluster expansion over symmetry-enumerated FCC orderings",
     milestone: "V2 · icet",
     budgetLabel: "oracle budget",

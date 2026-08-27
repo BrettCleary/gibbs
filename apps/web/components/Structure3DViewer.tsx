@@ -8,10 +8,17 @@
 import { useMemo } from "react";
 import type { StructureRead } from "@alloylab/api-client";
 
-const ELEMENT_STYLE: Record<number, { color: string; name: string; r: number }> = {
-  28: { color: "#c9cdd3", name: "Ni", r: 11 },
-  13: { color: "#a4b4d0", name: "Al", r: 13 },
+/** Element rendering: the lower atomic number in a cell is drawn neutral, the
+ *  higher one in the accent color; radius grows gently with Z. */
+export const ELEMENT_NAMES: Record<number, string> = {
+  13: "Al", 26: "Fe", 27: "Co", 28: "Ni", 29: "Cu", 46: "Pd", 47: "Ag", 78: "Pt", 79: "Au", 82: "Pb",
+  22: "Ti", 23: "V", 24: "Cr", 25: "Mn", 30: "Zn", 40: "Zr", 41: "Nb", 42: "Mo", 45: "Rh", 77: "Ir", 74: "W",
 };
+export function elementStyle(z: number, numbersInCell: number[]): { color: string; name: string; r: number } {
+  const sorted = [...new Set(numbersInCell)].sort((a, b) => a - b);
+  const isSecond = sorted.length > 1 && z === sorted[sorted.length - 1];
+  return { color: isSecond ? "#a4b4d0" : "#c9cdd3", name: ELEMENT_NAMES[z] ?? `Z${z}`, r: 10 + Math.min(z, 80) / 25 };
+}
 
 type V3 = [number, number, number];
 
@@ -101,7 +108,7 @@ export function Structure3DViewer({ structure }: { structure: StructureRead }) {
         <line key={i} {...e} stroke="var(--border)" strokeWidth={1} />
       ))}
       {atoms.map((a, i) => {
-        const style = ELEMENT_STYLE[a.z] ?? { color: "var(--warn)", name: "?", r: 11 };
+        const style = elementStyle(a.z, structure.atomic_numbers ?? []);
         const t = maxD > minD ? (a.depth - minD) / (maxD - minD) : 1;
         const r = style.r * (0.55 + 0.45 * t);
         return (

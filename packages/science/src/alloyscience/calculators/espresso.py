@@ -29,6 +29,24 @@ DEFAULT_PSEUDOS = {
 }
 
 
+def resolve_pseudopotentials(pseudo_dir: str | Path, elements: list[str]) -> tuple[dict, list[str]]:
+    """Find a UPF file per element in `pseudo_dir` (`<El>.*.UPF`, PAW/PBE
+    preferred). Returns (mapping, missing_elements)."""
+    pseudo_dir = Path(pseudo_dir)
+    found: dict[str, str] = {}
+    missing: list[str] = []
+    for el in elements:
+        candidates = sorted(
+            [p.name for p in pseudo_dir.glob(f"{el}.*") if p.suffix.lower() == ".upf"],
+            key=lambda n: (("kjpaw" not in n), ("pbe" not in n), n),
+        )
+        if candidates:
+            found[el] = candidates[0]
+        else:
+            missing.append(el)
+    return found, missing
+
+
 @dataclass(frozen=True)
 class EspressoConfig:
     pw_command: str = "pw.x"
@@ -46,6 +64,8 @@ class EspressoConfig:
     # isotropic scales around the Vegard lattice; 0/1 = single-point only.
     n_volumes: int = 1
     volume_scan_span: float = 0.06  # +/- fractional lattice-scale span
+    # Parent FCC lattice constant the pool cells were built at (element A).
+    a_parent: float = 3.52
 
     def to_dict(self) -> dict:
         return {
@@ -62,6 +82,7 @@ class EspressoConfig:
             "electron_maxstep": self.electron_maxstep,
             "n_volumes": self.n_volumes,
             "volume_scan_span": self.volume_scan_span,
+            "a_parent": self.a_parent,
         }
 
     @classmethod
@@ -103,7 +124,7 @@ class EspressoFccCalculator:
             )
         workdir = Path(workdir) if workdir is not None else Path("espresso-run")
         workdir.mkdir(parents=True, exist_ok=True)
-        base_scale = vegard_scale(structure)
+        base_scale = vegard_scale(structure, a_reference=self.config.a_parent)
         if self.config.n_volumes <= 1:
             return self._single_point(structure, base_scale, workdir)
         return self._volume_scan(structure, base_scale, workdir)
@@ -143,7 +164,7 @@ class EspressoFccCalculator:
                 "n_volumes": n,
                 "scales": [float(v) for v in scales],
                 "energies_ev": [float(v) for v in e],
-                "optimal_lattice_constant": 3.52 * s_opt,
+                "optimal_lattice_constant": self.config.a_parent * s_opt,
                 "bulk_modulus_gpa": bulk_modulus_gpa,
                 "scf_iterations": iterations,
                 "vegard_lattice_scale": base_scale,

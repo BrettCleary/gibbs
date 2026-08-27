@@ -146,6 +146,25 @@ API key in the API's environment (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, …).
 `ALLOYLAB_AGENT_MODEL=test` runs the full agent path on Pydantic AI's built-in
 `TestModel` — no key needed — which is how the harness is unit-tested.
 
+### Any element pair
+
+The FCC problems (`fcc_v2`, `phase_v2`, `dft_v3`, `property_v3`) take an
+**element pair** `[A, B]` — a searchable picker in the UI backed by
+`GET /campaigns/elements`, `elements` on the API — and composition `x` is the
+fraction of B. The catalog is a curated set of alloying metals with per-engine
+support flags; elements that are not FCC at ambient conditions (Fe, Ti, ...)
+are allowed but flagged as a *hypothetical FCC lattice* in the picker and in
+the final report's limitations. Element A sets the parent FCC
+lattice constant (from ASE reference data; BCC/HCP elements are placed on an
+equal-atomic-volume FCC lattice) and cluster-space cutoffs scale with it, so
+every pair gets the same pair shells. Engine support is validated at campaign
+creation: EMT covers Al, Cu, Ag, Au, Ni, Pd, Pt; Quantum ESPRESSO needs one
+UPF per element in `infra/pseudopotentials/` — fetch PSlibrary PAW sets with
+
+```bash
+uv run --package alloylab python -m alloylab.pseudos Cu Au
+```
+
 ### Real DFT (Quantum ESPRESSO)
 
 The `espresso` engine needs a `pw.x` binary and the PAW pseudopotentials in

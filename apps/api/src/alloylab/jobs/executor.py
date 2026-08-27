@@ -197,7 +197,11 @@ def _execute(
     if calculation_type == "MONTE_CARLO":
         if "ecis" in params:
             # Verification MC on the AGENT'S fitted CE (no hidden information).
-            return _execute_phase_mc(calculation_id, params, {"hamiltonian": {"ecis": params["ecis"]}})
+            return _execute_phase_mc(
+                calculation_id, params,
+                {"hamiltonian": {"ecis": params["ecis"]}, "a_parent": problem_config.get("a_parent", 3.52),
+                 "elements": problem_config.get("elements", ["Ni", "Al"])},
+            )
         if problem_config.get("kind") == "fcc_phase":
             return _execute_phase_mc(calculation_id, params, problem_config)
         return _execute_monte_carlo(calculation_id, params)
@@ -248,8 +252,12 @@ def _execute_phase_mc(calculation_id: str, params: dict, problem_config: dict) -
         },
     )
     hidden = HiddenFccCE.from_dict(problem_config.get("hamiltonian", {}))
+    system = phase_system(
+        float(problem_config.get("a_parent", 3.52)),
+        tuple(problem_config.get("elements", ["Ni", "Al"])),
+    )
     result = run_phase_point(
-        phase_system(),
+        system,
         hidden.ecis,
         x=float(params["composition"]),
         temperature=float(params["temperature"]),
@@ -309,6 +317,7 @@ def _execute_ase_calculator(
     settings = get_settings()
     os.environ.setdefault("OMP_NUM_THREADS", str(settings.omp_num_threads))
     engine = problem_config.get("engine", "emt")
+    a_parent = float(problem_config.get("a_parent", 3.52))
     if engine == "espresso":
         config = EspressoConfig.from_dict(problem_config.get("espresso", {}))
         overrides = {
@@ -317,7 +326,7 @@ def _execute_ase_calculator(
         calculator = EspressoFccCalculator(config, overrides=overrides)
         engine_detail = "Quantum ESPRESSO pw.x, single-point SCF at Vegard-scaled lattice"
     else:
-        calculator = EmtFccCalculator()
+        calculator = EmtFccCalculator(a_parent=a_parent)
         engine_detail = "ASE EMT classical potential, isotropic volume optimisation"
 
     workdir = Path(settings.artifacts_dir) / "calcs" / calculation_id

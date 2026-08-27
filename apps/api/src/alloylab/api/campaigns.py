@@ -16,6 +16,9 @@ from ..schemas import (
     AlloyHullView,
     CalculationRead,
     CampaignCreate,
+    DEFAULT_ELEMENTS,
+    ElementRead,
+    FCC_PROBLEMS,
     CandidateRead,
     CandidatesView,
     CampaignReport,
@@ -44,6 +47,25 @@ async def _get_campaign(session: AsyncSession, campaign_id: str) -> Campaign:
 async def create_campaign(body: CampaignCreate, session: AsyncSession = Depends(get_session)):
     is_alloy = body.problem_type.value in ("alloy_v1", "fcc_v2", "dft_v3", "property_v3")
     is_phase = body.problem_type.value == "phase_v2"
+    # Element pair for the FCC problems (default Ni-Al): parent lattice = element A.
+    elements = list(body.elements or DEFAULT_ELEMENTS)
+    lattice: dict = {}
+    if body.problem_type in FCC_PROBLEMS:
+        from alloyscience.calculators import fcc_lattice_constant
+
+        try:
+            a_by_element = {el: fcc_lattice_constant(el) for el in elements}
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        lattice = {"elements": elements, "a_parent": a_by_element[elements[0]], "a_by_element": a_by_element}
+        engine = body.property_engine.value if body.problem_type.value == "property_v3" else (
+            body.dft_engine.value if body.problem_type.value == "dft_v3" else None)
+        if engine == "emt":
+            from alloyscience.calculators import EMT_ELEMENTS
+
+            bad = [e for e in elements if e not in EMT_ELEMENTS]
+            if bad:
+                raise HTTPException(status_code=400, detail=f"EMT has no parameters for {bad}; supported: {sorted(EMT_ELEMENTS)}")
     t_min, t_max = body.temperature_min, body.temperature_max
     if is_phase and t_max <= 10.0:
         # Phase campaigns run in Kelvin; replace untouched Ising-unit defaults.
@@ -66,13 +88,11 @@ async def create_campaign(body: CampaignCreate, session: AsyncSession = Depends(
         simulation_budget=body.simulation_budget,
         target_uncertainty=body.target_uncertainty,
         failure_rate=body.failure_rate,
-        elements={
-            "alloy_v1": ["A", "B"],
-            "fcc_v2": ["Ni", "Al"],
-            "phase_v2": ["Ni", "Al"],
-            "dft_v3": ["Ni", "Al"],
-            "property_v3": ["Ni", "Al"],
-        }.get(body.problem_type.value, ["Ising spin"]),
+        elements=(
+            ["A", "B"] if body.problem_type.value == "alloy_v1"
+            else elements if body.problem_type in FCC_PROBLEMS
+            else ["Ising spin"]
+        ),
     )
     session.add(campaign)
     await session.flush()
@@ -83,8 +103,9 @@ async def create_campaign(body: CampaignCreate, session: AsyncSession = Depends(
         from ..agent.strategies import stable_seed
 
         seed = stable_seed(campaign.id)
-        system = await run_in_threadpool(phase_system)
+        system = await run_in_threadpool(phase_system, lattice["a_parent"], tuple(elements))
         campaign.problem_config = {
+            **lattice,
             "kind": "fcc_phase",
             "hamiltonian": HiddenFccCE.random(
                 system.n_parameters, seed=seed, noise_sigma=0.0
@@ -100,11 +121,12 @@ async def create_campaign(body: CampaignCreate, session: AsyncSession = Depends(
         from ..agent.strategies import stable_seed
 
         seed = stable_seed(campaign.id)
-        system, pool = await run_in_threadpool(property_pool)
+        system, pool = await run_in_threadpool(property_pool, 5, lattice["a_parent"], tuple(elements))
         hidden = HiddenFccCE.random(system.n_parameters, seed=seed)
         pure_a = next(s for s in pool if s.x == 0.0)
         pure_b = next(s for s in pool if s.x == 1.0)
         config = {
+            **lattice,
             "kind": "property",
             "engine": body.property_engine.value,
             "t_threshold": body.temperature_threshold,
@@ -118,39 +140,16 @@ async def create_campaign(body: CampaignCreate, session: AsyncSession = Depends(
         if body.property_engine.value == "espresso":
             from alloyscience.calculators import EspressoConfig, espresso_available
 
-            espresso_config = EspressoConfig(
-                pw_command=get_settings().pw_command,
-                pseudo_dir=get_settings().pseudo_dir,
-                kspacing=0.35,
-                n_volumes=5,  # E(V) scan -> real bulk modulus (Milestone 9)
-            )
-            ok, reason = espresso_available(espresso_config)
-            if not ok:
-                raise HTTPException(status_code=400, detail=f"Quantum ESPRESSO engine unavailable: {reason}")
+            espresso_config = _espresso_config_for(elements, lattice["a_parent"], kspacing=0.35, n_volumes=5)
             config["espresso"] = espresso_config.to_dict()
         campaign.problem_config = config
     elif body.problem_type.value == "dft_v3":
         # No hidden physics here — a real energy engine answers the queries.
         engine = body.dft_engine.value
-        config: dict = {"kind": "ase_calculator", "engine": engine}
+        config: dict = {**lattice, "kind": "ase_calculator", "engine": engine}
         if engine == "espresso":
-            from alloyscience.calculators import EspressoConfig, espresso_available
-
-            espresso_config = EspressoConfig(
-                pw_command=get_settings().pw_command,
-                pseudo_dir=get_settings().pseudo_dir,
-                # Demo-grade k-mesh: qualitatively correct formation energies
-                # (ordered Ni-Al compounds come out stable) at minutes/structure.
-                kspacing=0.35,
-            )
-            ok, reason = espresso_available(espresso_config)
-            if not ok:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Quantum ESPRESSO engine unavailable: {reason}. "
-                    "Set ALLOYLAB_PW_COMMAND / ALLOYLAB_PSEUDO_DIR or use the emt engine.",
-                )
-            config["espresso"] = espresso_config.to_dict()
+            # Demo-grade k-mesh: qualitatively correct formation energies at minutes/structure.
+            config["espresso"] = _espresso_config_for(elements, lattice["a_parent"], kspacing=0.35).to_dict()
             config["max_size"] = 4  # real DFT: keep enumerated cells small
         else:
             config["max_size"] = 5
@@ -164,8 +163,13 @@ async def create_campaign(body: CampaignCreate, session: AsyncSession = Depends(
             from alloyscience.fcc import HiddenFccCE
             from alloyscience.fcc.system import cached_system_and_pool
 
-            system, _ = await run_in_threadpool(cached_system_and_pool)
+            from alloyscience.fcc.system import cutoffs_for
+
+            system, _ = await run_in_threadpool(
+                cached_system_and_pool, lattice["a_parent"], cutoffs_for(lattice["a_parent"]), tuple(elements)
+            )
             campaign.problem_config = {
+                **lattice,
                 "kind": "fcc_ce",
                 "hamiltonian": HiddenFccCE.random(system.n_parameters, seed=seed).to_dict(),
                 "oracle_seed": seed % 1_000_000,
@@ -180,6 +184,62 @@ async def create_campaign(body: CampaignCreate, session: AsyncSession = Depends(
             }
     await session.commit()
     return campaign
+
+
+def _espresso_config_for(elements: list[str], a_parent: float, **overrides):
+    """EspressoConfig for an element pair, resolving pseudopotentials from the
+    configured pseudo_dir; 400 with a fetch hint when any are missing."""
+    from alloyscience.calculators import EspressoConfig, espresso_available, resolve_pseudopotentials
+
+    settings = get_settings()
+    found, missing = resolve_pseudopotentials(settings.pseudo_dir, elements)
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"no pseudopotential for {missing} in {settings.pseudo_dir}; run "
+            f"`uv run --package alloylab python -m alloylab.pseudos {' '.join(elements)}` to fetch PSlibrary PAW sets",
+        )
+    config = EspressoConfig(
+        pw_command=settings.pw_command, pseudo_dir=settings.pseudo_dir,
+        pseudopotentials=found, a_parent=a_parent, **overrides,
+    )
+    ok, reason = espresso_available(config)
+    if not ok:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Quantum ESPRESSO engine unavailable: {reason}. Set ALLOYLAB_PW_COMMAND or use the emt engine.",
+        )
+    return config
+
+
+@router.get("/elements", response_model=list[ElementRead])
+async def list_elements():
+    """The element catalog for the campaign form, with per-engine support.
+
+    Espresso support means a pseudopotential is present in the configured
+    pseudo_dir (fetch with `python -m alloylab.pseudos <El>`)."""
+    from alloyscience.calculators import element_catalog, resolve_pseudopotentials
+
+    settings = get_settings()
+    catalog = element_catalog()
+    found, _ = resolve_pseudopotentials(settings.pseudo_dir, [e.symbol for e in catalog])
+    out = []
+    for e in catalog:
+        note = None
+        if not e.fcc_native:
+            note = (
+                f"{e.symbol} is {e.structure.upper()} at ambient conditions; campaigns model a "
+                f"hypothetical FCC lattice (a = {e.a_fcc:.2f} Å, equal atomic volume)."
+            )
+        out.append(
+            ElementRead(
+                symbol=e.symbol, name=e.name, atomic_number=e.atomic_number,
+                structure=e.structure, fcc_native=e.fcc_native, a_fcc=round(e.a_fcc, 3),
+                engines={"hidden": True, "emt": e.emt, "espresso": e.symbol in found},
+                note=note,
+            )
+        )
+    return out
 
 
 @router.get("", response_model=list[CampaignRead])

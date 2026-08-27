@@ -22,6 +22,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/campaigns/elements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Elements
+         * @description The element catalog for the campaign form, with per-engine support.
+         *
+         *     Espresso support means a pseudopotential is present in the configured
+         *     pseudo_dir (fetch with `python -m alloylab.pseudos <El>`).
+         */
+        get: operations["list_elements_campaigns_elements_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/campaigns/{campaign_id}": {
         parameters: {
             query?: never;
@@ -584,6 +607,11 @@ export interface components {
             /** @default agent */
             strategy: components["schemas"]["StrategyName"];
             /**
+             * Elements
+             * @description The two element symbols [A, B] for FCC alloy problems (fcc_v2, phase_v2, dft_v3, property_v3); composition x is the fraction of B. Default Ni-Al. EMT supports Al, Cu, Ag, Au, Ni, Pd, Pt; Quantum ESPRESSO needs a pseudopotential per element.
+             */
+            elements?: string[] | null;
+            /**
              * @description Energy/property engine for property_v3 campaigns: hidden synthetic oracle (benchmarkable) or EMT (real classical potential).
              * @default hidden
              */
@@ -643,6 +671,11 @@ export interface components {
             problem_type: string;
             /** Strategy */
             strategy: string;
+            /**
+             * Elements
+             * @default []
+             */
+            elements: string[];
             /** Temperature Min */
             temperature_min: number;
             /** Temperature Max */
@@ -798,6 +831,30 @@ export interface components {
          * @enum {string}
          */
         DftEngine: "emt" | "espresso";
+        /**
+         * ElementRead
+         * @description One entry of the element catalog offered by the campaign form.
+         */
+        ElementRead: {
+            /** Symbol */
+            symbol: string;
+            /** Name */
+            name: string;
+            /** Atomic Number */
+            atomic_number: number;
+            /** Structure */
+            structure: string;
+            /** Fcc Native */
+            fcc_native: boolean;
+            /** A Fcc */
+            a_fcc: number;
+            /** Engines */
+            engines: {
+                [key: string]: boolean;
+            };
+            /** Note */
+            note?: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1043,6 +1100,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_elements_campaigns_elements_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ElementRead"][];
                 };
             };
         };
