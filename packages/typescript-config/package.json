@@ -2,5 +2,8 @@
   "name": "@alloylab/typescript-config",
   "version": "0.1.0",
   "private": true,
-  "files": ["base.json", "nextjs.json"]
+  "files": [
+    "base.json",
+    "nextjs.json"
+  ]
 }

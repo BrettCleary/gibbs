@@ -71,9 +71,9 @@ export const account = appAuth
         .notNull(),
     },
     (t) => [
-    index("ix_account_user_id").on(t.userId),
-    uniqueIndex("ux_account_issuer_account_id").on(t.issuer, t.accountId),
-  ],
+      index("ix_account_user_id").on(t.userId),
+      uniqueIndex("ux_account_issuer_account_id").on(t.issuer, t.accountId),
+    ],
   )
   .enableRLS();
 
