@@ -19,7 +19,7 @@ importers:
 
   apps/web:
     dependencies:
-      '@alloylab/api-client':
+      '@gibbs/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
       '@supabase/supabase-js':
@@ -50,7 +50,7 @@ importers:
         specifier: ^19.0.0
         version: 19.2.8(react@19.2.8)
     devDependencies:
-      '@alloylab/typescript-config':
+      '@gibbs/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
       '@tailwindcss/postcss':

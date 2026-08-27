@@ -1,6 +1,6 @@
 """Export the OpenAPI schema so the TypeScript client can be generated from it.
 
-Usage: python -m alloylab.export_openapi [output_path]
+Usage: python -m gibbs.export_openapi [output_path]
 """
 
 from __future__ import annotations

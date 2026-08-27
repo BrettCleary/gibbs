@@ -18,7 +18,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AlloyLab — Autonomous Materials Science",
+  title: "Gibbs — Autonomous Materials Science",
   description: "Mission control for an autonomous computational materials scientist.",
 };
 

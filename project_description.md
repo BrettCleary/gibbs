@@ -1160,7 +1160,7 @@ Suggested repository:
     │   │
     │   └── api/
     │       ├── src/
-    │       │   └── alloylab/
+    │       │   └── gibbs/
     │       │       ├── api/
     │       │       ├── agent/
     │       │       ├── campaigns/

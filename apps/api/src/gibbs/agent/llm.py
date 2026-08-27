@@ -130,7 +130,7 @@ class LLMDecider:
             self.model,
             output_type=LLMDecisionOutput,
             instructions=self.instructions,
-            name="alloylab-scientist",
+            name="gibbs-scientist",
             retries=2,
         )
         _register_tools(agent, state)

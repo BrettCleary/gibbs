@@ -3,7 +3,7 @@
 Run alongside the Temporal server and the API:
 
     temporal server start-dev            # dev server (brew install temporal)
-    uv run --package alloylab python -m alloylab.worker
+    uv run --package gibbs python -m gibbs.worker
 
 Kill and restart it mid-campaign: in-flight activities are retried on the new
 worker and campaigns finish — that is the durability Milestone 7 adds.
@@ -23,7 +23,7 @@ from .temporal.workflows import RunCalculationWorkflow
 from .tracing import setup_tracing, shutdown_tracing
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-logger = logging.getLogger("alloylab.worker")
+logger = logging.getLogger("gibbs.worker")
 
 
 async def main() -> None:

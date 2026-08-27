@@ -34,7 +34,7 @@ export interface paths {
          * @description The element catalog for the campaign form, with per-engine support.
          *
          *     Espresso support means a pseudopotential is present in the configured
-         *     pseudo_dir (fetch with `python -m alloylab.pseudos <El>`).
+         *     pseudo_dir (fetch with `python -m gibbs.pseudos <El>`).
          */
         get: operations["list_elements_campaigns_elements_get"];
         put?: never;

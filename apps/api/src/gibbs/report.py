@@ -245,7 +245,7 @@ async def llm_narrative(report: dict, model) -> str | None:
     agent = Agent(
         model,
         output_type=str,
-        name="alloylab-reporter",
+        name="gibbs-reporter",
         instructions=(
             "You write the results section of a computational materials-science report. "
             "Use ONLY the numbers and facts in the provided structured report; do not invent "

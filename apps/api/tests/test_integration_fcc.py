@@ -4,7 +4,7 @@ symmetry enumeration, cluster-vector CE fits with LOOCV, hull discovery,
 
 import asyncio
 
-from alloylab.agent.loop import runner_registry
+from gibbs.agent.loop import runner_registry
 
 
 async def _run_to_completion(client, campaign_id: str, timeout_s: float = 180.0) -> dict:

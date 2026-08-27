@@ -4,7 +4,7 @@ import { appAuth } from "./schemas";
 /**
  * Better Auth core tables (email + password). Field names follow the Better
  * Auth schema so the Drizzle adapter needs no field mapping. The Python API
- * reads `session`/`user` to authenticate requests (alloylab/api/auth.py).
+ * reads `session`/`user` to authenticate requests (gibbs/api/auth.py).
  */
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
 

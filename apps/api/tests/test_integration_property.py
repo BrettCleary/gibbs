@@ -4,7 +4,7 @@ CE, ranked candidates, and a final recommendation."""
 
 import asyncio
 
-from alloylab.agent.loop import runner_registry
+from gibbs.agent.loop import runner_registry
 
 
 async def _run_to_completion(client, campaign_id: str, timeout_s: float = 300.0) -> dict:

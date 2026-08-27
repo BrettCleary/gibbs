@@ -1,5 +1,5 @@
 {
-  "name": "@alloylab/api-client",
+  "name": "@gibbs/api-client",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "generate": "uv run --package alloylab python -m alloylab.export_openapi openapi.json && openapi-typescript openapi.json -o src/schema.d.ts"
+    "generate": "uv run --package gibbs python -m gibbs.export_openapi openapi.json && openapi-typescript openapi.json -o src/schema.d.ts"
   },
   "dependencies": {
     "openapi-fetch": "^0.13.0"

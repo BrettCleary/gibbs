@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { HullPoint } from "@alloylab/api-client";
+import type { HullPoint } from "@gibbs/api-client";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { DataValue, EmptyState, PanelHeader, Surface } from "@/components/ui/primitives";

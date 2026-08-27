@@ -1,11 +1,11 @@
 {
-  "name": "@alloylab/api",
+  "name": "@gibbs/api",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "uv run --package alloylab uvicorn alloylab.main:app --reload --port 8000",
-    "worker": "uv run --package alloylab python -m alloylab.worker",
-    "test": "uv run --package alloylab pytest tests -q",
-    "generate": "uv run --package alloylab python -m alloylab.export_openapi ../../packages/api-client/openapi.json"
+    "dev": "uv run --package gibbs uvicorn gibbs.main:app --reload --port 8000",
+    "worker": "uv run --package gibbs python -m gibbs.worker",
+    "test": "uv run --package gibbs pytest tests -q",
+    "generate": "uv run --package gibbs python -m gibbs.export_openapi ../../packages/api-client/openapi.json"
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { CampaignCreate } from "@alloylab/api-client";
+import type { CampaignCreate } from "@gibbs/api-client";
 import {
   Button,
   Divider,

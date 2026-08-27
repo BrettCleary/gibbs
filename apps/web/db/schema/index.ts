@@ -1,7 +1,7 @@
 /**
- * Drizzle schema — the source of truth for the AlloyLab database.
+ * Drizzle schema — the source of truth for the Gibbs database.
  *
- * Migrations are generated from these files with `pnpm --filter @alloylab/web
+ * Migrations are generated from these files with `pnpm --filter @gibbs/web
  * db:generate` (drizzle-kit) into apps/web/migrations and applied to Supabase
  * Postgres with `db:migrate`. The Python API (SQLAlchemy over asyncpg) maps
  * the same tables for its queries and never creates tables in Postgres.

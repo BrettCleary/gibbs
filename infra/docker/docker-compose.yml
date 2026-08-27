@@ -1,19 +1,19 @@
 # Optional local PostgreSQL for the API.
 # By default the API uses SQLite; to use Postgres instead:
 #   docker compose -f infra/docker/docker-compose.yml up -d
-#   export ALLOYLAB_DATABASE_URL=postgresql+asyncpg://alloylab:alloylab@localhost:5432/alloylab
+#   export ALLOYLAB_DATABASE_URL=postgresql+asyncpg://gibbs:gibbs@localhost:5432/gibbs
 #   uv sync --all-packages --extra postgres
 services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: alloylab
-      POSTGRES_PASSWORD: alloylab
-      POSTGRES_DB: alloylab
+      POSTGRES_USER: gibbs
+      POSTGRES_PASSWORD: gibbs
+      POSTGRES_DB: gibbs
     ports:
       - "5432:5432"
     volumes:
-      - alloylab_pgdata:/var/lib/postgresql/data
+      - gibbs_pgdata:/var/lib/postgresql/data
 
 volumes:
-  alloylab_pgdata:
+  gibbs_pgdata:

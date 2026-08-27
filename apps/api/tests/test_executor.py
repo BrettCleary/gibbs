@@ -5,9 +5,9 @@ import os
 
 import pytest
 
-from alloylab.config import Settings
-from alloylab.jobs import JobExecutor, create_executor
-from alloylab.jobs.executor import (
+from gibbs.config import Settings
+from gibbs.jobs import JobExecutor, create_executor
+from gibbs.jobs.executor import (
     execute_and_persist,
     mark_infrastructure_failure,
 )
@@ -18,7 +18,7 @@ def test_create_executor_local_default():
 
 
 def test_create_executor_temporal():
-    from alloylab.temporal import TemporalJobExecutor
+    from gibbs.temporal import TemporalJobExecutor
 
     executor = create_executor(Settings(executor="temporal"))
     assert isinstance(executor, TemporalJobExecutor)
@@ -29,8 +29,8 @@ async def _make_ising_calc(client) -> str:
         "/campaigns", json={"name": "exec", "strategy": "grid", "lattice_size": 8}
     )
     campaign_id = r.json()["id"]
-    from alloylab.db.base import get_session_factory
-    from alloylab.db.models import Calculation
+    from gibbs.db.base import get_session_factory
+    from gibbs.db.models import Calculation
 
     async with get_session_factory()() as session:
         calc = Calculation(
@@ -55,8 +55,8 @@ async def test_execute_and_persist_is_idempotent(client):
     calc_id = await _make_ising_calc(client)
     assert await execute_and_persist(calc_id) == "SUCCEEDED"
 
-    from alloylab.db.base import get_session_factory
-    from alloylab.db.models import Calculation
+    from gibbs.db.base import get_session_factory
+    from gibbs.db.models import Calculation
 
     async with get_session_factory()() as session:
         calc = await session.get(Calculation, calc_id)
@@ -75,8 +75,8 @@ async def test_mark_infrastructure_failure(client):
     calc_id = await _make_ising_calc(client)
     await mark_infrastructure_failure(calc_id, "worker vanished")
 
-    from alloylab.db.base import get_session_factory
-    from alloylab.db.models import Calculation
+    from gibbs.db.base import get_session_factory
+    from gibbs.db.models import Calculation
 
     async with get_session_factory()() as session:
         calc = await session.get(Calculation, calc_id)
@@ -103,11 +103,11 @@ async def test_temporal_round_trip_campaign(client, monkeypatch):
     from temporalio.testing import WorkflowEnvironment
     from temporalio.worker import Worker
 
-    from alloylab.agent.loop import runner_registry
-    from alloylab.config import Settings
-    from alloylab.temporal import TemporalJobExecutor
-    from alloylab.temporal.activities import execute_calculation
-    from alloylab.temporal.workflows import RunCalculationWorkflow
+    from gibbs.agent.loop import runner_registry
+    from gibbs.config import Settings
+    from gibbs.temporal import TemporalJobExecutor
+    from gibbs.temporal.activities import execute_calculation
+    from gibbs.temporal.workflows import RunCalculationWorkflow
 
     env = await WorkflowEnvironment.start_local()
     try:

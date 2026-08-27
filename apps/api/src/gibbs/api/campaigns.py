@@ -197,7 +197,7 @@ def _espresso_config_for(elements: list[str], a_parent: float, **overrides):
         raise HTTPException(
             status_code=400,
             detail=f"no pseudopotential for {missing} in {settings.pseudo_dir}; run "
-            f"`uv run --package alloylab python -m alloylab.pseudos {' '.join(elements)}` to fetch PSlibrary PAW sets",
+            f"`uv run --package gibbs python -m gibbs.pseudos {' '.join(elements)}` to fetch PSlibrary PAW sets",
         )
     config = EspressoConfig(
         pw_command=settings.pw_command, pseudo_dir=settings.pseudo_dir,
@@ -217,7 +217,7 @@ async def list_elements():
     """The element catalog for the campaign form, with per-engine support.
 
     Espresso support means a pseudopotential is present in the configured
-    pseudo_dir (fetch with `python -m alloylab.pseudos <El>`)."""
+    pseudo_dir (fetch with `python -m gibbs.pseudos <El>`)."""
     from alloyscience.calculators import element_catalog, resolve_pseudopotentials
 
     settings = get_settings()

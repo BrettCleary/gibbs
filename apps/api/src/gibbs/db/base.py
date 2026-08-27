@@ -57,7 +57,7 @@ async def init_db(database_url: str | None = None) -> None:
     """Prepare the database.
 
     Postgres (Supabase): the schema is owned by Drizzle migrations
-    (apps/web/migrations, `pnpm --filter @alloylab/web db:migrate`); we only
+    (apps/web/migrations, `pnpm --filter @gibbs/web db:migrate`); we only
     verify the tables exist and fail with a clear message otherwise.
     SQLite (tests / zero-config dev): tables are created from the mirrored
     SQLAlchemy models.
@@ -82,7 +82,7 @@ async def init_db(database_url: str | None = None) -> None:
     if missing:
         raise RuntimeError(
             f"database is missing tables {missing}; apply the Drizzle migrations first: "
-            "pnpm --filter @alloylab/web db:migrate (DATABASE_URL must point at the same database)"
+            "pnpm --filter @gibbs/web db:migrate (DATABASE_URL must point at the same database)"
         )
 
 

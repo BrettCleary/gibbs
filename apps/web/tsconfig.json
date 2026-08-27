@@ -1,5 +1,5 @@
 {
-  "extends": "@alloylab/typescript-config/nextjs.json",
+  "extends": "@gibbs/typescript-config/nextjs.json",
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {

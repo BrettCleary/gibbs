@@ -1,14 +1,14 @@
 import pytest
 
-from alloylab.agent.decisions import ActionType, ScientificDecision
-from alloylab.agent.state import FailureRecord, Measurement, ScientificState
-from alloylab.agent.strategies import (
+from gibbs.agent.decisions import ActionType, ScientificDecision
+from gibbs.agent.state import FailureRecord, Measurement, ScientificState
+from gibbs.agent.strategies import (
     HeuristicDecider,
     ISING_RETRY_ADJUSTMENT,
     ISING_RETRY_REASON,
     handle_failures,
 )
-from alloylab.problems.ising import IsingProblem
+from gibbs.problems.ising import IsingProblem
 
 
 def _state(**overrides) -> ScientificState:

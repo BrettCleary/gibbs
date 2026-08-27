@@ -3,7 +3,7 @@
  * direct browser → FastAPI requests (a different origin, so the session cookie
  * does not travel with them).
  */
-const KEY = "alloylab.auth-token";
+const KEY = "gibbs.auth-token";
 
 export function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;

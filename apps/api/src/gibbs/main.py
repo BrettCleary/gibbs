@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="AlloyLab API",
+        title="Gibbs API",
         description="Autonomous computational materials-science platform "
         "(V0: Ising critical-region scientist).",
         version="0.1.0",

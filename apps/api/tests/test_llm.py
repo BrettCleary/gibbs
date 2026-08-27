@@ -7,10 +7,10 @@ import asyncio
 import pytest
 from pydantic_ai.models.test import TestModel
 
-from alloylab.agent.decisions import ActionType
-from alloylab.agent.llm import LLMDecider, model_available, provider_key_env
-from alloylab.agent.state import Measurement, ScientificState
-from alloylab.problems.ising import ISING_LLM_INSTRUCTIONS, _render_ising_state
+from gibbs.agent.decisions import ActionType
+from gibbs.agent.llm import LLMDecider, model_available, provider_key_env
+from gibbs.agent.state import Measurement, ScientificState
+from gibbs.problems.ising import ISING_LLM_INSTRUCTIONS, _render_ising_state
 
 
 def _ising_state(**overrides) -> ScientificState:
@@ -108,7 +108,7 @@ async def test_decider_unavailable_provider(monkeypatch):
 
 
 async def test_llm_narrative_with_test_model():
-    from alloylab.report import llm_narrative
+    from gibbs.report import llm_narrative
 
     text = await llm_narrative({"title": "t", "key_results": ["r"]}, TestModel(custom_output_text="Prose."))
     assert text == "Prose."
@@ -118,8 +118,8 @@ async def test_llm_narrative_with_test_model():
 async def test_full_agent_strategy_campaign_with_test_model(client, monkeypatch):
     """End-to-end: the 'agent' strategy driving an Ising campaign through the
     Pydantic AI harness with the built-in test model (no provider needed)."""
-    from alloylab.agent.loop import runner_registry
-    from alloylab.config import get_settings
+    from gibbs.agent.loop import runner_registry
+    from gibbs.config import get_settings
 
     monkeypatch.setenv("ALLOYLAB_AGENT_MODEL", "test")
     get_settings.cache_clear()

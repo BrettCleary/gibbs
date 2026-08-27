@@ -64,14 +64,14 @@ class Settings(BaseSettings):
     # API key (OPENAI_API_KEY, ANTHROPIC_API_KEY, ...) must be in the environment.
     agent_model: str = "openai:gpt-5"
     # Real-DFT engine (Milestone 6).
-    artifacts_dir: str = "./alloylab_data"
+    artifacts_dir: str = "./gibbs_data"
     pw_command: str = "pw.x"
     pseudo_dir: str = "infra/pseudopotentials"
     omp_num_threads: int = 4
     # Durable execution (Milestone 7). executor: "local" | "temporal".
     executor: str = "local"
     temporal_address: str = "localhost:7233"
-    temporal_task_queue: str = "alloylab-calculations"
+    temporal_task_queue: str = "gibbs-calculations"
     job_timeout_seconds: int = 1800
 
     @model_validator(mode="before")
@@ -102,7 +102,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_prefix="ALLOYLAB_",
-        # Works from the repo root (`uv run ...`) and from apps/api (`pnpm --filter @alloylab/api dev`).
+        # Works from the repo root (`uv run ...`) and from apps/api (`pnpm --filter @gibbs/api dev`).
         env_file=(".env", "apps/api/.env"),
         extra="ignore",
     )

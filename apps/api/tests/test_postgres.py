@@ -10,8 +10,8 @@ import os
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-import alloylab.db.base as db_base
-from alloylab.config import get_settings
+import gibbs.db.base as db_base
+from gibbs.config import get_settings
 
 PG_URL = os.environ.get("ALLOYLAB_TEST_DATABASE_URL")
 
@@ -24,8 +24,8 @@ async def pg_client(monkeypatch):
     get_settings.cache_clear()
     await db_base.dispose_db()
     await db_base.init_db()  # verifies the Drizzle-created tables exist
-    from alloylab.agent.loop import runner_registry
-    from alloylab.main import create_app
+    from gibbs.agent.loop import runner_registry
+    from gibbs.main import create_app
 
     async with AsyncClient(transport=ASGITransport(app=create_app()), base_url="http://test") as c:
         yield c
@@ -35,7 +35,7 @@ async def pg_client(monkeypatch):
 
 
 async def test_campaign_round_trip_on_postgres(pg_client):
-    from alloylab.agent.loop import runner_registry
+    from gibbs.agent.loop import runner_registry
 
     r = await pg_client.post(
         "/campaigns",
@@ -60,7 +60,7 @@ async def test_campaign_round_trip_on_postgres(pg_client):
 
 
 async def test_alloy_campaign_on_postgres(pg_client):
-    from alloylab.agent.loop import runner_registry
+    from gibbs.agent.loop import runner_registry
 
     r = await pg_client.post(
         "/campaigns",

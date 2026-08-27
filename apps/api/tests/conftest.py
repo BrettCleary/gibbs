@@ -1,8 +1,8 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-import alloylab.db.base as db_base
-from alloylab.config import get_settings
+import gibbs.db.base as db_base
+from gibbs.config import get_settings
 
 
 @pytest.fixture
@@ -12,10 +12,10 @@ async def client(tmp_path, monkeypatch):
     await db_base.dispose_db()
     await db_base.init_db()
 
-    from alloylab.agent.loop import runner_registry
-    from alloylab.api.auth import require_user
-    from alloylab.db.models import AuthUser
-    from alloylab.main import create_app
+    from gibbs.agent.loop import runner_registry
+    from gibbs.api.auth import require_user
+    from gibbs.db.models import AuthUser
+    from gibbs.main import create_app
 
     app = create_app()
     # Endpoint tests exercise the routes, not sign-in: stub the auth dependency.

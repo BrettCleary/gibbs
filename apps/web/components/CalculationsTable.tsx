@@ -1,7 +1,7 @@
 "use client";
 
 import { ExternalLink } from "lucide-react";
-import type { Calculation } from "@alloylab/api-client";
+import type { Calculation } from "@gibbs/api-client";
 import { apiFetch } from "@/lib/api";
 import { DataValue, EmptyState, StatusBadge, Table, Td, Th, Tr } from "@/components/ui/primitives";
 

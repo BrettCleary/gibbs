@@ -2,7 +2,7 @@
 
 Opt-in: enabled only when ``ARIZE_SPACE_ID`` and ``ARIZE_API_KEY`` are in the
 environment; otherwise ``setup_tracing()`` is a no-op so tests and keyless dev
-runs are unaffected. Optional: ``ARIZE_PROJECT_NAME`` (default ``alloylab``) and
+runs are unaffected. Optional: ``ARIZE_PROJECT_NAME`` (default ``gibbs``) and
 ``ARIZE_COLLECTOR_ENDPOINT`` for non-US regions (e.g.
 ``https://otlp.eu-west-1a.arize.com/v1``).
 
@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 import os
 
-logger = logging.getLogger("alloylab.tracing")
+logger = logging.getLogger("gibbs.tracing")
 
 _tracer_provider = None
 
@@ -43,13 +43,13 @@ def setup_tracing() -> bool:
     from pydantic_ai import Agent
 
     _tracer_provider = register(
-        project_name=os.environ.get("ARIZE_PROJECT_NAME", "alloylab"),
+        project_name=os.environ.get("ARIZE_PROJECT_NAME", "gibbs"),
         # space_id / api_key / endpoint are read from ARIZE_* env vars by register().
         span_processors=[OpenInferenceSpanProcessor()],
         verbose=False,
     )
     Agent.instrument_all()
-    logger.info("Arize tracing enabled (project=%s)", os.environ.get("ARIZE_PROJECT_NAME", "alloylab"))
+    logger.info("Arize tracing enabled (project=%s)", os.environ.get("ARIZE_PROJECT_NAME", "gibbs"))
     return True
 
 

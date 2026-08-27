@@ -6,7 +6,7 @@
  */
 
 import { useMemo } from "react";
-import type { StructureRead } from "@alloylab/api-client";
+import type { StructureRead } from "@gibbs/api-client";
 
 /** Element rendering: the lower atomic number in a cell is drawn neutral, the
  *  higher one in the accent color; radius grows gently with Z. */

@@ -8,7 +8,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { ElementRead } from "@alloylab/api-client";
+import type { ElementRead } from "@gibbs/api-client";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { Input } from "@/components/ui/primitives";
@@ -145,7 +145,7 @@ export function ElementSelect({
                       ? "already chosen as the other element"
                       : engine === "emt"
                         ? "no EMT parameters for this element"
-                        : "no pseudopotential on disk — run: python -m alloylab.pseudos " + e.symbol
+                        : "no pseudopotential on disk — run: python -m gibbs.pseudos " + e.symbol
                     : (e.note ?? undefined)
                 }
                 className={cn(

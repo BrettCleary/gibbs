@@ -7,7 +7,7 @@
  * its C(T) curve.
  */
 
-import type { PhaseSliceView } from "@alloylab/api-client";
+import type { PhaseSliceView } from "@gibbs/api-client";
 
 type Props = {
   slices: PhaseSliceView[];

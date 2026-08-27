@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { AgentEvent } from "@alloylab/api-client";
+import type { AgentEvent } from "@gibbs/api-client";
 import { api, apiUrlWithToken } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { EmptyState, type Tone } from "@/components/ui/primitives";

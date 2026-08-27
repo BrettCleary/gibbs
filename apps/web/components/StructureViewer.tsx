@@ -6,7 +6,7 @@
  * "same composition ≠ same material"). 3D cells defer to Structure3DViewer.
  */
 
-import type { StructureRead, HullPoint } from "@alloylab/api-client";
+import type { StructureRead, HullPoint } from "@gibbs/api-client";
 import { DataValue, TechnicalLabel } from "@/components/ui/primitives";
 import { ELEMENT_NAMES, Structure3DViewer } from "./Structure3DViewer";
 

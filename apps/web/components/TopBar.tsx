@@ -39,7 +39,7 @@ export function TopBar({ user }: { user: { email: string; name: string } }) {
         >
           <Mark />
           <span className="font-mono text-[12px] font-medium tracking-[0.22em] text-text">
-            ALLOYLAB
+            GIBBS
           </span>
         </Link>
 

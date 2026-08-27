@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "AlloyLab API",
+    "title": "Gibbs API",
     "description": "Autonomous computational materials-science platform (V0: Ising critical-region scientist).",
     "version": "0.1.0"
   },
@@ -76,7 +76,7 @@
           "campaigns"
         ],
         "summary": "List Elements",
-        "description": "The element catalog for the campaign form, with per-engine support.\n\nEspresso support means a pseudopotential is present in the configured\npseudo_dir (fetch with `python -m alloylab.pseudos <El>`).",
+        "description": "The element catalog for the campaign form, with per-engine support.\n\nEspresso support means a pseudopotential is present in the configured\npseudo_dir (fetch with `python -m gibbs.pseudos <El>`).",
         "operationId": "list_elements_campaigns_elements_get",
         "responses": {
           "200": {

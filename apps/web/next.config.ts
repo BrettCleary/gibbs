@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@alloylab/api-client"],
+  transpilePackages: ["@gibbs/api-client"],
 };
 
 export default nextConfig;

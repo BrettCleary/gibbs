@@ -190,7 +190,7 @@ class BenchmarkRun(Base):
 
 # --- Better Auth tables (apps/web/db/schema/auth.ts) ---------------------------
 # Owned and written by the Next.js app; the API only reads them to authenticate
-# requests (alloylab/api/auth.py). Columns mirror the Drizzle definition.
+# requests (gibbs/api/auth.py). Columns mirror the Drizzle definition.
 
 
 class AuthUser(Base):

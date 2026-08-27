@@ -6,9 +6,9 @@ import asyncio
 
 import pytest
 
-from alloylab.agent.decisions import ActionType, ScientificDecision
-from alloylab.agent.loop import runner_registry
-from alloylab.problems.phase import PhaseProblem, PhaseSlice, PhaseState
+from gibbs.agent.decisions import ActionType, ScientificDecision
+from gibbs.agent.loop import runner_registry
+from gibbs.problems.phase import PhaseProblem, PhaseSlice, PhaseState
 
 
 def _state(**overrides) -> PhaseState:

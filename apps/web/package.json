@@ -1,5 +1,5 @@
 {
-  "name": "@alloylab/web",
+  "name": "@gibbs/web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -16,7 +16,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@alloylab/api-client": "workspace:*",
+    "@gibbs/api-client": "workspace:*",
     "@supabase/supabase-js": "^2.49.0",
     "@tanstack/react-query": "^5.60.0",
     "better-auth": "^1.7.1",
@@ -28,7 +28,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@alloylab/typescript-config": "workspace:*",
+    "@gibbs/typescript-config": "workspace:*",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",

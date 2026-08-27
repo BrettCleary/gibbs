@@ -1,4 +1,4 @@
-import { createApiClient } from "@alloylab/api-client";
+import { createApiClient } from "@gibbs/api-client";
 import { getAuthToken } from "./auth-token";
 import { signOut } from "./auth-client";
 

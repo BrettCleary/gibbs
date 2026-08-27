@@ -1,7 +1,7 @@
 import pytest
 
-from alloylab.agent.decisions import ActionType, ScientificDecision
-from alloylab.problems.alloy import (
+from gibbs.agent.decisions import ActionType, ScientificDecision
+from gibbs.problems.alloy import (
     AlloyHeuristicDecider,
     AlloyProblem,
     AlloyState,

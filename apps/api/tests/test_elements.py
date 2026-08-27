@@ -2,7 +2,7 @@
 
 import asyncio
 
-from alloylab.agent.loop import runner_registry
+from gibbs.agent.loop import runner_registry
 
 
 async def test_elements_validation(client, monkeypatch):
@@ -15,11 +15,11 @@ async def test_elements_validation(client, monkeypatch):
     assert r.status_code == 400 and "EMT" in r.json()["detail"]
     # Espresso: missing pseudopotential -> actionable error naming the fetch command.
     monkeypatch.setenv("ALLOYLAB_PSEUDO_DIR", "/nonexistent")
-    from alloylab.config import get_settings
+    from gibbs.config import get_settings
     get_settings.cache_clear()
     r = await client.post("/campaigns", json={"name": "x", "problem_type": "dft_v3", "dft_engine": "espresso", "elements": ["Cu", "Au"]})
     get_settings.cache_clear()
-    assert r.status_code == 400 and "alloylab.pseudos" in r.json()["detail"]
+    assert r.status_code == 400 and "gibbs.pseudos" in r.json()["detail"]
 
 
 async def test_cu_au_emt_campaign(client):

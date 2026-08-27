@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
-import type { CampaignCreate } from "@alloylab/api-client";
+import type { CampaignCreate } from "@gibbs/api-client";
 import { api } from "@/lib/api";
 import { problemInfo } from "@/lib/problems";
 import { CampaignForm } from "@/components/CampaignForm";
@@ -91,7 +91,7 @@ export default function CampaignsPage() {
         ) : campaigns.isError ? (
           <EmptyState
             title="API unreachable"
-            description="The web app could not reach the AlloyLab API. Start it with `pnpm --filter @alloylab/api dev` and this list will populate."
+            description="The web app could not reach the Gibbs API. Start it with `pnpm --filter @gibbs/api dev` and this list will populate."
           />
         ) : list.length === 0 ? (
           <EmptyState

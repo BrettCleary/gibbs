@@ -30,7 +30,7 @@ jobs:
         run: pnpm format:check
 
       - name: Typecheck
-        run: pnpm --filter @alloylab/web typecheck
+        run: pnpm --filter @gibbs/web typecheck
 
       - name: ESLint
-        run: pnpm --filter @alloylab/web lint
+        run: pnpm --filter @gibbs/web lint

@@ -3,7 +3,7 @@
     state -> decision -> validate -> execute -> persist -> update models -> repeat
 
 Problem-agnostic: everything scientific is delegated to the campaign's
-Problem adapter (`alloylab.problems`). Agent reasoning (LLM or heuristic) only
+Problem adapter (`gibbs.problems`). Agent reasoning (LLM or heuristic) only
 *chooses* actions; the job executor guarantees the calculations actually
 happen and records provenance.
 """

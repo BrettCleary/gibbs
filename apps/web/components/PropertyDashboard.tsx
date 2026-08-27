@@ -8,7 +8,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { CandidateRead } from "@alloylab/api-client";
+import type { CandidateRead } from "@gibbs/api-client";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import {

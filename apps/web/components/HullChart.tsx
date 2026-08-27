@@ -6,7 +6,7 @@
  * predicted-stable structures. Click a point to inspect the structure.
  */
 
-import type { HullPoint } from "@alloylab/api-client";
+import type { HullPoint } from "@gibbs/api-client";
 
 type Props = {
   points: HullPoint[];

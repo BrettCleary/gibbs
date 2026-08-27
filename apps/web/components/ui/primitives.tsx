@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * AlloyLab UI primitives. These encode the visual system (layered surfaces,
+ * Gibbs UI primitives. These encode the visual system (layered surfaces,
  * mono instrumentation labels, sparse accents, 2–4px radii) so pages compose
  * from a shared vocabulary instead of re-declaring class strings.
  */

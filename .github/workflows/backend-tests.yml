@@ -19,7 +19,7 @@ jobs:
         include:
           - package: alloyscience
             path: packages/science
-          - package: alloylab
+          - package: gibbs
             path: apps/api
     steps:
       - uses: actions/checkout@v4

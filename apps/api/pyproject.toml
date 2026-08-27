@@ -1,7 +1,7 @@
 [project]
-name = "alloylab"
+name = "gibbs"
 version = "0.1.0"
-description = "AlloyLab backend: campaigns, jobs, agent loop, API"
+description = "Gibbs backend: campaigns, jobs, agent loop, API"
 requires-python = ">=3.12"
 dependencies = [
     "alloyscience",
@@ -30,7 +30,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/alloylab"]
+packages = ["src/gibbs"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -1,4 +1,4 @@
-# AlloyLab — Autonomous Alloy Scientist
+# Gibbs — Autonomous Alloy Scientist
 
 An autonomous computational materials-science platform (see `project_description.md`
 for the full plan). This repository implements **all nine milestones of the plan**: the
@@ -45,7 +45,7 @@ running against **real first-principles calculations**:
   out stable, but numbers are not publication-quality.
 - **Durable execution (Milestone 7, Temporal)** — with `ALLOYLAB_EXECUTOR=temporal`
   every calculation runs as a `RunCalculationWorkflow` on a Temporal task
-  queue, executed by separate worker processes (`pnpm --filter @alloylab/api
+  queue, executed by separate worker processes (`pnpm --filter @gibbs/api
   worker`). Kill a worker mid-campaign and the campaign stalls durably, then
   resumes and completes when a worker returns; in-flight activities are
   detected via heartbeats and retried. Scientific failures (SCF
@@ -80,16 +80,16 @@ running against **real first-principles calculations**:
 Benchmark mode scores strategies against the exact hidden Hamiltonian: hull
 RMSE and missed/false stable phases for the hull problems, mean |Tc error|
 (the plan's phase-boundary error) for the phase problem. All problems run
-through one problem-agnostic campaign loop (`alloylab/problems/` adapters), so
+through one problem-agnostic campaign loop (`gibbs/problems/` adapters), so
 V3 (real DFT) slots in without touching the loop, executor, or failure policy.
 
 ## Architecture (three layers, kept separate)
 
 | Layer | Code | Responsibility |
 |---|---|---|
-| Intelligence | `apps/api/src/alloylab/agent/` (Pydantic AI + heuristics) | scientific decisions |
+| Intelligence | `apps/api/src/gibbs/agent/` (Pydantic AI + heuristics) | scientific decisions |
 | Scientific truth | `packages/science/src/alloyscience/` (NumPy/SciPy) | numerical results |
-| Execution infra | `apps/api/src/alloylab/{jobs,db,api}/` (FastAPI, SQLAlchemy over Supabase Postgres, SSE) + `apps/web/db/` (Drizzle schema & migrations) | durable, inspectable experiments |
+| Execution infra | `apps/api/src/gibbs/{jobs,db,api}/` (FastAPI, SQLAlchemy over Supabase Postgres, SSE) + `apps/web/db/` (Drizzle schema & migrations) | durable, inspectable experiments |
 
 The LLM never computes numbers; every scientific quantity comes from
 deterministic tools, every calculation is a typed job row with provenance,
@@ -121,13 +121,13 @@ apps/web/supabase/           Supabase project config + migrations/ (drizzle-kit 
 ```bash
 pnpm install
 uv sync --all-packages --all-extras
-pnpm --filter @alloylab/api-client generate   # regenerate TS client from OpenAPI (committed)
+pnpm --filter @gibbs/api-client generate   # regenerate TS client from OpenAPI (committed)
 
 # terminal 1 — API on :8000
-pnpm --filter @alloylab/api dev
+pnpm --filter @gibbs/api dev
 
 # terminal 2 — web on :3000
-pnpm --filter @alloylab/web dev
+pnpm --filter @gibbs/web dev
 ```
 
 Open http://localhost:3000 — you land on **/login**; sign up with any email
@@ -163,7 +163,7 @@ creation: EMT covers Al, Cu, Ag, Au, Ni, Pd, Pt; Quantum ESPRESSO needs one
 UPF per element in `infra/pseudopotentials/` — fetch PSlibrary PAW sets with
 
 ```bash
-uv run --package alloylab python -m alloylab.pseudos Cu Au
+uv run --package gibbs python -m gibbs.pseudos Cu Au
 ```
 
 ### Real DFT (Quantum ESPRESSO)
@@ -187,8 +187,8 @@ structure — Milestone 7 (Temporal) is where these long jobs become durable.
 brew install temporal
 temporal server start-dev                      # UI at http://localhost:8233
 export ALLOYLAB_EXECUTOR=temporal
-pnpm --filter @alloylab/api worker             # one or more workers
-pnpm --filter @alloylab/api dev                # the API
+pnpm --filter @gibbs/api worker             # one or more workers
+pnpm --filter @gibbs/api dev                # the API
 ```
 
 (`infra/temporal/docker-compose.yml` is the container alternative.) The
@@ -205,7 +205,7 @@ Postgres schema — Supabase owns `auth`). Set `BETTER_AUTH_SECRET` (and
 `app/(app)/layout.tsx` verifies the session server-side.
 
 The FastAPI backend requires the same session on **every** endpoint except
-`/health` (`alloylab/api/auth.py`, applied router-wide in `main.py`). The browser
+`/health` (`gibbs/api/auth.py`, applied router-wide in `main.py`). The browser
 sends the session token as `Authorization: Bearer …` — Better Auth's `bearer`
 plugin hands it out on sign-in and the client stores it — and the API looks it
 up in `app_auth.session` (shared database, no extra config). `EventSource`
@@ -244,11 +244,11 @@ exist and tells you to migrate if not.
 cd apps/web && supabase start            # DB on 127.0.0.1:54332, Studio on :54333
 
 # schema workflow
-pnpm --filter @alloylab/web db:generate  # drizzle-kit generate -> supabase/migrations/NNNN_*.sql
-pnpm --filter @alloylab/web db:migrate   # supabase migration up: apply pending to the local stack
-pnpm --filter @alloylab/web db:reset     # supabase db reset: wipe + re-apply every migration (+ seed.sql)
-pnpm --filter @alloylab/web db:push      # supabase db push: apply pending to the linked hosted project
-pnpm --filter @alloylab/web db:studio    # drizzle studio
+pnpm --filter @gibbs/web db:generate  # drizzle-kit generate -> supabase/migrations/NNNN_*.sql
+pnpm --filter @gibbs/web db:migrate   # supabase migration up: apply pending to the local stack
+pnpm --filter @gibbs/web db:reset     # supabase db reset: wipe + re-apply every migration (+ seed.sql)
+pnpm --filter @gibbs/web db:push      # supabase db push: apply pending to the linked hosted project
+pnpm --filter @gibbs/web db:studio    # drizzle studio
 
 # point both apps at the database (see apps/web/.env.example)
 export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54332/postgres            # drizzle-kit / web
@@ -256,7 +256,7 @@ export ALLOYLAB_DATABASE_URL=postgresql+asyncpg://postgres:postgres@127.0.0.1:54
 ```
 
 For a hosted Supabase project use its *session-mode* pooler URI (port 5432)
-in both variables. `ALLOYLAB_DATABASE_URL=sqlite+aiosqlite:///./alloylab.db`
+in both variables. `ALLOYLAB_DATABASE_URL=sqlite+aiosqlite:///./gibbs.db`
 still works for zero-config dev and is what the test suite uses; the
 env-gated `apps/api/tests/test_postgres.py` (set `ALLOYLAB_TEST_DATABASE_URL`)
 runs full campaigns against a Drizzle-migrated Postgres. `infra/docker/`
@@ -288,4 +288,4 @@ profile; and richer LLM tooling (structure-inspection tools, self-critique of
 recommendations) — the Pydantic AI harness makes those tools typed and testable.
 
 Note: the dev database schema is created with `create_all` (no migrations yet);
-after pulling schema changes, delete the local `alloylab.db` file.
+after pulling schema changes, delete the local `gibbs.db` file.

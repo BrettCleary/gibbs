@@ -1,6 +1,6 @@
 """Fetch PSlibrary PAW pseudopotentials for elements into the configured pseudo_dir.
 
-    uv run --package alloylab python -m alloylab.pseudos Cu Au
+    uv run --package gibbs python -m gibbs.pseudos Cu Au
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from .config import get_settings
 
 def main(argv: list[str]) -> int:
     if not argv:
-        print("usage: python -m alloylab.pseudos <El> [<El> ...]", file=sys.stderr)
+        print("usage: python -m gibbs.pseudos <El> [<El> ...]", file=sys.stderr)
         return 2
     pseudo_dir = get_settings().pseudo_dir
     found = fetch_pseudopotentials([a.capitalize() for a in argv], pseudo_dir)

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Play } from "lucide-react";
-import type { BenchmarkRun } from "@alloylab/api-client";
+import type { BenchmarkRun } from "@gibbs/api-client";
 import { api } from "@/lib/api";
 import {
   Button,
@@ -137,7 +137,7 @@ export default function BenchmarksPage() {
         <Surface>
           <EmptyState
             title="API unreachable"
-            description="The web app could not reach the AlloyLab API, so no benchmark runs can be listed or launched."
+            description="The web app could not reach the Gibbs API, so no benchmark runs can be listed or launched."
           />
         </Surface>
       )}

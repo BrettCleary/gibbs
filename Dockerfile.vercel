@@ -1,4 +1,4 @@
-# AlloyLab API — container image for Vercel (services/container runtime).
+# Gibbs API — container image for Vercel (services/container runtime).
 # Build context is the repo root so the uv workspace (apps/api + packages/science) resolves.
 
 # ---- builder: needs a C++ toolchain because icet compiles from source ----
@@ -33,4 +33,4 @@ EXPOSE 80
 # Absolute venv path, not `uvicorn`: Vercel's container runtime injects its own
 # environment at start-up and clobbers the PATH set above (exit 127 otherwise).
 # PORT defaults to 80 — the port Vercel routes to unless PORT is set in project settings.
-CMD ["sh", "-c", "exec /app/.venv/bin/uvicorn alloylab.main:app --host 0.0.0.0 --port ${PORT:-80}"]
+CMD ["sh", "-c", "exec /app/.venv/bin/uvicorn gibbs.main:app --host 0.0.0.0 --port ${PORT:-80}"]

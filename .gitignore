@@ -17,7 +17,7 @@ dist/
 *.sqlite3
 .env
 .env.local
-alloylab_data/
+gibbs_data/
 
 # misc
 .DS_Store

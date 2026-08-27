@@ -1,13 +1,13 @@
-"""Session validation against the Better Auth tables (alloylab.api.auth)."""
+"""Session validation against the Better Auth tables (gibbs.api.auth)."""
 
 from datetime import datetime, timedelta, timezone
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-import alloylab.db.base as db_base
-from alloylab.config import get_settings
-from alloylab.db.models import AuthSession, AuthUser
+import gibbs.db.base as db_base
+from gibbs.config import get_settings
+from gibbs.db.models import AuthSession, AuthUser
 
 
 @pytest.fixture
@@ -38,8 +38,8 @@ async def unauth_client(tmp_path, monkeypatch):
         )
         await s.commit()
 
-    from alloylab.agent.loop import runner_registry
-    from alloylab.main import create_app
+    from gibbs.agent.loop import runner_registry
+    from gibbs.main import create_app
 
     app = create_app()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:

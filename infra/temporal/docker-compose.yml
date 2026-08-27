@@ -8,7 +8,7 @@
 #   docker compose -f infra/temporal/docker-compose.yml up -d
 #
 # Then run the API with ALLOYLAB_EXECUTOR=temporal and start one or more workers:
-#   uv run --package alloylab python -m alloylab.worker
+#   uv run --package gibbs python -m gibbs.worker
 services:
   temporal:
     image: temporalio/server:latest

@@ -4,7 +4,7 @@ validation. Real pw.x runs are exercised in the science suite (env-gated)."""
 
 import asyncio
 
-from alloylab.agent.loop import runner_registry
+from gibbs.agent.loop import runner_registry
 
 
 async def _run_to_completion(client, campaign_id: str, timeout_s: float = 240.0) -> dict:
@@ -59,7 +59,7 @@ async def test_full_emt_dft_campaign(client):
 
 
 async def test_espresso_engine_validated_at_create(client, monkeypatch):
-    from alloylab.config import get_settings
+    from gibbs.config import get_settings
 
     monkeypatch.setenv("ALLOYLAB_PW_COMMAND", "/nonexistent/pw.x")
     get_settings.cache_clear()
