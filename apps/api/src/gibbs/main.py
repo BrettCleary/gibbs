@@ -6,7 +6,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .agent.loop import runner_registry
-from .api import benchmarks, calculations, campaigns
+from .api import benchmarks, calculations, campaigns, copilot
 from .api.auth import require_user
 from .config import get_settings
 from .db.base import dispose_db, init_db
@@ -43,6 +43,7 @@ def create_app() -> FastAPI:
     app.include_router(campaigns.router, dependencies=authenticated)
     app.include_router(calculations.router, dependencies=authenticated)
     app.include_router(benchmarks.router, dependencies=authenticated)
+    app.include_router(copilot.router, dependencies=authenticated)
 
     @app.get("/health", tags=["meta"])
     async def health() -> dict:

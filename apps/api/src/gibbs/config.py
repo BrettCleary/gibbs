@@ -46,6 +46,11 @@ def normalize_database_url(url: str) -> str:
     return urlunsplit((scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
 
 
+# apps/api/src/gibbs/config.py -> repo root
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
+ENV_FILES = (".env", "apps/api/.env")
+
+
 class Settings(BaseSettings):
     """Runtime configuration. Override with ALLOYLAB_* environment variables."""
 
@@ -62,7 +67,7 @@ class Settings(BaseSettings):
     # LLM agent (Pydantic AI). Provider-prefixed model string, e.g. "openai:gpt-5",
     # "anthropic:claude-sonnet-4-5", "google-gla:gemini-2.5-pro"; the provider's
     # API key (OPENAI_API_KEY, ANTHROPIC_API_KEY, ...) must be in the environment.
-    agent_model: str = "openai:gpt-5"
+    agent_model: str = "openai:gpt-5.4-mini"
     # Real-DFT engine (Milestone 6).
     artifacts_dir: str = "./gibbs_data"
     pw_command: str = "pw.x"
@@ -100,14 +105,40 @@ class Settings(BaseSettings):
     def _normalize_database_url(cls, value: str) -> str:
         return normalize_database_url(value)
 
+    @field_validator("pseudo_dir")
+    @classmethod
+    def _anchor_pseudo_dir(cls, value: str) -> str:
+        """A relative pseudo_dir is relative to the repo root, whatever the cwd
+        (the API is started from the root, apps/api, or a container)."""
+        if os.path.isabs(value) or os.path.isdir(value):
+            return value
+        candidate = os.path.join(REPO_ROOT, value)
+        return candidate if os.path.isdir(candidate) else value
+
     model_config = SettingsConfigDict(
         env_prefix="ALLOYLAB_",
         # Works from the repo root (`uv run ...`) and from apps/api (`pnpm --filter @gibbs/api dev`).
-        env_file=(".env", "apps/api/.env"),
+        env_file=ENV_FILES,
         extra="ignore",
     )
 
 
+def load_env_files() -> None:
+    """Export the env files' variables into the process environment.
+
+    pydantic-settings only maps env-file lines onto Settings fields; provider
+    keys such as OPENAI_API_KEY / ANTHROPIC_API_KEY are read by Pydantic AI
+    from os.environ, so they must be exported as well. Existing environment
+    variables are never overridden (deployed platforms inject real ones).
+    """
+    from dotenv import load_dotenv
+
+    for path in ENV_FILES:
+        if os.path.isfile(path):
+            load_dotenv(path, override=False)
+
+
 @lru_cache
 def get_settings() -> Settings:
+    load_env_files()
     return Settings()

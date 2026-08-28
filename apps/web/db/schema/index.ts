@@ -17,5 +17,7 @@ export * from "./surrogate-models";
 export * from "./agent-runs";
 export * from "./agent-events";
 export * from "./benchmark-runs";
+export * from "./copilot";
+export * from "./agent-config";
 export * from "./relations";
 export * from "./auth";

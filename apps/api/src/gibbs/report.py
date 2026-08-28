@@ -8,6 +8,8 @@ facts; it never introduces numbers of its own.
 
 from __future__ import annotations
 
+import logging
+
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -253,5 +255,9 @@ async def llm_narrative(report: dict, model) -> str | None:
             "recommendation plainly."
         ),
     )
-    result = await agent.run(json.dumps(report, indent=2, default=str))
+    try:
+        result = await agent.run(json.dumps(report, indent=2, default=str))
+    except Exception:  # a dead key or provider outage must not sink the report
+        logging.getLogger("gibbs.report").exception("LLM narrative failed; report keeps the deterministic narrative")
+        return None
     return str(result.output)

@@ -5,6 +5,15 @@ import gibbs.db.base as db_base
 from gibbs.config import get_settings
 
 
+@pytest.fixture(autouse=True)
+def _no_env_files(monkeypatch):
+    """Tests must never pick up the developer's real .env (provider keys etc.)."""
+    monkeypatch.setattr("gibbs.config.ENV_FILES", ())
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
 @pytest.fixture
 async def client(tmp_path, monkeypatch):
     monkeypatch.setenv("ALLOYLAB_DATABASE_URL", f"sqlite+aiosqlite:///{tmp_path}/test.db")

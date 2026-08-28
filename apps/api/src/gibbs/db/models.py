@@ -3,10 +3,10 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, ForeignKeyConstraint, Integer, String, Text, Uuid
 from sqlalchemy import JSON as _JSON
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
 
@@ -19,6 +19,10 @@ JSON = JSONB().with_variant(_JSON(), "sqlite")
 
 def _uuid() -> str:
     return uuid.uuid4().hex
+
+
+def _uuid_str() -> str:
+    return str(uuid.uuid4())
 
 
 def _now() -> datetime:
@@ -218,3 +222,196 @@ class AuthSession(Base):
     ip_address: Mapped[str | None] = mapped_column(Text, nullable=True)
     user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
     user_id: Mapped[str] = mapped_column(Text, ForeignKey("app_auth.user.id", ondelete="CASCADE"))
+
+
+class CopilotChat(Base):
+    """A copilot chat. Mirrors apps/web/db/schema/copilot.ts (agent.chat)."""
+
+    __tablename__ = "chat"
+    __table_args__ = {"schema": "agent"}
+
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True, default=_uuid_str)
+    user_id: Mapped[str] = mapped_column(Text, ForeignKey("app_auth.user.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(Text, default="New chat")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+    messages: Mapped[list["CopilotMessage"]] = relationship(
+        back_populates="chat", cascade="all, delete-orphan", order_by="CopilotMessage.id"
+    )
+
+
+class CopilotMessage(Base):
+    """One timeline entry of a chat: a user prompt or an assistant reply."""
+
+    __tablename__ = "messages"
+    __table_args__ = {"schema": "agent"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    chat_id: Mapped[str] = mapped_column(
+        Uuid(as_uuid=False), ForeignKey("agent.chat.id", ondelete="CASCADE"), index=True
+    )
+    role: Mapped[str] = mapped_column(Text)  # "user" | "assistant"
+    message: Mapped[str] = mapped_column(Text, default="")
+    total_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    component_type: Mapped[str | None] = mapped_column(Text, nullable=True)
+    component_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    trace_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    page_context: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+    chat: Mapped[CopilotChat] = relationship(back_populates="messages")
+    tool_calls: Mapped[list["CopilotToolCall"]] = relationship(
+        back_populates="message", cascade="all, delete-orphan", order_by="CopilotToolCall.position"
+    )
+    skills: Mapped[list["MessageSkill"]] = relationship(cascade="all, delete-orphan")
+
+
+class CopilotToolCall(Base):
+    """A tool call the model made while producing an assistant message."""
+
+    __tablename__ = "tool_call"
+    __table_args__ = {"schema": "agent"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    message_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("agent.messages.id", ondelete="CASCADE"), index=True
+    )
+    call_id: Mapped[str] = mapped_column(Text)
+    name: Mapped[str] = mapped_column(Text)
+    arguments: Mapped[str] = mapped_column(Text, default="{}")
+    output: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(Text, default="pending")  # ok | error | pending
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+    message: Mapped[CopilotMessage] = relationship(back_populates="tool_calls")
+
+
+# ----------------------------------------------------------- agent configuration
+# Mirrors apps/web/db/schema/agent-config.ts: an agent row is composed from
+# tool sets and skill sets; message_skill records which skills a reply loaded.
+
+
+class AgentConfigRow(Base):
+    __tablename__ = "agent_config"
+    __table_args__ = {"schema": "agent"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    max_output_tokens: Mapped[int] = mapped_column(Integer, default=4096)
+    temperature: Mapped[int | None] = mapped_column(Integer, nullable=True)  # x100
+    top_p: Mapped[int | None] = mapped_column(Integer, nullable=True)  # x100
+    provider_options: Mapped[dict] = mapped_column(JSON, default=dict)
+    base_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class AgentRow(Base):
+    __tablename__ = "agent"
+    __table_args__ = {"schema": "agent"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(Text, unique=True)
+    system_prompt: Mapped[str] = mapped_column(Text)
+    foundation_model: Mapped[str | None] = mapped_column(Text, nullable=True)
+    enable_all_tools: Mapped[bool] = mapped_column(Boolean, default=False)
+    agent_config_id: Mapped[int] = mapped_column(Integer, ForeignKey("agent.agent_config.id"))
+    tag: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+    config: Mapped[AgentConfigRow] = relationship()
+
+
+class ToolSet(Base):
+    __tablename__ = "tool_set"
+    __table_args__ = {"schema": "agent"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(Text, unique=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class ToolSetTool(Base):
+    __tablename__ = "tool_set_tool"
+    __table_args__ = {"schema": "agent"}
+
+    tool_set_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("agent.tool_set.id", ondelete="CASCADE"), primary_key=True
+    )
+    tool_name: Mapped[str] = mapped_column(Text, primary_key=True, index=True)
+
+
+class AgentToolSet(Base):
+    __tablename__ = "agent_tool_set"
+    __table_args__ = {"schema": "agent"}
+
+    agent_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("agent.agent.id", ondelete="CASCADE"), primary_key=True
+    )
+    tool_set_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("agent.tool_set.id", ondelete="CASCADE"), primary_key=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class SkillSet(Base):
+    __tablename__ = "skill_set"
+    __table_args__ = {"schema": "agent"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(Text, unique=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class SkillSetSkill(Base):
+    __tablename__ = "skill_set_skill"
+    __table_args__ = {"schema": "agent"}
+
+    skill_set_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("agent.skill_set.id", ondelete="CASCADE"), primary_key=True
+    )
+    skill_name: Mapped[str] = mapped_column(Text, primary_key=True, index=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content: Mapped[str] = mapped_column(Text)
+
+
+class AgentSkillSet(Base):
+    __tablename__ = "agent_skill_set"
+    __table_args__ = {"schema": "agent"}
+
+    agent_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("agent.agent.id", ondelete="CASCADE"), primary_key=True
+    )
+    skill_set_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("agent.skill_set.id", ondelete="CASCADE"), primary_key=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class MessageSkill(Base):
+    """Which skills an assistant message loaded (for history reconstruction)."""
+
+    __tablename__ = "message_skill"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["skill_set_id", "skill_name"],
+            ["agent.skill_set_skill.skill_set_id", "agent.skill_set_skill.skill_name"],
+            ondelete="CASCADE",
+        ),
+        {"schema": "agent"},
+    )
+
+    message_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("agent.messages.id", ondelete="CASCADE"), primary_key=True, index=True
+    )
+    skill_set_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    skill_name: Mapped[str] = mapped_column(Text, primary_key=True)

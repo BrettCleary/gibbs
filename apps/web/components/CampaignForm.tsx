@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import type { CampaignCreate } from "@gibbs/api-client";
 import {
   Button,
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/primitives";
 import { PROBLEMS, type ProblemType } from "@/lib/problems";
 import { ElementSelect } from "@/components/ElementSelect";
+import { useCopilotFormBridge } from "@/components/copilot/CopilotProvider";
 
 export function CampaignForm({
   onSubmit,
@@ -44,8 +45,52 @@ export function CampaignForm({
     phase_t_min: 100,
     phase_t_max: 1200,
   });
-  const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
+  // Fields the copilot last changed, with its rationale — cleared per field on edit.
+  const [proposed, setProposed] = useState<Record<string, string>>({});
+  const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => {
     setForm((f) => ({ ...f, [k]: v }));
+    setProposed((p) => {
+      if (!(k in p)) return p;
+      const next = { ...p };
+      delete next[k];
+      return next;
+    });
+  };
+  const mark = useCallback(
+    (key: string) =>
+      proposed[key] != null
+        ? { className: "copilot-proposed", title: proposed[key], "data-proposed": "" }
+        : {},
+    [proposed],
+  );
+
+  // The copilot's hands: it reads the current form and applies patches here;
+  // changed fields are highlighted until the scientist edits them.
+  useCopilotFormBridge({
+    getForm: () => ({ ...form }),
+    applyPatch: (patch, rationale) => {
+      setForm((f) => {
+        const next = { ...f } as Record<string, unknown>;
+        for (const [k, v] of Object.entries(patch)) {
+          if (!(k in f)) continue;
+          const current = (f as Record<string, unknown>)[k];
+          next[k] =
+            k === "target_uncertainty"
+              ? v == null
+                ? ""
+                : String(v)
+              : typeof current === "number"
+                ? Number(v)
+                : v;
+        }
+        return next as typeof f;
+      });
+      setProposed((p) => ({
+        ...p,
+        ...Object.fromEntries(Object.keys(patch).map((k) => [k, rationale])),
+      }));
+    },
+  });
 
   const isPhase = form.problem_type === "phase_v2";
   const isDft = form.problem_type === "dft_v3";
@@ -84,10 +129,10 @@ export function CampaignForm({
           {/* Left: what & how */}
           <div className="flex flex-col gap-4">
             <TechnicalLabel>Objective</TechnicalLabel>
-            <Field label="campaign name">
+            <Field label="campaign name" {...mark("name")}>
               <Input value={form.name} onChange={(e) => set("name", e.target.value)} required />
             </Field>
-            <Field label="problem" hint={info.long}>
+            <Field label="problem" hint={info.long} {...mark("problem_type")}>
               <Select
                 value={form.problem_type}
                 onChange={(e) => set("problem_type", e.target.value as ProblemType)}
@@ -102,6 +147,7 @@ export function CampaignForm({
             </Field>
             {hasElements && (
               <Field
+                {...mark(proposed.element_a != null ? "element_a" : "element_b")}
                 label="element pair A – B"
                 hint={
                   elementEngine === "emt"
@@ -130,7 +176,7 @@ export function CampaignForm({
                 </div>
               </Field>
             )}
-            <Field label="strategy">
+            <Field label="strategy" {...mark("strategy")}>
               <Select value={form.strategy} onChange={(e) => set("strategy", e.target.value)}>
                 <option value="agent">agent — LLM scientist</option>
                 <option value="uncertainty">uncertainty sampling</option>
@@ -150,7 +196,7 @@ export function CampaignForm({
           <div className="flex flex-col gap-4">
             <TechnicalLabel>Parameters</TechnicalLabel>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-              <Field label={info.budgetLabel}>
+              <Field label={info.budgetLabel} {...mark("simulation_budget")}>
                 <Input
                   type="number"
                   min={4}
@@ -159,7 +205,7 @@ export function CampaignForm({
                   onChange={(e) => set("simulation_budget", Number(e.target.value))}
                 />
               </Field>
-              <Field label="injected failure rate">
+              <Field label="injected failure rate" {...mark("failure_rate")}>
                 <Input
                   type="number"
                   min={0}
@@ -178,6 +224,7 @@ export function CampaignForm({
                       : "Tc uncertainty target"
                 }
                 hint="optional stopping rule"
+                {...mark("target_uncertainty")}
               >
                 <Input
                   type="number"
@@ -190,7 +237,7 @@ export function CampaignForm({
 
               {isIsing && (
                 <>
-                  <Field label="lattice size L">
+                  <Field label="lattice size L" {...mark("lattice_size")}>
                     <Input
                       type="number"
                       min={8}
@@ -200,7 +247,7 @@ export function CampaignForm({
                       onChange={(e) => set("lattice_size", Number(e.target.value))}
                     />
                   </Field>
-                  <Field label="T min">
+                  <Field label="T min" {...mark("temperature_min")}>
                     <Input
                       type="number"
                       step={0.1}
@@ -208,7 +255,7 @@ export function CampaignForm({
                       onChange={(e) => set("temperature_min", Number(e.target.value))}
                     />
                   </Field>
-                  <Field label="T max">
+                  <Field label="T max" {...mark("temperature_max")}>
                     <Input
                       type="number"
                       step={0.1}
@@ -221,7 +268,7 @@ export function CampaignForm({
 
               {isProperty && (
                 <>
-                  <Field label="property engine">
+                  <Field label="property engine" {...mark("property_engine")}>
                     <Select
                       value={form.property_engine}
                       onChange={(e) => set("property_engine", e.target.value)}
@@ -230,7 +277,7 @@ export function CampaignForm({
                       <option value="emt">EMT classical potential (real)</option>
                     </Select>
                   </Field>
-                  <Field label="stability threshold T (K)">
+                  <Field label="stability threshold T (K)" {...mark("temperature_threshold")}>
                     <Input
                       type="number"
                       step={50}
@@ -242,7 +289,7 @@ export function CampaignForm({
               )}
 
               {isDft && (
-                <Field label="energy engine" className="col-span-2">
+                <Field label="energy engine" className="col-span-2" {...mark("dft_engine")}>
                   <Select
                     value={form.dft_engine}
                     onChange={(e) => set("dft_engine", e.target.value)}
@@ -255,7 +302,7 @@ export function CampaignForm({
 
               {isPhase && (
                 <>
-                  <Field label="T min (K)">
+                  <Field label="T min (K)" {...mark("phase_t_min")}>
                     <Input
                       type="number"
                       step={50}
@@ -263,7 +310,7 @@ export function CampaignForm({
                       onChange={(e) => set("phase_t_min", Number(e.target.value))}
                     />
                   </Field>
-                  <Field label="T max (K)">
+                  <Field label="T max (K)" {...mark("phase_t_max")}>
                     <Input
                       type="number"
                       step={50}

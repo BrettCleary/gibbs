@@ -73,6 +73,7 @@ export function AlloyDashboard({ campaignId, running }: { campaignId: string; ru
               points={hull.data!.points}
               hullX={hull.data!.hull_x}
               hullE={hull.data!.hull_e}
+              unit={hull.data!.energy_unit}
               selectedLabel={selected?.label}
               onSelect={setSelected}
             />

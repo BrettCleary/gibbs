@@ -252,7 +252,7 @@ export function PropertyDashboard({
                 <Th>#</Th>
                 <Th>Label</Th>
                 <Th align="right">x_B</Th>
-                <Th align="right">ΔE_form (eV)</Th>
+                <Th align="right">ΔE_form ({hull.data?.energy_unit ?? "eV/atom"})</Th>
                 <Th align="right">Above hull</Th>
                 <Th align="right">B (GPa)</Th>
                 <Th>0 K</Th>
@@ -339,6 +339,7 @@ export function PropertyDashboard({
               points={hull.data.points}
               hullX={hull.data.hull_x}
               hullE={hull.data.hull_e}
+              unit={hull.data.energy_unit}
               selectedLabel={selected}
               onSelect={(p) => setSelected(p.label)}
             />

@@ -6,7 +6,15 @@
  * from a shared vocabulary instead of re-declaring class strings.
  */
 
-import type { ComponentProps, ReactNode } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -331,6 +339,58 @@ export function Input({ className, ...rest }: ComponentProps<"input">) {
   return <input className={cn(CONTROL, className)} {...rest} />;
 }
 
+/**
+ * Autosizing textarea. Grows with content from `minRows` to `maxRows`
+ * (measured from the real line-height, so soft-wrapped lines count), then
+ * scrolls internally. Pass `unstyled` to opt out of the control chrome when
+ * composing it inside your own bordered container (e.g. a chat composer).
+ */
+export const Textarea = forwardRef<
+  HTMLTextAreaElement,
+  ComponentProps<"textarea"> & { minRows?: number; maxRows?: number; unstyled?: boolean }
+>(function Textarea({ className, minRows = 1, maxRows = 8, unstyled, value, ...rest }, ref) {
+  const inner = useRef<HTMLTextAreaElement>(null);
+  useImperativeHandle(ref, () => inner.current as HTMLTextAreaElement);
+
+  const resize = useCallback(() => {
+    const el = inner.current;
+    if (!el) return;
+    const cs = getComputedStyle(el);
+    const line = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.5;
+    const pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+    const border = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+    const min = line * minRows + pad + border;
+    const max = line * maxRows + pad + border;
+    el.style.height = "auto";
+    const next = Math.min(Math.max(el.scrollHeight + border, min), max);
+    el.style.height = `${next}px`;
+    el.style.overflowY = el.scrollHeight + border > max ? "auto" : "hidden";
+  }, [minRows, maxRows]);
+
+  useLayoutEffect(resize, [resize, value]);
+  useLayoutEffect(() => {
+    const el = inner.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(resize);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [resize]);
+
+  return (
+    <textarea
+      ref={inner}
+      rows={minRows}
+      value={value}
+      className={cn(
+        unstyled ? "w-full bg-transparent" : CONTROL.replace("h-8 ", "py-1.5 "),
+        "scroll-thin resize-none leading-relaxed",
+        className,
+      )}
+      {...rest}
+    />
+  );
+});
+
 export function Select({ className, ...rest }: ComponentProps<"select">) {
   return <select className={cn(CONTROL, "cursor-pointer", className)} {...rest} />;
 }
@@ -340,14 +400,14 @@ export function Field({
   hint,
   className,
   children,
-}: {
+  ...rest
+}: Omit<ComponentProps<"label">, "children"> & {
   label: ReactNode;
   hint?: ReactNode;
-  className?: string;
   children: ReactNode;
 }) {
   return (
-    <label className={cn("flex min-w-0 flex-col gap-1.5", className)}>
+    <label className={cn("flex min-w-0 flex-col gap-1.5", className)} {...rest}>
       <TechnicalLabel className="leading-snug">{label}</TechnicalLabel>
       {children}
       {hint && <span className="text-[11px] text-text-muted">{hint}</span>}

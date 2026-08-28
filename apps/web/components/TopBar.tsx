@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut } from "lucide-react";
+import { LogOut, Sparkles } from "lucide-react";
 import { api } from "@/lib/api";
 import { signOut } from "@/lib/auth-client";
 import { cn } from "@/lib/cn";
 import { IconButton, StatusDot, TechnicalLabel } from "@/components/ui/primitives";
 import { GibbsMark } from "@/components/ui/Logo";
+import { useCopilot } from "@/components/copilot/CopilotProvider";
 
 const NAV = [
   { href: "/campaigns", label: "Campaigns" },
@@ -18,6 +19,7 @@ const NAV = [
 export function TopBar({ user }: { user: { email: string; name: string } }) {
   const pathname = usePathname();
   const router = useRouter();
+  const copilot = useCopilot();
 
   // Lightweight liveness probe: reuses the campaigns list the pages already fetch.
   const live = useQuery({
@@ -65,33 +67,50 @@ export function TopBar({ user }: { user: { email: string; name: string } }) {
           })}
         </nav>
 
-        <div className="ml-auto hidden items-center gap-5 sm:flex">
-          {nRunning > 0 && (
-            <span className="flex items-center gap-2 font-mono text-[11px] text-accent-bright">
-              <StatusDot tone="accent" pulse />
-              {nRunning} running
+        <div className="ml-auto flex items-center gap-5">
+          <button
+            type="button"
+            onClick={copilot.toggle}
+            aria-pressed={copilot.open}
+            className={cn(
+              "flex h-7 items-center gap-1.5 rounded-sm border px-2 font-mono text-[11px] tracking-[0.12em] transition-colors",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
+              copilot.open
+                ? "border-accent/50 bg-accent/15 text-accent-bright"
+                : "border-line text-text-secondary hover:border-line-hover hover:text-text",
+            )}
+          >
+            <Sparkles className="h-3 w-3" />
+            COPILOT
+          </button>
+          <span className="hidden items-center gap-5 sm:flex">
+            {nRunning > 0 && (
+              <span className="flex items-center gap-2 font-mono text-[11px] text-accent-bright">
+                <StatusDot tone="accent" pulse />
+                {nRunning} running
+              </span>
+            )}
+            <span className="flex items-center gap-2">
+              <StatusDot tone={apiTone} />
+              <TechnicalLabel>
+                {live.isError ? "api offline" : live.data ? "api online" : "connecting"}
+              </TechnicalLabel>
             </span>
-          )}
-          <span className="flex items-center gap-2">
-            <StatusDot tone={apiTone} />
-            <TechnicalLabel>
-              {live.isError ? "api offline" : live.data ? "api online" : "connecting"}
-            </TechnicalLabel>
-          </span>
-          <span className="flex items-center gap-2 border-l border-line pl-5">
-            <span className="font-mono text-[11px] text-text-secondary" title={user.name}>
-              {user.email}
+            <span className="flex items-center gap-2 border-l border-line pl-5">
+              <span className="font-mono text-[11px] text-text-secondary" title={user.name}>
+                {user.email}
+              </span>
+              <IconButton
+                label="Sign out"
+                onClick={async () => {
+                  await signOut();
+                  router.replace("/login");
+                  router.refresh();
+                }}
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </IconButton>
             </span>
-            <IconButton
-              label="Sign out"
-              onClick={async () => {
-                await signOut();
-                router.replace("/login");
-                router.refresh();
-              }}
-            >
-              <LogOut className="h-3.5 w-3.5" />
-            </IconButton>
           </span>
         </div>
       </div>

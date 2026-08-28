@@ -14,13 +14,15 @@ type Props = {
   hullE: number[];
   selectedLabel?: string | null;
   onSelect?: (p: HullPoint) => void;
+  /** Axis unit: "eV/atom" for real engines, dimensionless for hidden Hamiltonians. */
+  unit?: string;
 };
 
 const W = 760;
 const H = 400;
 const M = { top: 18, right: 16, bottom: 42, left: 60 };
 
-export function HullChart({ points, hullX, hullE, selectedLabel, onSelect }: Props) {
+export function HullChart({ points, hullX, hullE, selectedLabel, onSelect, unit }: Props) {
   const values = points
     .filter((p) => p.e_form != null)
     .flatMap((p) => [(p.e_form ?? 0) - (p.e_form_std ?? 0), (p.e_form ?? 0) + (p.e_form_std ?? 0)]);
@@ -86,7 +88,7 @@ export function HullChart({ points, hullX, hullE, selectedLabel, onSelect }: Pro
         fill="var(--text-dim)"
         transform={`rotate(-90 14 ${(H - M.bottom + M.top) / 2})`}
       >
-        formation energy ΔE_form / site
+        formation energy ΔE_form ({unit ?? "eV/atom"})
       </text>
 
       {/* predicted lower hull */}

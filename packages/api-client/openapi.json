@@ -909,6 +909,219 @@
         }
       }
     },
+    "/copilot/status": {
+      "get": {
+        "tags": [
+          "copilot"
+        ],
+        "summary": "Copilot Status",
+        "description": "Whether the copilot can answer (its model's provider key is configured).",
+        "operationId": "copilot_status_copilot_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopilotStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/copilot/chats": {
+      "get": {
+        "tags": [
+          "copilot"
+        ],
+        "summary": "List Chats",
+        "description": "The user's chats, most recently active first.",
+        "operationId": "list_chats_copilot_chats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CopilotChatSummary"
+                  },
+                  "type": "array",
+                  "title": "Response List Chats Copilot Chats Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "copilot"
+        ],
+        "summary": "Create Chat",
+        "operationId": "create_chat_copilot_chats_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopilotChatCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopilotChatRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/copilot/chats/{chat_id}": {
+      "get": {
+        "tags": [
+          "copilot"
+        ],
+        "summary": "Get Chat",
+        "operationId": "get_chat_copilot_chats__chat_id__get",
+        "parameters": [
+          {
+            "name": "chat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chat Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopilotChatRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "copilot"
+        ],
+        "summary": "Delete Chat",
+        "operationId": "delete_chat_copilot_chats__chat_id__delete",
+        "parameters": [
+          {
+            "name": "chat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chat Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/copilot/chats/{chat_id}/messages": {
+      "post": {
+        "tags": [
+          "copilot"
+        ],
+        "summary": "Send Message",
+        "description": "Send a message and stream the copilot's reply as SSE events:\n`text` {delta}, `tool_call` {id,name,args}, `tool_result` {id,name,ok},\n`patch` {patch,rationale} (a form proposal), `done` {transcript}, `error` {detail}.\n\nThe user row is written first; the assistant row and its tool calls are\nwritten when the run completes, so a failed run leaves only the question.",
+        "operationId": "send_message_copilot_chats__chat_id__messages_post",
+        "parameters": [
+          {
+            "name": "chat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chat Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopilotMessageCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -1121,6 +1334,11 @@
           "endpoints_measured": {
             "type": "boolean",
             "title": "Endpoints Measured"
+          },
+          "energy_unit": {
+            "type": "string",
+            "title": "Energy Unit",
+            "default": "eV/atom"
           }
         },
         "type": "object",
@@ -2132,6 +2350,169 @@
         ],
         "title": "CandidatesView",
         "description": "Plan section 14: the ranked candidate table."
+      },
+      "CopilotChatCreate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "type": "object",
+        "title": "CopilotChatCreate",
+        "description": "A new chat. The id (uuid) is generated by the database."
+      },
+      "CopilotChatRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "transcript": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Transcript"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "transcript",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "CopilotChatRead"
+      },
+      "CopilotChatSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "CopilotChatSummary"
+      },
+      "CopilotMessageCreate": {
+        "properties": {
+          "content": {
+            "type": "string",
+            "maxLength": 8000,
+            "minLength": 1,
+            "title": "Content"
+          },
+          "context": {
+            "$ref": "#/components/schemas/CopilotPageContext"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "title": "CopilotMessageCreate"
+      },
+      "CopilotPageContext": {
+        "properties": {
+          "page": {
+            "type": "string",
+            "title": "Page",
+            "default": "other"
+          },
+          "campaign_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Campaign Id"
+          },
+          "form": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Form"
+          }
+        },
+        "type": "object",
+        "title": "CopilotPageContext"
+      },
+      "CopilotStatus": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "available",
+          "model",
+          "reason"
+        ],
+        "title": "CopilotStatus"
       },
       "DftEngine": {
         "type": "string",

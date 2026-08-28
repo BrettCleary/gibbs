@@ -83,6 +83,27 @@ RMSE and missed/false stable phases for the hull problems, mean |Tc error|
 through one problem-agnostic campaign loop (`gibbs/problems/` adapters), so
 V3 (real DFT) slots in without touching the loop, executor, or failure policy.
 
+- **Copilot sidebar** — a Pydantic AI agent docked beside every page, with
+  *eyes* and *hands* rather than a chat box. Eyes are read-only tools over the
+  same view builders the dashboards use (`get_hull`, `get_phase_diagram`,
+  `get_candidates`, `get_report`, `list_calculations`, `get_calculation` with the
+  engine-log tail, `list_decisions`, `list_elements`), so every number it quotes
+  comes from a persisted calculation and is cited as a `[calc:…]` chip that opens
+  the evidence. Its one hand is `propose_campaign_params`: on the new-campaign
+  form it fills in fields with a rationale, the changed fields light up, and the
+  scientist presses Create — it cannot start, pause, or mutate a campaign.
+  Chats persist relationally (`agent.chat` → `agent.messages` → `agent.tool_call`,
+  the model history is rebuilt from rows per turn; the page context travels with
+  each message). The agent itself is configured from the database:
+  `agent.agent` + `agent_config` (prompt, model, sampling), tool sets restrict
+  which registered tools it may call, and skill sets are documents it can pull
+  in with `load_skill` (`message_skill` records which ones each reply used).
+  The default copilot, its tool set, and three materials-science skills are
+  seed data (`apps/web/supabase/seeds/*.sql`, loaded by `supabase db reset`),
+  not migration content, replies stream over SSE with tool calls rendered as cards,
+  and tools run sequentially over one DB session. `apps/api/src/gibbs/copilot/`,
+  `apps/web/components/copilot/`.
+
 ## Architecture (three layers, kept separate)
 
 | Layer | Code | Responsibility |
@@ -287,5 +308,7 @@ DFT and ionic relaxation for quantitative Ni-Al energetics; Alembic migrations
 profile; and richer LLM tooling (structure-inspection tools, self-critique of
 recommendations) — the Pydantic AI harness makes those tools typed and testable.
 
-Note: the dev database schema is created with `create_all` (no migrations yet);
-after pulling schema changes, delete the local `gibbs.db` file.
+Note: on Postgres the schema comes from the Drizzle migrations in
+`apps/web/supabase/migrations` (`pnpm --filter @gibbs/web db:migrate`); the
+SQLite test/dev path is `create_all`-managed, so after pulling schema changes
+delete the local `gibbs.db` file.

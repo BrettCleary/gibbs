@@ -25,6 +25,7 @@ import { CalculationsTable } from "@/components/CalculationsTable";
 import { AlloyDashboard } from "@/components/AlloyDashboard";
 import { PhaseDashboard } from "@/components/PhaseDashboard";
 import { PropertyDashboard } from "@/components/PropertyDashboard";
+import { useCopilotPage } from "@/components/copilot/CopilotProvider";
 
 export default function CampaignDashboard({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -45,6 +46,7 @@ export default function CampaignDashboard({ params }: { params: Promise<{ id: st
 
   const running = campaign.data?.status === "RUNNING";
   const status = campaign.data?.status;
+  useCopilotPage(id, campaign.data?.name ?? null);
 
   // Fast engines (EMT) can finish between two poll ticks; once the campaign
   // leaves RUNNING the interval polls stop, so force one final refresh of

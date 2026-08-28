@@ -10,6 +10,7 @@ from ..agent.loop import runner_registry
 from ..config import get_settings
 from ..db.models import AgentEvent, Calculation, Campaign, Structure, SurrogateModel
 from ..events import event_bus, sse_format
+from .. import views
 from .deps import get_session
 from ..schemas import (
     AgentEventRead,
@@ -19,15 +20,11 @@ from ..schemas import (
     DEFAULT_ELEMENTS,
     ElementRead,
     FCC_PROBLEMS,
-    CandidateRead,
     CandidatesView,
     CampaignReport,
     CampaignRead,
     CampaignSurrogateView,
-    HullPoint,
     PhaseDiagramView,
-    PhaseMeasurementView,
-    PhaseSliceView,
     StartResponse,
     StructureRead,
     SurrogateModelRead,
@@ -41,6 +38,14 @@ async def _get_campaign(session: AsyncSession, campaign_id: str) -> Campaign:
     if campaign is None:
         raise HTTPException(status_code=404, detail="campaign not found")
     return campaign
+
+
+async def _view(builder, session: AsyncSession, campaign_id: str):
+    campaign = await _get_campaign(session, campaign_id)
+    try:
+        return await builder(session, campaign)
+    except views.ViewNotApplicable as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("", response_model=CampaignRead, status_code=201)
@@ -376,69 +381,7 @@ async def list_structures(campaign_id: str, session: AsyncSession = Depends(get_
 @router.get("/{campaign_id}/hull", response_model=AlloyHullView)
 async def get_hull_view(campaign_id: str, session: AsyncSession = Depends(get_session)):
     """Formation-energy hull view for alloy campaigns: measurements, predictions, hull."""
-    campaign = await _get_campaign(session, campaign_id)
-    if campaign.problem_type not in ("alloy_v1", "fcc_v2", "dft_v3", "property_v3"):
-        raise HTTPException(status_code=400, detail="hull view applies to alloy campaigns only")
-
-    from ..problems.alloy import build_alloy_state
-
-    state = await build_alloy_state(session, campaign)
-    model = (
-        await session.execute(
-            select(SurrogateModel)
-            .where(SurrogateModel.campaign_id == campaign_id)
-            .order_by(SurrogateModel.version.desc())
-            .limit(1)
-        )
-    ).scalar_one_or_none()
-
-    structures = (
-        (
-            await session.execute(
-                select(Structure)
-                .where(Structure.campaign_id == campaign_id)
-                .order_by(Structure.label)
-            )
-        )
-        .scalars()
-        .all()
-    )
-    id_by_label = {s.label: s.id for s in structures}
-    e_form_by_label = {m.label: m.e_form for m in state.measurements}
-
-    points = []
-    for p in state.pool_predictions:
-        measured_e_form = e_form_by_label.get(p.label)
-        points.append(
-            HullPoint(
-                structure_id=id_by_label.get(p.label, ""),
-                label=p.label,
-                x=p.x,
-                e_form=measured_e_form if p.measured else p.e_form_mean,
-                e_form_std=0.0 if p.measured else p.e_form_std,
-                measured=p.measured,
-                predicted_stable=p.label in set(state.predicted_stable),
-            )
-        )
-
-    hull_x: list[float] = []
-    hull_e: list[float] = []
-    loocv = None
-    if model is not None:
-        hull_x = model.artifact.get("hull_x", [])
-        hull_e = model.artifact.get("hull_e", [])
-        loocv = model.validation_metrics.get("loocv_rmse")
-
-    return AlloyHullView(
-        campaign_id=campaign_id,
-        model_version=model.version if model else None,
-        loocv_rmse=loocv,
-        points=points,
-        hull_x=hull_x,
-        hull_e=hull_e,
-        stable_labels=state.predicted_stable,
-        endpoints_measured=state.endpoints_measured,
-    )
+    return await _view(views.hull_view, session, campaign_id)
 
 
 @router.get("/{campaign_id}/report", response_model=CampaignReport)
@@ -456,76 +399,13 @@ async def get_report(campaign_id: str, session: AsyncSession = Depends(get_sessi
 @router.get("/{campaign_id}/candidates", response_model=CandidatesView)
 async def get_candidates(campaign_id: str, session: AsyncSession = Depends(get_session)):
     """Ranked candidates for property campaigns (plan section 14)."""
-    campaign = await _get_campaign(session, campaign_id)
-    if campaign.problem_type != "property_v3":
-        raise HTTPException(status_code=400, detail="candidates apply to property campaigns only")
-    from ..problems.property import build_property_state
-
-    state = await build_property_state(session, campaign)
-    return CandidatesView(
-        campaign_id=campaign_id,
-        temperature_threshold=state.temperature_threshold,
-        model_version=state.latest_model.version if state.latest_model else None,
-        top_candidate_label=state.top_candidate_label,
-        candidates=[CandidateRead(**c.model_dump()) for c in state.candidates],
-    )
+    return await _view(views.candidates_view, session, campaign_id)
 
 
 @router.get("/{campaign_id}/phase-diagram", response_model=PhaseDiagramView)
 async def get_phase_diagram(campaign_id: str, session: AsyncSession = Depends(get_session)):
     """T-x phase-diagram view: per-slice boundary estimates, curves, measurements."""
-    campaign = await _get_campaign(session, campaign_id)
-    if campaign.problem_type != "phase_v2":
-        raise HTTPException(
-            status_code=400, detail="phase diagram applies to phase campaigns only"
-        )
-    from ..problems.phase import build_phase_state
-
-    state = await build_phase_state(session, campaign)
-    model = (
-        await session.execute(
-            select(SurrogateModel)
-            .where(SurrogateModel.campaign_id == campaign_id)
-            .order_by(SurrogateModel.version.desc())
-            .limit(1)
-        )
-    ).scalar_one_or_none()
-    curves_by_x: dict = {}
-    if model is not None:
-        for entry in model.artifact.get("slices", []):
-            curves_by_x[round(float(entry["x"]), 6)] = entry
-
-    slices = []
-    for s in state.slices:
-        entry = curves_by_x.get(round(s.x, 6), {})
-        slices.append(
-            PhaseSliceView(
-                x=s.x,
-                tc_mean=s.tc_mean,
-                tc_std=s.tc_std,
-                tc_edge_pinned=s.tc_edge_pinned,
-                curve_t=entry.get("curve_t", []),
-                curve_mean=entry.get("curve_mean", []),
-                curve_std=entry.get("curve_std", []),
-                measured=[
-                    PhaseMeasurementView(
-                        calculation_id=m.calculation_id,
-                        temperature=m.temperature,
-                        heat_capacity=m.heat_capacity,
-                        heat_capacity_err=m.heat_capacity_err,
-                        sro=m.sro,
-                    )
-                    for m in s.measurements
-                ],
-            )
-        )
-    return PhaseDiagramView(
-        campaign_id=campaign_id,
-        model_version=model.version if model else None,
-        temperature_min=campaign.temperature_min,
-        temperature_max=campaign.temperature_max,
-        slices=slices,
-    )
+    return await _view(views.phase_diagram_view, session, campaign_id)
 
 
 @router.get("/{campaign_id}/events")

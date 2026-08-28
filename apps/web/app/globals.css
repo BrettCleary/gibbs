@@ -157,3 +157,33 @@ input[type="number"]::-webkit-inner-spin-button {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Fields the copilot just changed: brass rail + tinted control until the scientist edits them. */
+.copilot-proposed {
+  position: relative;
+}
+.copilot-proposed::before {
+  content: "";
+  position: absolute;
+  left: -10px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--color-brass);
+  animation: copilot-rail 240ms ease-out;
+}
+.copilot-proposed input,
+.copilot-proposed select,
+.copilot-proposed [role="combobox"] {
+  border-color: color-mix(in srgb, var(--color-brass) 55%, transparent);
+  background: color-mix(in srgb, var(--color-brass) 8%, transparent);
+}
+@keyframes copilot-rail {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
