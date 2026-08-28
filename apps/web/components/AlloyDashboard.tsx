@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { DataValue, EmptyState, PanelHeader, Surface } from "@/components/ui/primitives";
 import { HullChart } from "./HullChart";
+import { engineLabel } from "@/lib/problems";
 import { energyDisplay, fmtEnergy } from "@/lib/energy";
 import { StructureViewer } from "./StructureViewer";
 
@@ -76,6 +77,7 @@ export function AlloyDashboard({ campaignId, running }: { campaignId: string; ru
               hullX={hull.data!.hull_x}
               hullE={hull.data!.hull_e}
               unit={hull.data!.energy_unit}
+              measuredLabel={engineLabel(hull.data!.engine)}
               selectedLabel={selected?.label}
               onSelect={setSelected}
             />

@@ -24,7 +24,7 @@ Cu–Au is the textbook FCC ordering system and the platform's real-data validat
 ## Setting up
 - Elements: A = Cu, B = Au (x is the Au fraction). EMT supports both; Quantum ESPRESSO needs the Cu and Au pseudopotentials on disk.
 - Hull discovery (dft_v3): budget 12–20 is enough to pin the three ordered phases; endpoints are measured first automatically.
-- Phase diagram (phase_v2): use a T window that brackets the transitions with margin, 300–900 K; the default slices 0.25 / 0.5 / 0.75 sit exactly on the ordered compositions.
+- Finite-temperature ordering: the T_c(x) sweep on a *fitted* cluster expansion is not yet a campaign stage (phase_v2 today runs on a hidden CE and is a benchmark). Until it lands, report the 0 K hull and quote the experimental transition temperatures as literature context.
 - Strategy: uncertainty sampling is the strongest default; use agent when the scientist wants narrated decisions.
 
 ## Interpreting

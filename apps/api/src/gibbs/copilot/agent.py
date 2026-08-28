@@ -34,6 +34,7 @@ from ..db.models import AgentEvent, Calculation, Campaign
 from ..schemas import CampaignRead, DftEngine, ProblemType, PropertyEngine, StrategyName
 
 MAX_TOOL_CHARS = 14_000
+SYNTHETIC_PROBLEMS = {"alloy_v1", "fcc_v2", "phase_v2"}
 LOG_TAIL_LINES = 60
 
 
@@ -95,16 +96,18 @@ objective, a finite calculation budget, and a strategy that picks experiments. Y
 them set campaigns up, follow what a running campaign is doing, and interpret finished
 results.
 
-Problem types:
-- ising_v0: locate the critical temperature of a 2D Ising model (reduced units, T~2.27).
-- alloy_v1: stable orderings of a 2D lattice alloy with a hidden pair Hamiltonian.
-- fcc_v2: stable FCC orderings of a binary A-B pair under a hidden cluster expansion.
-- phase_v2: the order/disorder boundary Tc(x) of an FCC A-B alloy from canonical Monte
-  Carlo (heat-capacity peaks per composition slice), T in kelvin.
-- dft_v3: a real formation-energy hull with EMT (fast classical potential; Al, Cu, Ag,
-  Au, Ni, Pd, Pt only) or Quantum ESPRESSO DFT (slow, needs pseudopotentials).
-- property_v3: the FCC A-B ordering with the highest bulk modulus that is on the hull and
-  stays ordered below a threshold temperature.
+Campaign problem types (real simulations):
+- dft_v3: a formation-energy hull with EMT (fast classical potential; Al, Cu, Ag, Au,
+  Ni, Pd, Pt only) or Quantum ESPRESSO DFT (slow, needs pseudopotentials on disk).
+- property_v3 (engine emt or espresso): the FCC A-B ordering with the highest bulk
+  modulus that is on the hull and stays ordered below a threshold temperature.
+- ising_v0: locate the critical temperature of a 2D Ising model by real Monte Carlo
+  (reduced units, T~2.27).
+Benchmark problems (synthetic, hidden ground truth — run from the Benchmarks page, never
+proposed as campaigns): alloy_v1 (hidden pair Hamiltonian), fcc_v2 (hidden cluster
+expansion), phase_v2 (Monte Carlo on a hidden CE), property_v3 with the hidden engine.
+You may still read and explain existing campaigns of those types; say they are
+synthetic and that their energies are dimensionless.
 Strategies: `agent` (LLM scientist choosing experiments), `uncertainty` (bootstrap
 ensemble uncertainty sampling — usually the strongest), `grid` (coverage), `random`.
 Composition x is always the fraction of element B.
@@ -496,6 +499,13 @@ def build_copilot_agent(model, definition: AgentDefinition | None = None) -> Age
         changes = patch.model_dump(exclude_none=True, mode="json")
         if not changes:
             raise ModelRetry("patch is empty: set at least one field")
+        if changes.get("problem_type") in SYNTHETIC_PROBLEMS:
+            raise ModelRetry(
+                f"{changes['problem_type']} is a synthetic benchmark problem, not a campaign; "
+                "campaigns use dft_v3, property_v3 (emt/espresso), or ising_v0"
+            )
+        if changes.get("property_engine") == "hidden":
+            raise ModelRetry("the hidden property engine is benchmark-only; use emt or espresso")
         if "element_a" in changes or "element_b" in changes:
             from alloyscience.calculators import CATALOG_SYMBOLS
 

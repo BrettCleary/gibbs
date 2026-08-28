@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, FileText, Pause, Play } from "lucide-react";
 import { api } from "@/lib/api";
-import { isAlloyLike, problemInfo } from "@/lib/problems";
+import { engineLabel, isAlloyLike, problemInfo } from "@/lib/problems";
 import {
   Button,
   ErrorNote,
@@ -218,6 +218,13 @@ export default function CampaignDashboard({ params }: { params: Promise<{ id: st
           <div className="min-w-0 max-w-3xl">
             <div className="flex flex-wrap items-center gap-2.5">
               <Tag>{info.milestone}</Tag>
+              {c.synthetic ? (
+                <span title="Hidden-model ground truth: a benchmark, not a simulation. Launch these from the Benchmarks page.">
+                  <Tag className="border-brass/40 text-brass">synthetic benchmark</Tag>
+                </span>
+              ) : (
+                c.engine && <Tag>{engineLabel(c.engine)}</Tag>
+              )}
               <StatusBadge status={c.status} />
               <span className="font-mono text-[10px] text-text-muted">{c.id}</span>
             </div>

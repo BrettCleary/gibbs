@@ -17,13 +17,23 @@ type Props = {
   onSelect?: (p: HullPoint) => void;
   /** API unit: "eV/atom" for real engines (shown as meV/atom), dimensionless for hidden Hamiltonians. */
   unit?: string;
+  /** Legend label for measured points, e.g. "EMT", "QE DFT", "hidden model". */
+  measuredLabel?: string;
 };
 
 const W = 760;
 const H = 400;
 const M = { top: 18, right: 16, bottom: 42, left: 60 };
 
-export function HullChart({ points, hullX, hullE, selectedLabel, onSelect, unit }: Props) {
+export function HullChart({
+  points,
+  hullX,
+  hullE,
+  selectedLabel,
+  onSelect,
+  unit,
+  measuredLabel,
+}: Props) {
   const disp = energyDisplay(unit);
   const k = disp.scale;
   const values = points
@@ -145,7 +155,7 @@ export function HullChart({ points, hullX, hullE, selectedLabel, onSelect, unit 
       <g fontSize={11} fill="var(--text-dim)">
         <circle cx={M.left + 12} cy={M.top + 8} r={3.5} fill="var(--text)" />
         <text x={M.left + 22} y={M.top + 12}>
-          measured (oracle)
+          measured ({measuredLabel ?? "engine"})
         </text>
         <circle
           cx={M.left + 152}

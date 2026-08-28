@@ -539,6 +539,8 @@ export interface components {
              * @default eV/atom
              */
             energy_unit: string;
+            /** Engine */
+            engine?: string | null;
         };
         /** BenchmarkCreate */
         BenchmarkCreate: {
@@ -786,6 +788,13 @@ export interface components {
             status: components["schemas"]["CampaignStatus"];
             /** Stopping Rationale */
             stopping_rationale: string | null;
+            /** Engine */
+            engine?: string | null;
+            /**
+             * Synthetic
+             * @default false
+             */
+            synthetic: boolean;
             /**
              * Created At
              * Format: date-time

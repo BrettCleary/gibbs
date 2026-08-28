@@ -184,6 +184,10 @@ class CampaignRead(BaseModel):
     failure_rate: float
     status: CampaignStatus
     stopping_rationale: str | None
+    # Energy engine ("emt", "espresso", "ising") or "hidden" for synthetic ground truth.
+    engine: str | None = None
+    # Synthetic (hidden-model) problems are benchmarks, not simulations.
+    synthetic: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -301,6 +305,7 @@ class AlloyHullView(BaseModel):
     endpoints_measured: bool
     # "eV/atom" for real energy engines; hidden Hamiltonians are dimensionless.
     energy_unit: str = "eV/atom"
+    engine: str | None = None
 
 
 class PhaseMeasurementView(BaseModel):

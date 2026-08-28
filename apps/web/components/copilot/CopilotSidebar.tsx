@@ -21,8 +21,8 @@ const THREAD_KEY = (scope: string) => `gibbs.copilot-chat.${scope}`;
 
 const SUGGESTIONS: Record<"new_campaign" | "campaign" | "other", string[]> = {
   new_campaign: [
-    "Set up a Cu–Au order/disorder phase diagram campaign",
-    "Configure a real EMT hull for Ni–Al with a small budget",
+    "Set up a Cu–Au formation-energy hull campaign with EMT",
+    "Find the stiffest stable Ni–Al ordering with a small budget",
     "Which elements can I use with EMT?",
   ],
   campaign: [
@@ -312,7 +312,7 @@ function Thread({ scope }: { scope: string }) {
               }
             }}
             placeholder={
-              page === "new_campaign" ? "e.g. map Cu–Au ordering up to 900 K" : "Ask the copilot…"
+              page === "new_campaign" ? "e.g. Cu–Au hull with EMT, budget 15" : "Ask the copilot…"
             }
             disabled={!!unavailable}
             className="flex-1 py-1 text-[13px] text-text placeholder:text-text-muted focus:outline-none disabled:opacity-45"

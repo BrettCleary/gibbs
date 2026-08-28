@@ -64,6 +64,25 @@ class Campaign(Base):
     report: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
+    @property
+    def engine(self) -> str | None:
+        """Energy engine: "emt" | "espresso" for real campaigns, "hidden" for
+        synthetic ground truth, "ising" for the real Ising MC, None otherwise."""
+        cfg = self.problem_config or {}
+        if self.problem_type == "ising_v0":
+            return "ising"
+        engine = cfg.get("engine") or cfg.get("dft_engine") or cfg.get("property_engine")
+        if engine:
+            return engine
+        if self.problem_type in ("alloy_v1", "fcc_v2", "phase_v2", "property_v3"):
+            return "hidden"
+        return None
+
+    @property
+    def synthetic(self) -> bool:
+        """True when the ground truth is a hidden model — a benchmark, not a simulation."""
+        return self.engine == "hidden"
+
 
 class Structure(Base):
     """A candidate atomic configuration (V1: periodic tile on the 2D lattice)."""

@@ -28,9 +28,7 @@ def energy_unit(campaign: Campaign) -> str:
     """Unit of the hull energies: real engines report eV/atom; the hidden
     synthetic Hamiltonians (alloy_v1, fcc_v2, property_v3 'hidden') are
     dimensionless model energies."""
-    cfg = campaign.problem_config or {}
-    engine = cfg.get("dft_engine") or cfg.get("property_engine") or cfg.get("engine")
-    if campaign.problem_type == "dft_v3" or engine in ("emt", "espresso"):
+    if campaign.engine in ("emt", "espresso"):
         return "eV/atom"
     return "arb. units (hidden Hamiltonian)"
 
@@ -96,6 +94,7 @@ async def hull_view(session: AsyncSession, campaign: Campaign) -> AlloyHullView:
         stable_labels=state.predicted_stable,
         endpoints_measured=state.endpoints_measured,
         energy_unit=energy_unit(campaign),
+        engine=campaign.engine,
     )
 
 

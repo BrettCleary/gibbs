@@ -39,7 +39,7 @@ export function CampaignForm({
     temperature_max: 3.5,
     failure_rate: 0.15,
     dft_engine: "emt",
-    property_engine: "hidden",
+    property_engine: "emt",
     temperature_threshold: 1200,
     target_uncertainty: "" as string,
     phase_t_min: 100,
@@ -98,7 +98,7 @@ export function CampaignForm({
   const isIsing = form.problem_type === "ising_v0";
   const isAlloy = !isPhase && !isIsing;
   const hasElements = form.problem_type !== "ising_v0" && form.problem_type !== "alloy_v1";
-  const elementEngine = isDft ? form.dft_engine : isProperty ? form.property_engine : "hidden";
+  const elementEngine = isDft ? form.dft_engine : isProperty ? form.property_engine : "emt";
   const info = PROBLEMS[form.problem_type];
 
   return (
@@ -137,12 +137,9 @@ export function CampaignForm({
                 value={form.problem_type}
                 onChange={(e) => set("problem_type", e.target.value as ProblemType)}
               >
-                <option value="property_v3">Stiff &amp; stable intermetallic search (M8)</option>
-                <option value="dft_v3">Real DFT / EMT hull discovery (M6)</option>
-                <option value="phase_v2">Phase diagram, MC (M5)</option>
-                <option value="fcc_v2">FCC hull, hidden CE (V2)</option>
-                <option value="alloy_v1">Binary alloy (V1)</option>
-                <option value="ising_v0">Ising critical region (V0)</option>
+                <option value="property_v3">Stiff &amp; stable intermetallic search</option>
+                <option value="dft_v3">Formation-energy hull (EMT / DFT)</option>
+                <option value="ising_v0">Ising critical region (Monte Carlo)</option>
               </Select>
             </Field>
             {hasElements && (
@@ -154,7 +151,7 @@ export function CampaignForm({
                     ? "EMT supports Al, Cu, Ag, Au, Ni, Pd, Pt. x is the fraction of B."
                     : elementEngine === "espresso"
                       ? "elements with a pseudopotential on disk. x is the fraction of B."
-                      : "any catalog metal; A sets the parent FCC lattice constant. x is the fraction of B."
+                      : "A sets the parent FCC lattice constant. x is the fraction of B."
                 }
               >
                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
@@ -273,8 +270,8 @@ export function CampaignForm({
                       value={form.property_engine}
                       onChange={(e) => set("property_engine", e.target.value)}
                     >
-                      <option value="hidden">hidden oracle (benchmarkable)</option>
-                      <option value="emt">EMT classical potential (real)</option>
+                      <option value="emt">EMT classical potential (fast)</option>
+                      <option value="espresso">Quantum ESPRESSO (real DFT, slow)</option>
                     </Select>
                   </Field>
                   <Field label="stability threshold T (K)" {...mark("temperature_threshold")}>

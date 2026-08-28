@@ -131,7 +131,10 @@ export default function CampaignsPage() {
                       </div>
                     </Td>
                     <Td>
-                      <Tag>{info.milestone}</Tag>
+                      <span className="flex flex-wrap gap-1">
+                        <Tag>{info.milestone}</Tag>
+                        {c.synthetic && <Tag className="border-brass/40 text-brass">synthetic</Tag>}
+                      </span>
                     </Td>
                     <Td>
                       <DataValue className="text-[12px]">{c.strategy}</DataValue>

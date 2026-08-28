@@ -244,13 +244,13 @@ async def test_propose_params_only_on_form_page(client, scripted_agent):
                     tool_name="propose_campaign_params",
                     args={
                         "patch": {
-                            "problem_type": "phase_v2",
+                            "problem_type": "dft_v3",
+                            "dft_engine": "emt",
                             "element_a": "cu",
                             "element_b": "Au",
-                            "phase_t_min": 300,
-                            "phase_t_max": 900,
+                            "simulation_budget": 15,
                         },
-                        "rationale": "CuAu disorders near 683 K; bracket it.",
+                        "rationale": "Cu3Au, CuAu, CuAu3 are the known L1_2/L1_0 phases; EMT resolves them in ~15 runs.",
                     },
                     tool_call_id="p1",
                 )
@@ -268,18 +268,36 @@ async def test_propose_params_only_on_form_page(client, scripted_agent):
     patches = [e for e in events if e["event"] == "patch"]
     assert len(patches) == 1
     assert patches[0]["patch"] == {
-        "problem_type": "phase_v2",
+        "problem_type": "dft_v3",
+        "dft_engine": "emt",
         "element_a": "Cu",  # normalised
         "element_b": "Au",
-        "phase_t_min": 300.0,
-        "phase_t_max": 900.0,
+        "simulation_budget": 15,
     }
     # The proposal is stored as the assistant message's component payload.
     parts = events[-1]["transcript"][1]["parts"]
     patch_part = next(p for p in parts if p["type"] == "patch")
-    assert "683" in patch_part["rationale"]
+    assert "L1_2" in patch_part["rationale"]
     rows = await _rows(chat_id)
     assert rows[1].component_type == "form_patch" and rows[1].component_data["patch"]["element_a"] == "Cu"
+
+    # Synthetic benchmark problems are refused as campaigns.
+    scripted_agent(
+        [
+            [
+                ToolCallPart(
+                    tool_name="propose_campaign_params",
+                    args={"patch": {"problem_type": "fcc_v2"}, "rationale": "r"},
+                    tool_call_id="p3",
+                )
+            ],
+            [TextPart(content="That is a benchmark problem.")],
+        ]
+    )
+    chat3 = (await client.post("/copilot/chats", json={})).json()["id"]
+    events = await _send(client, chat3, "hidden CE please", {"page": "new_campaign", "form": {}})
+    assert not [e for e in events if e["event"] == "patch"]
+    assert next(e for e in events if e["event"] == "tool_result")["ok"] is False
 
     # Off the form page the tool refuses (a retry prompt, not a crash) and the
     # scripted model falls through to its text answer.

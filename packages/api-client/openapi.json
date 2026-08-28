@@ -1339,6 +1339,17 @@
             "type": "string",
             "title": "Energy Unit",
             "default": "eV/atom"
+          },
+          "engine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine"
           }
         },
         "type": "object",
@@ -1958,6 +1969,22 @@
               }
             ],
             "title": "Stopping Rationale"
+          },
+          "engine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine"
+          },
+          "synthetic": {
+            "type": "boolean",
+            "title": "Synthetic",
+            "default": false
           },
           "created_at": {
             "type": "string",

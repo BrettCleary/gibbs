@@ -51,3 +51,23 @@ export function problemInfo(type: string | undefined) {
 
 export const isAlloyLike = (t?: string) =>
   t === "alloy_v1" || t === "fcc_v2" || t === "dft_v3" || t === "property_v3";
+
+/** Problems a scientist can launch as a campaign: real engines only. The
+ * hidden-model problems (alloy_v1, fcc_v2, phase_v2, property_v3 "hidden") are
+ * benchmarks — they live on the Benchmarks page. */
+export const CAMPAIGN_PROBLEMS: ProblemType[] = ["property_v3", "dft_v3", "ising_v0"];
+
+export function engineLabel(engine: string | null | undefined): string {
+  switch (engine) {
+    case "espresso":
+      return "QE DFT";
+    case "emt":
+      return "EMT";
+    case "ising":
+      return "Ising MC";
+    case "hidden":
+      return "hidden model";
+    default:
+      return "engine";
+  }
+}

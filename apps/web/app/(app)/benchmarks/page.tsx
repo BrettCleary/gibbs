@@ -73,7 +73,7 @@ export default function BenchmarksPage() {
       <PageTitle
         eyebrow="Evaluation"
         title="Benchmark mode"
-        description="Does smarter experiment selection reconstruct the ground truth with fewer expensive queries? Every strategy gets the same budget against the same hidden Hamiltonian — a fresh one per seed — and is scored on regret, hull reconstruction, or boundary error."
+        description="Does smarter experiment selection reconstruct the ground truth with fewer expensive queries? Every strategy gets the same budget against the same hidden Hamiltonian — a fresh one per seed — and is scored on regret, hull reconstruction, or boundary error. The synthetic problems (lattice alloy, hidden FCC cluster expansion, phase boundary, hidden property oracle) live here; campaigns run real engines."
       />
 
       <Surface>
