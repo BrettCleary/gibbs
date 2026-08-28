@@ -22,6 +22,7 @@ import {
   Tr,
 } from "@/components/ui/primitives";
 import { HullChart } from "./HullChart";
+import { energyDisplay, fmtEnergy } from "@/lib/energy";
 import { StructureViewer } from "./StructureViewer";
 
 const W = 760;
@@ -199,6 +200,7 @@ export function PropertyDashboard({
   const selectedStructure = selected ? byLabel.get(selected) : null;
   const selectedPoint = hull.data?.points.find((p) => p.label === selected) ?? null;
   const tThr = candidates.data?.temperature_threshold;
+  const eDisp = energyDisplay(hull.data?.energy_unit);
   const top = candidates.data?.top_candidate_label;
 
   const stabilityTone = (s: string) =>
@@ -252,7 +254,7 @@ export function PropertyDashboard({
                 <Th>#</Th>
                 <Th>Label</Th>
                 <Th align="right">x_B</Th>
-                <Th align="right">ΔE_form ({hull.data?.energy_unit ?? "eV/atom"})</Th>
+                <Th align="right">ΔE_form ({eDisp.unit || "eV/atom"})</Th>
                 <Th align="right">Above hull</Th>
                 <Th align="right">B (GPa)</Th>
                 <Th>0 K</Th>
@@ -283,14 +285,16 @@ export function PropertyDashboard({
                   </Td>
                   <Td align="right">
                     <DataValue className="text-[12.5px]">
-                      {c.e_form.toFixed(3)}
+                      {fmtEnergy(c.e_form, eDisp)}
                       {!c.measured && c.e_form_std > 0 ? (
-                        <span className="text-text-muted"> ±{c.e_form_std.toFixed(3)}</span>
+                        <span className="text-text-muted"> ±{fmtEnergy(c.e_form_std, eDisp)}</span>
                       ) : null}
                     </DataValue>
                   </Td>
                   <Td align="right">
-                    <DataValue className="text-[12.5px]">{c.e_above_hull.toFixed(3)}</DataValue>
+                    <DataValue className="text-[12.5px]">
+                      {fmtEnergy(c.e_above_hull, eDisp)}
+                    </DataValue>
                   </Td>
                   <Td align="right">
                     <DataValue className="text-[12.5px]">

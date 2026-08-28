@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { DataValue, EmptyState, PanelHeader, Surface } from "@/components/ui/primitives";
 import { HullChart } from "./HullChart";
+import { energyDisplay, fmtEnergy } from "@/lib/energy";
 import { StructureViewer } from "./StructureViewer";
 
 export function AlloyDashboard({ campaignId, running }: { campaignId: string; running: boolean }) {
@@ -53,6 +54,7 @@ export function AlloyDashboard({ campaignId, running }: { campaignId: string; ru
 
   const selectedStructure = selected ? byLabel.get(selected.label) : null;
   const hasHull = hull.data && hull.data.points.some((p) => p.e_form != null);
+  const eDisp = energyDisplay(hull.data?.energy_unit);
 
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
@@ -111,9 +113,12 @@ export function AlloyDashboard({ campaignId, running }: { campaignId: string; ru
                         x={p.x.toFixed(3)}
                       </DataValue>
                       <DataValue className="ml-auto text-[12px]">
-                        {p.e_form != null ? p.e_form.toFixed(4) : "—"}
+                        {fmtEnergy(p.e_form, eDisp)}
                         {!p.measured && p.e_form_std != null && (
-                          <span className="text-text-muted"> ±{p.e_form_std.toFixed(4)}</span>
+                          <span className="text-text-muted">
+                            {" "}
+                            ±{fmtEnergy(p.e_form_std, eDisp)}
+                          </span>
                         )}
                       </DataValue>
                       <span

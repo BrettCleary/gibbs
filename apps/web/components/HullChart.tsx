@@ -7,6 +7,7 @@
  */
 
 import type { HullPoint } from "@gibbs/api-client";
+import { energyDisplay } from "@/lib/energy";
 
 type Props = {
   points: HullPoint[];
@@ -14,7 +15,7 @@ type Props = {
   hullE: number[];
   selectedLabel?: string | null;
   onSelect?: (p: HullPoint) => void;
-  /** Axis unit: "eV/atom" for real engines, dimensionless for hidden Hamiltonians. */
+  /** API unit: "eV/atom" for real engines (shown as meV/atom), dimensionless for hidden Hamiltonians. */
   unit?: string;
 };
 
@@ -23,18 +24,21 @@ const H = 400;
 const M = { top: 18, right: 16, bottom: 42, left: 60 };
 
 export function HullChart({ points, hullX, hullE, selectedLabel, onSelect, unit }: Props) {
+  const disp = energyDisplay(unit);
+  const k = disp.scale;
   const values = points
     .filter((p) => p.e_form != null)
-    .flatMap((p) => [(p.e_form ?? 0) - (p.e_form_std ?? 0), (p.e_form ?? 0) + (p.e_form_std ?? 0)]);
-  const yMin = Math.min(...values, ...hullE, -0.1) * 1.12;
-  const yMax = Math.max(...values, 0.05) * 1.12;
+    .flatMap((p) => [(p.e_form ?? 0) - (p.e_form_std ?? 0), (p.e_form ?? 0) + (p.e_form_std ?? 0)])
+    .map((v) => v * k);
+  const yMin = Math.min(...values, ...hullE.map((v) => v * k), -0.1 * k) * 1.12;
+  const yMax = Math.max(...values, 0.05 * k) * 1.12;
 
   const x = (v: number) => M.left + v * (W - M.left - M.right);
   const y = (v: number) => M.top + ((yMax - v) / (yMax - yMin)) * (H - M.top - M.bottom);
 
   const hullPath =
     hullX.length > 1
-      ? hullX.map((hx, i) => `${i === 0 ? "M" : "L"}${x(hx)},${y(hullE[i])}`).join(" ")
+      ? hullX.map((hx, i) => `${i === 0 ? "M" : "L"}${x(hx)},${y(hullE[i] * k)}`).join(" ")
       : "";
 
   return (
@@ -62,7 +66,7 @@ export function HullChart({ points, hullX, hullE, selectedLabel, onSelect, unit 
           <g key={`y${i}`}>
             <line x1={M.left} x2={W - M.right} y1={y(v)} y2={y(v)} stroke="var(--border)" />
             <text x={M.left - 8} y={y(v) + 4} textAnchor="end" fontSize={11} fill="var(--text-dim)">
-              {v.toFixed(2)}
+              {v.toFixed(disp.scale > 1 ? 0 : 2)}
             </text>
           </g>
         );
@@ -88,7 +92,7 @@ export function HullChart({ points, hullX, hullE, selectedLabel, onSelect, unit 
         fill="var(--text-dim)"
         transform={`rotate(-90 14 ${(H - M.bottom + M.top) / 2})`}
       >
-        formation energy ΔE_form ({unit ?? "eV/atom"})
+        formation energy ΔE_form ({disp.unit || "eV/atom"})
       </text>
 
       {/* predicted lower hull */}
@@ -98,7 +102,7 @@ export function HullChart({ points, hullX, hullE, selectedLabel, onSelect, unit 
       {points.map((p) => {
         if (p.e_form == null) return null;
         const cx = x(p.x);
-        const cy = y(p.e_form);
+        const cy = y(p.e_form * k);
         const selected = p.label === selectedLabel;
         const color = p.predicted_stable
           ? "var(--good)"
@@ -115,8 +119,8 @@ export function HullChart({ points, hullX, hullE, selectedLabel, onSelect, unit 
               <line
                 x1={cx}
                 x2={cx}
-                y1={y(p.e_form - (p.e_form_std ?? 0))}
-                y2={y(p.e_form + (p.e_form_std ?? 0))}
+                y1={y((p.e_form - (p.e_form_std ?? 0)) * k)}
+                y2={y((p.e_form + (p.e_form_std ?? 0)) * k)}
                 stroke={color}
                 strokeWidth={1}
                 opacity={0.6}
