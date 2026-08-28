@@ -232,7 +232,11 @@ export function PropertyDashboard({
         <Surface className="xl:col-span-2">
           <PanelHeader title="Structure" />
           {selectedStructure ? (
-            <StructureViewer structure={selectedStructure} point={selectedPoint} />
+            <StructureViewer
+              structure={selectedStructure}
+              point={selectedPoint}
+              unit={hull.data?.energy_unit}
+            />
           ) : (
             <EmptyState
               title="Nothing selected"

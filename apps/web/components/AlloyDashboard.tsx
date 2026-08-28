@@ -140,7 +140,11 @@ export function AlloyDashboard({ campaignId, running }: { campaignId: string; ru
         <Surface>
           <PanelHeader title="Structure" />
           {selectedStructure ? (
-            <StructureViewer structure={selectedStructure} point={selected} />
+            <StructureViewer
+              structure={selectedStructure}
+              point={selected}
+              unit={hull.data?.energy_unit}
+            />
           ) : (
             <EmptyState
               title="Nothing selected"

@@ -9,6 +9,7 @@
 import type { StructureRead, HullPoint } from "@gibbs/api-client";
 import { DataValue, TechnicalLabel } from "@/components/ui/primitives";
 import { ELEMENT_NAMES, Structure3DViewer } from "./Structure3DViewer";
+import { energyDisplay, fmtEnergy } from "@/lib/energy";
 
 const REPEAT = 3;
 const CELL = 22;
@@ -16,10 +17,13 @@ const CELL = 22;
 function Legend({
   swatches,
   point,
+  unit,
 }: {
   swatches: Array<{ color: string; label: string; square?: boolean }>;
   point?: HullPoint | null;
+  unit?: string | null;
 }) {
+  const eDisp = energyDisplay(unit);
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 font-mono text-[11px] text-text-secondary">
       {swatches.map((s) => (
@@ -37,8 +41,11 @@ function Legend({
       ))}
       {point?.e_form != null && (
         <span>
-          ΔE_form = {point.e_form.toFixed(4)}
-          {!point.measured && point.e_form_std != null ? ` ± ${point.e_form_std.toFixed(4)}` : ""}
+          ΔE_form = {fmtEnergy(point.e_form, eDisp)}
+          {!point.measured && point.e_form_std != null
+            ? ` ± ${fmtEnergy(point.e_form_std, eDisp)}`
+            : ""}
+          {eDisp.unit ? ` ${eDisp.unit}` : ""}
           <span className="text-text-muted"> {point.measured ? "measured" : "predicted"}</span>
         </span>
       )}
@@ -50,9 +57,12 @@ function Legend({
 export function StructureViewer({
   structure,
   point,
+  unit,
 }: {
   structure: StructureRead;
   point?: HullPoint | null;
+  /** API energy unit (e.g. "eV/atom"); drives the display unit in the legend. */
+  unit?: string | null;
 }) {
   const is3d = (structure.atomic_numbers?.length ?? 0) > 0;
   const zs = [...new Set(structure.atomic_numbers ?? [])].sort((a, b) => a - b);
@@ -85,6 +95,7 @@ export function StructureViewer({
             { color: "var(--accent)", label: elB },
           ]}
           point={point}
+          unit={unit}
         />
       </div>
     );
@@ -139,6 +150,7 @@ export function StructureViewer({
           { color: "var(--accent)", label: "B", square: true },
         ]}
         point={point}
+        unit={unit}
       />
     </div>
   );
