@@ -71,9 +71,21 @@ function invert3(m: V3[]): V3[] {
     a[2] * (b[0] * c[1] - b[1] * c[0]);
   const d = 1 / det;
   return [
-    [(b[1] * c[2] - b[2] * c[1]) * d, (a[2] * c[1] - a[1] * c[2]) * d, (a[1] * b[2] - a[2] * b[1]) * d],
-    [(b[2] * c[0] - b[0] * c[2]) * d, (a[0] * c[2] - a[2] * c[0]) * d, (a[2] * b[0] - a[0] * b[2]) * d],
-    [(b[0] * c[1] - b[1] * c[0]) * d, (a[1] * c[0] - a[0] * c[1]) * d, (a[0] * b[1] - a[1] * b[0]) * d],
+    [
+      (b[1] * c[2] - b[2] * c[1]) * d,
+      (a[2] * c[1] - a[1] * c[2]) * d,
+      (a[1] * b[2] - a[2] * b[1]) * d,
+    ],
+    [
+      (b[2] * c[0] - b[0] * c[2]) * d,
+      (a[0] * c[2] - a[2] * c[0]) * d,
+      (a[2] * b[0] - a[0] * b[2]) * d,
+    ],
+    [
+      (b[0] * c[1] - b[1] * c[0]) * d,
+      (a[1] * c[0] - a[0] * c[1]) * d,
+      (a[0] * b[1] - a[1] * b[0]) * d,
+    ],
   ];
 }
 /** Cartesian -> fractional: solve r = f·L, i.e. f = r·L⁻¹ (row-vector convention). */
@@ -170,7 +182,12 @@ export function Structure3DViewer({ structure }: { structure: StructureRead }) {
   return (
     <div className="relative h-72 w-full">
       <Canvas
-        camera={{ position: [dist * 0.6, dist * 0.45, dist * 0.7], fov: 35, near: 0.1, far: dist * 10 }}
+        camera={{
+          position: [dist * 0.6, dist * 0.45, dist * 0.7],
+          fov: 35,
+          near: 0.1,
+          far: dist * 10,
+        }}
         gl={{ antialias: true, alpha: true }}
         dpr={[1, 2]}
         style={{ background: "transparent" }}
