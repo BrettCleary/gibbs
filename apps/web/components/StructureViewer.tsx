@@ -8,7 +8,21 @@
 
 import type { StructureRead, HullPoint } from "@gibbs/api-client";
 import { DataValue, TechnicalLabel } from "@/components/ui/primitives";
-import { ELEMENT_NAMES, Structure3DViewer } from "./Structure3DViewer";
+import dynamic from "next/dynamic";
+import { ELEMENT_NAMES } from "./Structure3DViewer";
+
+// three.js touches `window`; load client-only and keep it out of the initial bundle.
+const Structure3DViewer = dynamic(
+  () => import("./Structure3DViewer").then((m) => m.Structure3DViewer),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-72 w-full items-center justify-center font-mono text-[11px] text-text-muted">
+        loading 3D view…
+      </div>
+    ),
+  },
+);
 import { energyDisplay, fmtEnergy } from "@/lib/energy";
 
 const REPEAT = 3;

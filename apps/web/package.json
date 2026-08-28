@@ -17,6 +17,8 @@
   },
   "dependencies": {
     "@gibbs/api-client": "workspace:*",
+    "@react-three/drei": "^10.7.8",
+    "@react-three/fiber": "^9.7.0",
     "@supabase/supabase-js": "^2.49.0",
     "@tanstack/react-query": "^5.60.0",
     "better-auth": "^1.7.1",
@@ -25,7 +27,8 @@
     "next": "^15.3.0",
     "postgres": "^3.4.5",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "three": "^0.185.1"
   },
   "devDependencies": {
     "@gibbs/typescript-config": "workspace:*",
@@ -33,6 +36,7 @@
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/three": "^0.185.4",
     "dotenv-cli": "^8.0.0",
     "drizzle-kit": "^0.31.0",
     "eslint": "^9.39.5",
