@@ -14,11 +14,11 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from temporalio.client import Client
 from temporalio.worker import Worker
 
 from .config import get_settings
 from .temporal.activities import execute_calculation
+from .temporal.client import connect_temporal_client, describe_target
 from .temporal.workflows import RunCalculationWorkflow
 from .tracing import setup_tracing, shutdown_tracing
 
@@ -29,7 +29,7 @@ logger = logging.getLogger("gibbs.worker")
 async def main() -> None:
     settings = get_settings()
     setup_tracing()
-    client = await Client.connect(settings.temporal_address)
+    client = await connect_temporal_client(settings)
     worker = Worker(
         client,
         task_queue=settings.temporal_task_queue,
@@ -39,7 +39,7 @@ async def main() -> None:
     )
     logger.info(
         "worker up: temporal=%s queue=%s db=%s max_concurrent=%d",
-        settings.temporal_address,
+        describe_target(settings),
         settings.temporal_task_queue,
         settings.database_url,
         settings.max_concurrent_jobs,

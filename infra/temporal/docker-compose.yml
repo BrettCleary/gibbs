@@ -11,7 +11,7 @@
 #   uv run --package gibbs python -m gibbs.worker
 services:
   temporal:
-    image: temporalio/server:latest
+    image: temporalio/temporal:latest
     ports:
       - "7233:7233"
       - "8233:8233"

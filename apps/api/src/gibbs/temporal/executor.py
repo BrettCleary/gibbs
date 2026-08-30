@@ -30,11 +30,11 @@ class TemporalJobExecutor:
         self._client_lock = asyncio.Lock()
 
     async def _get_client(self):
-        from temporalio.client import Client
+        from .client import connect_temporal_client
 
         async with self._client_lock:
             if self._client is None:
-                self._client = await Client.connect(self._settings.temporal_address)
+                self._client = await connect_temporal_client(self._settings)
         return self._client
 
     async def run_calculation(self, calculation_id: str) -> str:

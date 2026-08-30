@@ -209,6 +209,13 @@ def _espresso_config_for(elements: list[str], a_parent: float, **overrides):
         pw_command=settings.pw_command, pseudo_dir=settings.pseudo_dir,
         pseudopotentials=found, a_parent=a_parent, **overrides,
     )
+    # Under Temporal, pw.x runs on the worker fleet, not here: the API may be a
+    # web container with no QE installed (and no way to install one). The
+    # pseudopotentials are already resolved above, so only the binary check is
+    # host-specific — skip it and let the worker report an ENGINE_UNAVAILABLE
+    # failure if it is the one that is misconfigured.
+    if settings.executor == "temporal":
+        return config
     ok, reason = espresso_available(config)
     if not ok:
         raise HTTPException(

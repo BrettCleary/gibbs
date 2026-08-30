@@ -83,6 +83,12 @@ class Settings(BaseSettings):
     executor: str = "local"
     temporal_address: str = "localhost:7233"
     temporal_task_queue: str = "gibbs-calculations"
+    # Temporal Cloud: the namespace is "<namespace>.<account>" and the address is
+    # the account's gRPC endpoint. Auth is an API key (TLS is implied by one);
+    # the local dev server needs neither, so both default to empty/off.
+    temporal_namespace: str = "default"
+    temporal_api_key: str = ""
+    temporal_tls: bool = False
     job_timeout_seconds: int = 1800
 
     @model_validator(mode="before")

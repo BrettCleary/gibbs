@@ -244,13 +244,25 @@ def _parse_iterations(log_path: Path) -> int | None:
     return None
 
 
-def _failure_from_log(log_path: Path, exc: Exception) -> SimulationFailure:
-    text = ""
+def _read_tail(path: Path, n_lines: int = 30) -> tuple[str, str]:
+    """(full text, last n_lines) for a log file; ("", "") if unreadable."""
     try:
-        text = log_path.read_text(errors="replace")
+        text = path.read_text(errors="replace")
     except OSError:
-        pass
-    tail = "\n".join(text.splitlines()[-30:])
+        return "", ""
+    return text, "\n".join(text.splitlines()[-n_lines:])
+
+
+def _failure_from_log(log_path: Path, exc: Exception) -> SimulationFailure:
+    """Categorise a failed run from pw.x's stdout log, falling back to stderr.
+
+    A crash before the first SCF iteration (a broken binary, an OOM kill, a
+    fortify abort) leaves espresso.pwo empty and writes everything useful to
+    espresso.err, so stderr is carried into the failure metadata too.
+    """
+    text, tail = _read_tail(log_path)
+    err_path = log_path.with_suffix(".err")
+    err_text, err_tail = _read_tail(err_path)
     if "convergence NOT achieved" in text:
         return SimulationFailure(
             category="SCF_NOT_CONVERGED",
@@ -259,16 +271,32 @@ def _failure_from_log(log_path: Path, exc: Exception) -> SimulationFailure:
                 "hint": "raise electron_maxstep and/or lower mixing_beta, then retry",
                 "log_tail": tail,
                 "log_path": str(log_path),
+                "stderr_tail": err_tail,
             },
         )
     if "Error in routine" in text:
         return SimulationFailure(
             category="PW_RUNTIME_ERROR",
             message="pw.x reported an internal error",
-            metadata={"log_tail": tail, "log_path": str(log_path)},
+            metadata={
+                "log_tail": tail,
+                "log_path": str(log_path),
+                "stderr_tail": err_tail,
+            },
         )
+    # Nothing recognisable in stdout: the run died before pw.x could report.
+    # The first stderr line is the most informative thing available.
+    first_err = next((l for l in err_text.splitlines() if l.strip()), "")
+    detail = f"pw.x run failed: {exc}"
+    if first_err:
+        detail = f"{detail} (stderr: {first_err.strip()})"
     return SimulationFailure(
         category="ENGINE_CRASH",
-        message=f"pw.x run failed: {exc}",
-        metadata={"log_tail": tail, "log_path": str(log_path)},
+        message=detail,
+        metadata={
+            "log_tail": tail,
+            "log_path": str(log_path),
+            "stderr_tail": err_tail,
+            "stderr_path": str(err_path),
+        },
     )
