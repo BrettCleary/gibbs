@@ -93,6 +93,7 @@ class LLMDecisionOutput(BaseModel):
 
 class LLMDecider:
     name = "agent"
+    kind = "llm"
 
     def __init__(
         self,
@@ -161,6 +162,7 @@ class LLMDecider:
             adjusted["mixing_beta_factor"] = out.mixing_beta_factor
 
         return ScientificDecision(
+            source="llm",
             hypothesis=out.hypothesis,
             evidence=out.evidence,
             uncertainty=out.uncertainty,

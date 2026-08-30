@@ -125,7 +125,7 @@ async def run_campaign_loop(campaign_id: str, agent_run_id: str, executor: JobEx
             "CAMPAIGN_STARTED",
             agent_run_id=agent_run_id,
             action=f"Autonomous run started (problem: {problem.problem_type}, "
-            f"strategy: {campaign.strategy})",
+            f"strategy: {campaign.strategy}, decisions: {decider.kind})",
         )
 
     while iteration < max_iterations:
@@ -147,7 +147,14 @@ async def run_campaign_loop(campaign_id: str, agent_run_id: str, executor: JobEx
                 hypothesis=decision.hypothesis,
                 reasoning_summary="; ".join(decision.evidence) or None,
                 action=problem.describe_action(decision),
-                payload=decision.model_dump(mode="json"),
+                # Provenance travels with every decision: the baselines emit the same
+                # schema as the LLM scientist, so without this a templated argmax is
+                # indistinguishable from model reasoning in the feed and the report.
+                payload={
+                    **decision.model_dump(mode="json"),
+                    "decider_name": decider.name,
+                    "decider_kind": decider.kind,
+                },
             )
 
             if decision.action_type == ActionType.FINISH_CAMPAIGN:

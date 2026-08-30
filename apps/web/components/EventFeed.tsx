@@ -39,7 +39,34 @@ type LiveEvent = Partial<AgentEvent> & {
   created_at: string;
 };
 
-export function EventFeed({ campaignId, live }: { campaignId: string; live: boolean }) {
+/** How a decision was actually produced. The heuristic baselines emit the same
+ *  ScientificDecision schema as the LLM scientist, so an argmax over a surrogate
+ *  ensemble would otherwise read as model reasoning in this feed. `source` is
+ *  per-decision: under strategy "agent" the endpoint bootstrap, the stopping rule
+ *  and failure recovery are still code. */
+type DecisionProvenance = { source: "code" | "llm" | "unknown"; decider: string | null };
+
+function provenance(e: LiveEvent, strategy?: string): DecisionProvenance {
+  const payload = (e.payload ?? {}) as Record<string, unknown>;
+  const decider =
+    typeof payload.decider_name === "string" ? payload.decider_name : (strategy ?? null);
+  const source = payload.source;
+  if (source === "code" || source === "llm") return { source, decider };
+  // Events written before decisions carried provenance: a non-agent campaign was
+  // entirely coded, an agent campaign is a mix we cannot reconstruct.
+  if (strategy && strategy !== "agent") return { source: "code", decider };
+  return { source: "unknown", decider };
+}
+
+export function EventFeed({
+  campaignId,
+  live,
+  strategy,
+}: {
+  campaignId: string;
+  live: boolean;
+  strategy?: string;
+}) {
   const [liveEvents, setLiveEvents] = useState<LiveEvent[]>([]);
   const seen = useRef(new Set<string>());
 
@@ -100,14 +127,20 @@ export function EventFeed({ campaignId, live }: { campaignId: string; live: bool
   return (
     <ol className="scroll-thin flex max-h-[560px] flex-col overflow-y-auto">
       {merged.map((e, i) => {
-        const tone = TYPE_TONE[e.event_type] ?? "neutral";
         const isDecision = e.event_type === "AGENT_DECISION";
+        const prov = isDecision ? provenance(e, strategy) : null;
+        const isCoded = prov?.source === "code";
+        const tone: Tone = isCoded ? "neutral" : (TYPE_TONE[e.event_type] ?? "neutral");
+        const label =
+          isCoded && e.event_type === "AGENT_DECISION"
+            ? "COMPUTED DECISION"
+            : e.event_type.replace(/_/g, " ");
         return (
           <li
             key={e.id ?? i}
             className={cn(
               "relative border-b border-line py-3 pl-5 pr-4 last:border-b-0",
-              isDecision && "bg-white/[0.015]",
+              isDecision && !isCoded && "bg-white/[0.015]",
             )}
           >
             <span className={cn("absolute left-0 top-0 h-full w-[2px]", TONE_RAIL[tone])} />
@@ -121,8 +154,24 @@ export function EventFeed({ campaignId, live }: { campaignId: string; live: bool
                   TONE_TEXT[tone],
                 )}
               >
-                {e.event_type.replace(/_/g, " ")}
+                {label}
               </span>
+              {prov && prov.source !== "unknown" && (
+                <span
+                  className="shrink-0 rounded-xs border border-line bg-white/[0.02] px-1.5 py-[2px] font-mono text-[10px] uppercase tracking-[0.12em] text-text-muted"
+                  title={
+                    prov.source === "llm"
+                      ? "Written by the LLM scientist."
+                      : "Selected by a coded rule, not model inference."
+                  }
+                >
+                  {prov.source === "llm"
+                    ? "llm"
+                    : prov.decider && prov.decider !== "agent"
+                      ? `no inference · ${prov.decider}`
+                      : "no inference"}
+                </span>
+              )}
             </div>
             {e.hypothesis && (
               <p className="mt-1.5 text-[13px] leading-snug text-text">{e.hypothesis}</p>

@@ -8,6 +8,9 @@ from gibbs.agent.strategies import (
     ISING_RETRY_REASON,
     handle_failures,
 )
+from gibbs.problems.alloy import AlloyHeuristicDecider
+from gibbs.problems.phase import PhaseHeuristicDecider
+from gibbs.problems.property import PropertyHeuristicDecider
 from gibbs.problems.ising import IsingProblem
 
 
@@ -108,3 +111,23 @@ async def test_heuristic_decider_proposes_measurement():
     decision = await decider.decide(_state(measurements=m, budget_used=2, budget_remaining=8))
     assert decision.action_type == ActionType.RUN_MONTE_CARLO
     assert decision.temperatures == [pytest.approx(2.5)]
+
+
+@pytest.mark.parametrize(
+    "cls", [HeuristicDecider, AlloyHeuristicDecider, PhaseHeuristicDecider, PropertyHeuristicDecider]
+)
+def test_unknown_strategy_is_rejected(cls):
+    # Without this, a typo'd name fell through to the uncertainty branch and the
+    # decision text claimed an acquisition rule that had not been used.
+    with pytest.raises(ValueError, match="unknown"):
+        cls("uncertainy")
+    assert cls("uncertainty").kind == "heuristic"
+
+
+async def test_heuristic_decisions_are_marked_as_computed():
+    """Baselines emit the same schema as the LLM scientist; `source` is what keeps
+    a templated argmax from being displayed as model reasoning."""
+    decider = HeuristicDecider("grid")
+    decision = await decider.decide(_state(budget_used=2, budget_remaining=8))
+    assert decision.source == "code"
+    assert ScientificDecision(hypothesis="h", action_type=ActionType.FINISH_CAMPAIGN).source == "code"

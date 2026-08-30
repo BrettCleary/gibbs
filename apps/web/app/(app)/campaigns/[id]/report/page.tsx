@@ -211,13 +211,23 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
         </ul>
       </Section>
 
-      <Section title={`Reasoning trail · ${r.decision_trail.length} decisions`}>
+      <Section
+        title={(() => {
+          // Coded decisions (the heuristic baselines, plus the bootstrap/stopping/
+          // failure policies that run even under strategy "agent") carry no model
+          // reasoning, so the trail says how many of them there were.
+          const coded = r.decision_trail.filter((d) => d.source === "code").length;
+          const base = `Decision trail · ${r.decision_trail.length} decisions`;
+          return coded ? `${base} · ${coded} computed, no inference` : base;
+        })()}
+      >
         <ol className="relative ml-1 border-l border-line pl-5">
           {r.decision_trail.map((d, i) => (
             <li key={i} className="relative pb-5 last:pb-0">
               <span className="absolute -left-[25px] top-[7px] h-[7px] w-[7px] rounded-full border border-bg bg-steel" />
               <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-muted">
                 {String(i + 1).padStart(2, "0")} · {new Date(d.at as string).toLocaleTimeString()}
+                {d.source === "code" && <span className="text-steel"> · no inference</span>}
               </div>
               <p className="mt-1 text-[13.5px] leading-relaxed text-text">
                 {d.hypothesis as string}

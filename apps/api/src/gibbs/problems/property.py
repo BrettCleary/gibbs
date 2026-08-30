@@ -34,6 +34,7 @@ from ..agent.strategies import (
     handle_failures,
     model_summary_text,
     stable_seed,
+    validate_heuristic_strategy,
 )
 from ..db.models import Calculation, Campaign, Structure, SurrogateModel
 from ..events import emit_agent_event
@@ -206,8 +207,10 @@ def _verification_decision(state: PropertyState, x: float) -> ScientificDecision
 class PropertyHeuristicDecider:
     """random / composition coverage ('grid') / property-directed ('uncertainty')."""
 
+    kind = "heuristic"
+
     def __init__(self, strategy_name: str, seed: int = 0):
-        self.name = strategy_name
+        self.name = validate_heuristic_strategy(strategy_name)
         self._rng = np.random.default_rng(seed)
 
     async def decide(self, state: PropertyState) -> ScientificDecision:
@@ -230,7 +233,7 @@ class PropertyHeuristicDecider:
         elif self.name == "grid":
             label = state.suggested_coverage_label or str(self._rng.choice(state.unmeasured_labels))
             why = "Baseline: cover the least-sampled composition."
-        else:
+        else:  # uncertainty (the only name left; validated in __init__)
             label = state.suggested_property_label or state.suggested_uncertainty_label or str(self._rng.choice(state.unmeasured_labels))
             why = "Property-directed: highest predicted bulk modulus among near-hull candidates, weighted by hull uncertainty."
         return ScientificDecision(
@@ -244,6 +247,7 @@ class PropertyHeuristicDecider:
 
 class PropertyLLMDecider:
     name = "agent"
+    kind = "llm"
 
     def __init__(self, instructions: str = PROPERTY_LLM_INSTRUCTIONS):
         from ..agent.llm import LLMDecider

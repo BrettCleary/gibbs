@@ -8,6 +8,7 @@ model reasoning is never stored; only this explicit scientific rationale.
 from __future__ import annotations
 
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -21,6 +22,12 @@ class ActionType(str, Enum):
 
 
 class ScientificDecision(BaseModel):
+    # How this specific decision was produced. "code" covers every templated
+    # decision -- the heuristic baselines, endpoint bootstrapping, and the shared
+    # stopping/failure policies, which run even under strategy 'agent'. "llm" is set
+    # only where the narrative and target come from model inference. Not part of the
+    # LLM's structured output (that is llm.LLMDecisionOutput); the decider sets it.
+    source: Literal["code", "llm"] = "code"
     hypothesis: str
     evidence: list[str] = Field(default_factory=list)
     uncertainty: str = ""

@@ -39,6 +39,7 @@ from ..agent.strategies import (
     handle_failures,
     model_summary_text,
     stable_seed,
+    validate_heuristic_strategy,
 )
 from ..db.models import Calculation, Campaign, SurrogateModel
 from ..events import emit_agent_event
@@ -227,8 +228,10 @@ async def build_phase_state(session: AsyncSession, campaign: Campaign) -> PhaseS
 
 
 class PhaseHeuristicDecider:
+    kind = "heuristic"
+
     def __init__(self, strategy_name: str, seed: int = 0):
-        self.name = strategy_name
+        self.name = validate_heuristic_strategy(strategy_name)
         self._rng = np.random.default_rng(seed)
 
     async def decide(self, state: PhaseState) -> ScientificDecision:
@@ -263,6 +266,7 @@ class PhaseHeuristicDecider:
 
 class PhaseLLMDecider:
     name = "agent"
+    kind = "llm"
 
     def __init__(self, instructions: str = PHASE_LLM_INSTRUCTIONS):
         from ..agent.llm import LLMDecider

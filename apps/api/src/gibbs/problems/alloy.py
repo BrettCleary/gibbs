@@ -35,6 +35,7 @@ from ..agent.strategies import (
     handle_failures,
     model_summary_text,
     stable_seed,
+    validate_heuristic_strategy,
 )
 from ..db.models import Calculation, Campaign, Structure, SurrogateModel
 from ..events import emit_agent_event
@@ -280,6 +281,8 @@ def _endpoint_decision(state: AlloyState) -> ScientificDecision:
 class AlloyHeuristicDecider:
     """Baselines: random / composition-coverage ('grid') / uncertainty sampling."""
 
+    kind = "heuristic"
+
     def __init__(
         self,
         strategy_name: str,
@@ -287,7 +290,7 @@ class AlloyHeuristicDecider:
         retry_adjustment: dict | None = None,
         retry_reason: str | None = None,
     ):
-        self.name = strategy_name
+        self.name = validate_heuristic_strategy(strategy_name)
         self._rng = np.random.default_rng(seed)
         self._retry_adjustment = (
             retry_adjustment if retry_adjustment is not None else ALLOY_RETRY_ADJUSTMENT
@@ -320,7 +323,7 @@ class AlloyHeuristicDecider:
                 self._rng.choice(state.unmeasured_labels)
             )
             rationale = "Baseline: cover the least-sampled composition region."
-        else:  # uncertainty
+        else:  # uncertainty (the only name left; validated in __init__)
             label = (
                 state.suggested_uncertainty_label
                 or state.suggested_coverage_label
@@ -348,6 +351,7 @@ class AlloyLLMDecider:
     """Endpoint bootstrap in code; everything else delegated to the LLM scientist."""
 
     name = "agent"
+    kind = "llm"
 
     def __init__(self, instructions: str = ALLOY_LLM_INSTRUCTIONS):
         from ..agent.llm import LLMDecider

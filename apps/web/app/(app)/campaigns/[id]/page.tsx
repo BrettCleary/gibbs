@@ -334,16 +334,22 @@ export default function CampaignDashboard({ params }: { params: Promise<{ id: st
             </div>
           </Surface>
           <Surface className="xl:col-span-2">
-            <PanelHeader title="Agent activity" aside={running ? "live" : undefined} />
-            <EventFeed campaignId={id} live={running} />
+            <PanelHeader
+              title={c.strategy === "agent" ? "Agent activity" : "Campaign activity"}
+              aside={running ? "live" : undefined}
+            />
+            <EventFeed campaignId={id} live={running} strategy={c.strategy} />
           </Surface>
         </div>
       )}
 
       {!isIsing && (
         <Surface>
-          <PanelHeader title="Agent activity" aside={running ? "live" : undefined} />
-          <EventFeed campaignId={id} live={running} />
+          <PanelHeader
+            title={c.strategy === "agent" ? "Agent activity" : "Campaign activity"}
+            aside={running ? "live" : undefined}
+          />
+          <EventFeed campaignId={id} live={running} strategy={c.strategy} />
         </Surface>
       )}
 

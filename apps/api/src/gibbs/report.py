@@ -130,6 +130,10 @@ async def build_report(session: AsyncSession, campaign: Campaign) -> dict:
                 "hypothesis": e.hypothesis,
                 "action": e.action,
                 "evidence": e.reasoning_summary,
+                # "code" for the coded baselines and the shared bootstrap/stopping/
+                # failure policies, "llm" for model inference; absent on events
+                # written before decisions recorded their provenance.
+                "source": (e.payload or {}).get("source"),
             }
             for e in decisions
         ],

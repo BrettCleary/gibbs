@@ -19,8 +19,26 @@ from .state import BaseScientificState, ScientificState
 
 class Decider(Protocol):
     name: str
+    # "heuristic" for the coded baselines, "llm" for the model scientist. Recorded on
+    # every AGENT_DECISION event so a templated argmax is never displayed as reasoning.
+    kind: str
 
     async def decide(self, state: BaseScientificState) -> ScientificDecision: ...
+
+
+# The coded baselines every problem implements. "agent" is the LLM decider and is
+# deliberately absent: it is dispatched separately by each Problem.decider().
+HEURISTIC_STRATEGIES = ("random", "grid", "uncertainty")
+
+
+def validate_heuristic_strategy(name: str) -> str:
+    """Reject unknown strategy names instead of silently falling through to a
+    baseline whose rationale text would then misdescribe the choice."""
+    if name not in HEURISTIC_STRATEGIES:
+        raise ValueError(
+            f"unknown heuristic strategy {name!r}; expected one of {list(HEURISTIC_STRATEGIES)}"
+        )
+    return name
 
 
 def stable_seed(campaign_id: str) -> int:
@@ -129,8 +147,10 @@ ISING_RETRY_REASON = "Tripled equilibration sweeps to address non-equilibrated c
 class HeuristicDecider:
     """Ising V0: wraps a baseline acquisition strategy in the decision schema."""
 
+    kind = "heuristic"
+
     def __init__(self, strategy_name: str, seed: int = 0):
-        self.name = strategy_name
+        self.name = validate_heuristic_strategy(strategy_name)
         self._strategy = make_strategy(strategy_name, seed=seed)
 
     async def decide(self, state: ScientificState) -> ScientificDecision:
