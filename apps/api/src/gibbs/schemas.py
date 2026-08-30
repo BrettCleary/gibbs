@@ -120,12 +120,6 @@ class CampaignCreate(BaseModel):
         default=None,
         description="Stop early when the Tc-estimate std drops below this value.",
     )
-    failure_rate: float = Field(
-        default=0.0,
-        ge=0.0,
-        le=0.9,
-        description="Injected simulation-failure probability (for failure-recovery demos).",
-    )
 
     @model_validator(mode="after")
     def _check_range(self):

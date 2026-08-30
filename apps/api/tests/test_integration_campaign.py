@@ -60,7 +60,8 @@ async def test_full_synthetic_campaign(client):
     assert len(view["measured_temperatures"]) == 5
 
 
-async def test_failure_recovery_campaign(client):
+async def test_failure_recovery_campaign(client, inject_failures):
+    inject_failures(0.9)
     r = await client.post(
         "/campaigns",
         json={
@@ -68,7 +69,6 @@ async def test_failure_recovery_campaign(client):
             "strategy": "grid",
             "simulation_budget": 6,
             "lattice_size": 8,
-            "failure_rate": 0.9,
         },
     )
     campaign_id = r.json()["id"]
@@ -78,7 +78,7 @@ async def test_failure_recovery_campaign(client):
     calcs = (await client.get(f"/campaigns/{campaign_id}/calculations")).json()
     failed = [c for c in calcs if c["status"] == "FAILED"]
     retries = [c for c in calcs if c["retry_of"]]
-    assert failed, "expected injected failures at failure_rate=0.9"
+    assert failed, "expected injected failures at injected_failure_rate=0.9"
     # The budget is a hard ceiling — a failure at the boundary may legitimately
     # remain unresolved, but never more than the final one; every other failure
     # is explicitly resolved and every retry preserves lineage.
@@ -92,3 +92,24 @@ async def test_failure_recovery_campaign(client):
 
     events = (await client.get(f"/campaigns/{campaign_id}/agent-events")).json()
     assert any(e["event_type"] == "JOB_FAILED" for e in events)
+
+
+async def test_failure_injection_is_not_client_settable(client):
+    """A campaign request cannot turn on injected failures; only config can.
+
+    The rate is a testing seam, so a scientist creating a campaign — or an LLM
+    filling the form on their behalf — must never be able to spend their
+    simulation budget on fabricated failures.
+    """
+    r = await client.post(
+        "/campaigns",
+        json={
+            "name": "no injection",
+            "strategy": "grid",
+            "simulation_budget": 4,
+            "lattice_size": 8,
+            "failure_rate": 0.9,
+        },
+    )
+    assert r.status_code == 201
+    assert r.json()["failure_rate"] == 0.0

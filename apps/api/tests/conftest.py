@@ -15,6 +15,22 @@ def _no_env_files(monkeypatch):
 
 
 @pytest.fixture
+def inject_failures(monkeypatch):
+    """Enable the failure-injection seam for a test.
+
+    Campaigns read the rate from settings at creation time (it is not a request
+    parameter), so this has to be called before the POST /campaigns whose
+    calculations should fail.
+    """
+
+    def _set(rate: float) -> None:
+        monkeypatch.setenv("ALLOYLAB_INJECTED_FAILURE_RATE", str(rate))
+        get_settings.cache_clear()
+
+    return _set
+
+
+@pytest.fixture
 async def client(tmp_path, monkeypatch):
     monkeypatch.setenv("ALLOYLAB_DATABASE_URL", f"sqlite+aiosqlite:///{tmp_path}/test.db")
     get_settings.cache_clear()

@@ -37,7 +37,6 @@ export function CampaignForm({
     lattice_size: 24,
     temperature_min: 1.5,
     temperature_max: 3.5,
-    failure_rate: 0.15,
     dft_engine: "emt",
     property_engine: "emt",
     temperature_threshold: 1200,
@@ -119,7 +118,6 @@ export function CampaignForm({
             lattice_size: Number(form.lattice_size),
             temperature_min: Number(isPhase ? form.phase_t_min : form.temperature_min),
             temperature_max: Number(isPhase ? form.phase_t_max : form.temperature_max),
-            failure_rate: Number(form.failure_rate),
             target_uncertainty:
               form.target_uncertainty === "" ? null : Number(form.target_uncertainty),
           });
@@ -200,16 +198,6 @@ export function CampaignForm({
                   max={200}
                   value={form.simulation_budget}
                   onChange={(e) => set("simulation_budget", Number(e.target.value))}
-                />
-              </Field>
-              <Field label="injected failure rate" {...mark("failure_rate")}>
-                <Input
-                  type="number"
-                  min={0}
-                  max={0.9}
-                  step={0.05}
-                  value={form.failure_rate}
-                  onChange={(e) => set("failure_rate", Number(e.target.value))}
                 />
               </Field>
               <Field

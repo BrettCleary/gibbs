@@ -153,9 +153,27 @@ pnpm --filter @gibbs/web dev
 
 Open http://localhost:3000 — you land on **/login**; sign up with any email
 and password (no email verification), then create a campaign, press **Start**, and
-watch the agent select temperatures, recover from injected failures, and tighten
-the Tc estimate. The **Benchmarks** page compares strategies against a
-high-budget ground-truth scan.
+watch the agent select temperatures and tighten the Tc estimate. The
+**Benchmarks** page compares strategies against a high-budget ground-truth scan.
+
+### Exercising failure recovery
+
+The synthetic oracles (Ising MC, hidden CE, EMT) are deterministic numerics and
+never fail on their own, so the agent's diagnose → retry → abandon path is only
+exercised by injecting failures. That is a **testing seam, not a campaign
+setting** — it is off by default and cannot be set from the UI or the API
+request body, because a scientist's simulation budget should never be spent on
+fabricated failures (a failure and its retry both count against
+`simulations_used`). To drive it locally or in CI:
+
+```bash
+export ALLOYLAB_INJECTED_FAILURE_RATE=0.3   # 0.0 (default) .. 0.9
+```
+
+Campaigns read the rate at creation time and record it on the campaign row, so
+any run that saw injected failures says so in its own provenance. Real Quantum
+ESPRESSO SCF non-convergence is detected from the `.pwo` log and needs no
+injection.
 
 ### The LLM agent strategy
 

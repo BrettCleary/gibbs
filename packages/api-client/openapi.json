@@ -1853,14 +1853,6 @@
             ],
             "title": "Target Uncertainty",
             "description": "Stop early when the Tc-estimate std drops below this value."
-          },
-          "failure_rate": {
-            "type": "number",
-            "maximum": 0.9,
-            "minimum": 0.0,
-            "title": "Failure Rate",
-            "description": "Injected simulation-failure probability (for failure-recovery demos).",
-            "default": 0.0
           }
         },
         "type": "object",

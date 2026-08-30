@@ -72,7 +72,8 @@ async def test_full_alloy_campaign(client):
             "CAMPAIGN_COMPLETED"} <= types
 
 
-async def test_alloy_failure_recovery(client):
+async def test_alloy_failure_recovery(client, inject_failures):
+    inject_failures(0.6)
     r = await client.post(
         "/campaigns",
         json={
@@ -80,7 +81,6 @@ async def test_alloy_failure_recovery(client):
             "problem_type": "alloy_v1",
             "strategy": "grid",
             "simulation_budget": 8,
-            "failure_rate": 0.6,
         },
     )
     campaign_id = r.json()["id"]
@@ -89,7 +89,7 @@ async def test_alloy_failure_recovery(client):
 
     calcs = (await client.get(f"/campaigns/{campaign_id}/calculations")).json()
     failed = [c for c in calcs if c["status"] == "FAILED"]
-    assert failed, "expected injected SCF failures at failure_rate=0.6"
+    assert failed, "expected injected SCF failures at injected_failure_rate=0.6"
     assert all(c["failure_category"] == "SCF_NOT_CONVERGED" for c in failed)
     # The budget is a hard ceiling — a failure at the boundary may legitimately
     # remain unresolved, but never more than the final one.

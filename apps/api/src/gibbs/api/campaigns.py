@@ -92,7 +92,8 @@ async def create_campaign(body: CampaignCreate, session: AsyncSession = Depends(
         lattice_size=body.lattice_size,
         simulation_budget=body.simulation_budget,
         target_uncertainty=body.target_uncertainty,
-        failure_rate=body.failure_rate,
+        # Testing seam, not a user input: 0.0 unless a local/CI operator sets it.
+        failure_rate=get_settings().injected_failure_rate,
         elements=(
             ["A", "B"] if body.problem_type.value == "alloy_v1"
             else elements if body.problem_type in FCC_PROBLEMS

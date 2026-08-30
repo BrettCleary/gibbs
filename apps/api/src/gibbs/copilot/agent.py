@@ -59,7 +59,6 @@ class CampaignParamsPatch(BaseModel):
     element_b: str | None = Field(default=None, description="Element symbol; x is its fraction.")
     strategy: StrategyName | None = None
     simulation_budget: int | None = Field(default=None, ge=4, le=200)
-    failure_rate: float | None = Field(default=None, ge=0.0, le=0.9)
     target_uncertainty: float | None = Field(
         default=None, description="Optional early-stopping uncertainty target."
     )

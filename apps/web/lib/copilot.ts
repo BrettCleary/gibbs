@@ -157,7 +157,6 @@ export const FIELD_LABELS: Record<string, string> = {
   element_b: "element B",
   strategy: "strategy",
   simulation_budget: "budget",
-  failure_rate: "failure rate",
   target_uncertainty: "uncertainty target",
   dft_engine: "energy engine",
   property_engine: "property engine",

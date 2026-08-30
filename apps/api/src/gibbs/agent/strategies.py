@@ -27,15 +27,41 @@ def stable_seed(campaign_id: str) -> int:
     return zlib.crc32(campaign_id.encode())
 
 
+# Failures no parameter adjustment can recover: a missing or crashing binary, an
+# internal engine error, a structure the engine rejects. Retrying these burns a
+# calculation and reports a remedy ("adjusted settings should converge") that has
+# nothing to do with the actual fault, so they are abandoned on the first failure.
+UNRECOVERABLE_CATEGORIES = frozenset(
+    {
+        "ENGINE_UNAVAILABLE",
+        "ENGINE_CRASH",
+        "PW_RUNTIME_ERROR",
+        "UNSUPPORTED_CALCULATION",
+        "INVALID_STRUCTURE",
+    }
+)
+
+
 def handle_failures(
     state: BaseScientificState,
     retry_adjustment: dict[str, float],
     retry_reason: str,
 ) -> ScientificDecision | None:
-    """Shared failure-recovery policy: retry once with adjusted settings, then abandon."""
+    """Shared failure-recovery policy: retry once with adjusted settings, then
+    abandon. Categories in UNRECOVERABLE_CATEGORIES skip the retry entirely."""
     if not state.unresolved_failures:
         return None
     failure = state.unresolved_failures[0]
+    if failure.category in UNRECOVERABLE_CATEGORIES:
+        return ScientificDecision(
+            hypothesis=f"Calculation {failure.calculation_id} ({failure.description}) "
+            f"failed with {failure.category}, which no settings change can recover.",
+            evidence=[f"failure category: {failure.category}", str(failure.metadata)],
+            uncertainty="This target remains unmeasured; nearby measurements must compensate.",
+            action_type=ActionType.ABANDON_CALCULATION,
+            retry_calculation_id=failure.calculation_id,
+            expected_information_gain="Avoid spending budget on a fault that a retry cannot fix.",
+        )
     if failure.is_retry:
         return ScientificDecision(
             hypothesis=f"Calculation {failure.calculation_id} ({failure.description}) "

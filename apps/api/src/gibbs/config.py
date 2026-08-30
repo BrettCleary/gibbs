@@ -73,6 +73,12 @@ class Settings(BaseSettings):
     pw_command: str = "pw.x"
     pseudo_dir: str = "infra/pseudopotentials"
     omp_num_threads: int = 4
+    # Failure-recovery testing seam. The synthetic oracles (Ising MC, hidden CE,
+    # EMT) never fail on their own, so the agent's retry/abandon path is only
+    # exercised by injecting failures. Off in production; set
+    # ALLOYLAB_INJECTED_FAILURE_RATE locally or in CI to drive it. Not settable
+    # per campaign — scientists do not opt into fake failures.
+    injected_failure_rate: float = 0.0
     # Durable execution (Milestone 7). executor: "local" | "temporal".
     executor: str = "local"
     temporal_address: str = "localhost:7233"
@@ -104,6 +110,11 @@ class Settings(BaseSettings):
     @classmethod
     def _normalize_database_url(cls, value: str) -> str:
         return normalize_database_url(value)
+
+    @field_validator("injected_failure_rate")
+    @classmethod
+    def _clamp_injected_failure_rate(cls, value: float) -> float:
+        return min(max(value, 0.0), 0.9)
 
     @field_validator("pseudo_dir")
     @classmethod

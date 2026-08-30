@@ -743,12 +743,6 @@ export interface components {
              * @description Stop early when the Tc-estimate std drops below this value.
              */
             target_uncertainty?: number | null;
-            /**
-             * Failure Rate
-             * @description Injected simulation-failure probability (for failure-recovery demos).
-             * @default 0
-             */
-            failure_rate: number;
         };
         /** CampaignRead */
         CampaignRead: {
