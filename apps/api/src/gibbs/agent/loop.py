@@ -49,12 +49,7 @@ class CampaignRunnerRegistry:
         return task is not None and not task.done()
 
     async def start(self, campaign_id: str, model: str = "heuristic") -> str:
-        session_factory = get_session_factory()
-        async with session_factory() as session:
-            agent_run = AgentRun(campaign_id=campaign_id, model=model)
-            session.add(agent_run)
-            await session.commit()
-            agent_run_id = agent_run.id
+        agent_run_id = await create_agent_run(campaign_id, model)
         task = asyncio.create_task(self._run_safe(campaign_id, agent_run_id))
         self._tasks[campaign_id] = task
         return agent_run_id
@@ -78,6 +73,7 @@ class CampaignRunnerRegistry:
         try:
             await run_campaign_loop(campaign_id, agent_run_id, self.executor)
         except asyncio.CancelledError:
+            await mark_interrupted(campaign_id, agent_run_id)
             raise
         except Exception as exc:  # noqa: BLE001
             logger.exception("campaign %s loop crashed", campaign_id)
@@ -104,6 +100,59 @@ class CampaignRunnerRegistry:
 runner_registry = CampaignRunnerRegistry()
 
 RUN_ACTIONS = (ActionType.RUN_MONTE_CARLO, ActionType.RUN_STRUCTURE_ENERGY)
+
+
+async def create_agent_run(campaign_id: str, model: str) -> str:
+    """Open an AgentRun row for a campaign about to start. Shared by the
+    in-process runner and the Temporal path, which both need its id up front."""
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        agent_run = AgentRun(campaign_id=campaign_id, model=model)
+        session.add(agent_run)
+        await session.commit()
+        return agent_run.id
+
+
+async def mark_interrupted(campaign_id: str, agent_run_id: str) -> None:
+    """Record that the loop was cancelled rather than finishing.
+
+    A cancel is not a crash — process shutdown and an operator stop both land
+    here — so the campaign is left resumable, not FAILED: /start picks it up
+    again from the measurements already in the database. Without this the loop
+    task simply vanished and the campaign sat at RUNNING forever with nothing
+    written, which is exactly how a container recycle used to look.
+
+    In-process runner only. The Temporal activity deliberately lets the
+    cancellation propagate untouched: Temporal may retry it on another worker,
+    and the retry resumes only while the campaign is still RUNNING.
+
+    Best-effort: we are already inside a cancelled task, and the process may be
+    going away underneath us.
+    """
+    try:
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            campaign = await session.get(Campaign, campaign_id)
+            if campaign is None or campaign.status != "RUNNING":
+                return
+            campaign.status = "PAUSED"
+            campaign.stopping_rationale = "run interrupted; restart to resume"
+            agent_run = await session.get(AgentRun, agent_run_id)
+            if agent_run is not None and agent_run.status == "RUNNING":
+                agent_run.status = "INTERRUPTED"
+                agent_run.completed_at = _now()
+            await session.commit()
+            await emit(
+                session,
+                campaign_id,
+                "CAMPAIGN_ERROR",
+                agent_run_id=agent_run_id,
+                action="Run interrupted before finishing; restart the campaign to resume.",
+            )
+    except asyncio.CancelledError:
+        raise
+    except Exception:  # noqa: BLE001 — never mask the cancellation
+        logger.warning("could not record interruption for campaign %s", campaign_id)
 
 
 async def run_campaign_loop(campaign_id: str, agent_run_id: str, executor: JobExecutor) -> None:

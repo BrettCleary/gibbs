@@ -113,3 +113,51 @@ async def test_failure_injection_is_not_client_settable(client):
     )
     assert r.status_code == 201
     assert r.json()["failure_rate"] == 0.0
+
+
+async def test_event_stream_tails_the_database(client):
+    """The live feed reads agent_events rather than an in-process bus, so it
+    still works when the campaign loop runs in the Temporal worker instead of
+    this process."""
+    import json
+
+    r = await client.post(
+        "/campaigns",
+        json={
+            "name": "sse ising",
+            "strategy": "grid",
+            "simulation_budget": 4,
+            "lattice_size": 8,
+        },
+    )
+    campaign_id = r.json()["id"]
+
+    async def _start_once_connected():
+        # The stream primes on its first tick, so the campaign has to start
+        # after the connection is open for its events to arrive live.
+        await asyncio.sleep(0.5)
+        await client.post(f"/campaigns/{campaign_id}/start")
+
+    starter = asyncio.create_task(_start_once_connected())
+    received: list[dict] = []
+    try:
+        async with client.stream(
+            "GET", f"/campaigns/{campaign_id}/events", timeout=120.0
+        ) as response:
+            assert response.status_code == 200
+            async for line in response.aiter_lines():
+                if line.startswith("data:"):
+                    received.append(json.loads(line[len("data:") :].strip()))
+    finally:
+        await starter
+
+    # The stream closes itself once the campaign reaches a terminal event, but
+    # not before the report that is emitted just after it.
+    types = [e["event_type"] for e in received]
+    assert "CAMPAIGN_STARTED" in types
+    assert "JOB_SUCCEEDED" in types
+    assert "CAMPAIGN_COMPLETED" in types
+    assert types.index("REPORT_GENERATED") > types.index("CAMPAIGN_COMPLETED")
+    # Every event is delivered exactly once despite the overlapping poll window.
+    ids = [e["id"] for e in received]
+    assert len(ids) == len(set(ids))

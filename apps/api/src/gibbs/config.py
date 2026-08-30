@@ -80,6 +80,11 @@ class Settings(BaseSettings):
     # per campaign — scientists do not opt into fake failures.
     injected_failure_rate: float = 0.0
     # Durable execution (Milestone 7). executor: "local" | "temporal".
+    # "local" runs the campaign loop as an asyncio task inside the API process —
+    # fine for dev and tests, but the loop dies with the process, so a deployed
+    # API that gets recycled abandons the campaign mid-iteration.
+    # "temporal" hands the loop to the worker (gibbs.worker) as a workflow, and
+    # its calculations then run in-process on that worker.
     executor: str = "local"
     temporal_address: str = "localhost:7233"
     temporal_task_queue: str = "gibbs-calculations"
@@ -90,6 +95,13 @@ class Settings(BaseSettings):
     temporal_api_key: str = ""
     temporal_tls: bool = False
     job_timeout_seconds: int = 1800
+    # A campaign activity is held open for the whole run, so its start-to-close
+    # timeout has to cover the slowest plausible campaign (real DFT, large
+    # budget). Worker death is caught by the 60s heartbeat, not by this.
+    campaign_timeout_seconds: int = 86400
+    # Long-lived activity slots reserved for campaign loops, so a campaign never
+    # competes with the calculation activities for the same slots.
+    max_concurrent_campaigns: int = 4
 
     @model_validator(mode="before")
     @classmethod

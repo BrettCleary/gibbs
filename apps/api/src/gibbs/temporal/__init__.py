@@ -15,7 +15,20 @@ def __getattr__(name):
         from .workflows import RunCalculationWorkflow
 
         return RunCalculationWorkflow
+    if name == "RunCampaignWorkflow":
+        from .workflows import RunCampaignWorkflow
+
+        return RunCampaignWorkflow
+    if name == "start_campaign_workflow":
+        from .campaign import start_campaign_workflow
+
+        return start_campaign_workflow
     raise AttributeError(name)
 
 
-__all__ = ["TemporalJobExecutor", "RunCalculationWorkflow"]
+__all__ = [
+    "TemporalJobExecutor",
+    "RunCalculationWorkflow",
+    "RunCampaignWorkflow",
+    "start_campaign_workflow",
+]

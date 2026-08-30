@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -7,8 +9,29 @@ from gibbs.config import get_settings
 
 @pytest.fixture(autouse=True)
 def _no_env_files(monkeypatch):
-    """Tests must never pick up the developer's real .env (provider keys etc.)."""
+    """Tests must never pick up the developer's real .env (provider keys etc.).
+
+    Three separate doors have to be shut, which is why patching ENV_FILES alone
+    was never enough:
+
+    - Settings reads the file itself through model_config["env_file"], baked in
+      at class creation and unaffected by the ENV_FILES module global;
+    - load_env_files() exports the file into os.environ, and any module imported
+      at collection time that calls get_settings() leaks it there before this
+      fixture can run — nothing later can unset it;
+    - the settings object itself is lru_cached.
+
+    Without all three, a developer with ALLOYLAB_EXECUTOR=temporal in .env has
+    the suite submitting work to their real Temporal namespace.
+    """
+    from gibbs.config import Settings
+
     monkeypatch.setattr("gibbs.config.ENV_FILES", ())
+    monkeypatch.setitem(Settings.model_config, "env_file", ())
+    # ALLOYLAB_*TEST* are the suite's own switches (opt-in Temporal round trip,
+    # Postgres URL), not application config — leave those alone.
+    for key in [k for k in os.environ if k.startswith("ALLOYLAB_") and "TEST" not in k]:
+        monkeypatch.delenv(key, raising=False)
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()

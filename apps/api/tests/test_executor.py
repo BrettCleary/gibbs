@@ -101,7 +101,7 @@ async def test_temporal_round_trip_campaign(client, monkeypatch):
     import asyncio
 
     from temporalio.testing import WorkflowEnvironment
-    from temporalio.worker import Worker
+    from temporalio.worker import UnsandboxedWorkflowRunner, Worker
 
     from gibbs.agent.loop import runner_registry
     from gibbs.config import Settings
@@ -120,6 +120,10 @@ async def test_temporal_round_trip_campaign(client, monkeypatch):
             task_queue="test-queue",
             workflows=[RunCalculationWorkflow],
             activities=[execute_calculation],
+            # See test_campaign_loop_runs_on_the_worker: beartype's import hook
+            # breaks Temporal's workflow sandbox under pytest, so validation
+            # fails here for reasons unrelated to the workflow.
+            workflow_runner=UnsandboxedWorkflowRunner(),
         ):
             monkeypatch.setattr(runner_registry, "_executor", executor)
             r = await client.post(
@@ -153,3 +157,81 @@ async def test_temporal_round_trip_campaign(client, monkeypatch):
     finally:
         monkeypatch.setattr(runner_registry, "_executor", None)
         await env.shutdown()
+
+
+@pytest.mark.skipif(
+    not os.environ.get("ALLOYLAB_TEMPORAL_TEST"),
+    reason="set ALLOYLAB_TEMPORAL_TEST=1 to run the full Temporal round trip "
+    "(downloads a local test server on first use)",
+)
+async def test_campaign_loop_runs_on_the_worker(client, monkeypatch):
+    """The campaign loop itself is a workflow activity, so it outlives the API
+    process that started it. Previously the loop was a bare asyncio task inside
+    the API: a container recycle cancelled it mid-iteration and the campaign sat
+    at RUNNING forever with no event recorded."""
+    import asyncio
+
+    from temporalio.testing import WorkflowEnvironment
+    from temporalio.worker import UnsandboxedWorkflowRunner, Worker
+
+    from gibbs.agent.loop import runner_registry
+    from gibbs.config import get_settings
+    from gibbs.temporal.activities import run_campaign
+    from gibbs.temporal.campaign import campaign_workflow_id
+    from gibbs.temporal.workflows import RunCampaignWorkflow
+
+    env = await WorkflowEnvironment.start_local()
+    try:
+        monkeypatch.setenv("ALLOYLAB_EXECUTOR", "temporal")
+        monkeypatch.setenv("ALLOYLAB_TEMPORAL_TASK_QUEUE", "test-campaign-queue")
+        get_settings.cache_clear()
+        # Bypass connect: talk to the in-test server instead of a real cluster.
+        monkeypatch.setattr(
+            "gibbs.temporal.campaign.connect_temporal_client",
+            lambda settings: _resolved(env.client),
+        )
+
+        async with Worker(
+            env.client,
+            task_queue="test-campaign-queue",
+            workflows=[RunCampaignWorkflow],
+            activities=[run_campaign],
+            # Unsandboxed under pytest only: beartype's import hook cannot be
+            # re-imported inside Temporal's workflow sandbox, so validation
+            # fails here for reasons unrelated to the workflow itself. The
+            # deployed worker (gibbs.worker) still runs sandboxed.
+            workflow_runner=UnsandboxedWorkflowRunner(),
+        ):
+            r = await client.post(
+                "/campaigns",
+                json={
+                    "name": "worker-hosted ising",
+                    "strategy": "grid",
+                    "simulation_budget": 4,
+                    "lattice_size": 8,
+                },
+            )
+            campaign_id = r.json()["id"]
+            r = await client.post(f"/campaigns/{campaign_id}/start")
+            assert r.status_code == 200, r.text
+
+            # Nothing is running in this process: the loop lives on the worker.
+            assert not runner_registry.is_running(campaign_id)
+
+            handle = env.client.get_workflow_handle(campaign_workflow_id(campaign_id))
+            await asyncio.wait_for(handle.result(), timeout=180)
+
+            campaign = (await client.get(f"/campaigns/{campaign_id}")).json()
+            assert campaign["status"] == "COMPLETED"
+            assert campaign["simulations_used"] == 4
+
+            events = (await client.get(f"/campaigns/{campaign_id}/agent-events")).json()
+            types = {e["event_type"] for e in events}
+            assert {"CAMPAIGN_STARTED", "JOB_SUCCEEDED", "CAMPAIGN_COMPLETED"} <= types
+    finally:
+        get_settings.cache_clear()
+        await env.shutdown()
+
+
+async def _resolved(value):
+    return value

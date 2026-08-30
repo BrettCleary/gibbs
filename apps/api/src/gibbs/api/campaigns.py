@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
@@ -8,8 +10,8 @@ from sse_starlette.sse import EventSourceResponse
 
 from ..agent.loop import runner_registry
 from ..config import get_settings
-from ..db.models import AgentEvent, Calculation, Campaign, Structure, SurrogateModel
-from ..events import event_bus, sse_format
+from ..db.models import AgentEvent, AgentRun, Calculation, Campaign, Structure, SurrogateModel
+from ..events import event_payload, sse_format
 from .. import views
 from .deps import get_session
 from ..schemas import (
@@ -283,11 +285,48 @@ async def start_campaign(campaign_id: str, session: AsyncSession = Depends(get_s
                 detail=f"strategy 'agent' unavailable: {reason}; set the key, change "
                 "ALLOYLAB_AGENT_MODEL, or use a heuristic strategy (random/grid/uncertainty)",
             )
+    settings = get_settings()
+    model = settings.agent_model if campaign.strategy == "agent" else "heuristic"
+    previous_status = campaign.status
     campaign.status = "RUNNING"
     await session.commit()
-    model = get_settings().agent_model if campaign.strategy == "agent" else "heuristic"
-    agent_run_id = await runner_registry.start(campaign_id, model=model)
+
+    if settings.executor != "temporal":
+        agent_run_id = await runner_registry.start(campaign_id, model=model)
+        return StartResponse(campaign_id=campaign_id, status="RUNNING", agent_run_id=agent_run_id)
+
+    # Durable path: the loop runs on the worker, so it survives this process
+    # being recycled. The status flip has to be committed first — the loop's
+    # first act is to check for RUNNING — hence the rollback on a failed submit.
+    from temporalio.exceptions import WorkflowAlreadyStartedError
+
+    from ..agent.loop import create_agent_run
+    from ..temporal import start_campaign_workflow
+
+    agent_run_id = await create_agent_run(campaign_id, model)
+    try:
+        await start_campaign_workflow(settings, campaign_id, agent_run_id)
+    except WorkflowAlreadyStartedError:
+        await _abandon_start(session, campaign, agent_run_id, previous_status)
+        raise HTTPException(status_code=409, detail="campaign is already running") from None
+    except Exception as exc:  # noqa: BLE001 — Temporal unreachable / queue rejected
+        await _abandon_start(session, campaign, agent_run_id, previous_status)
+        raise HTTPException(
+            status_code=502, detail=f"could not submit campaign to the worker: {exc}"
+        ) from exc
     return StartResponse(campaign_id=campaign_id, status="RUNNING", agent_run_id=agent_run_id)
+
+
+async def _abandon_start(
+    session: AsyncSession, campaign: Campaign, agent_run_id: str, previous_status: str
+) -> None:
+    """Undo a start that never reached the worker, so the campaign is not left
+    advertising RUNNING with nothing running."""
+    campaign.status = previous_status
+    agent_run = await session.get(AgentRun, agent_run_id)
+    if agent_run is not None:
+        agent_run.status = "FAILED"
+    await session.commit()
 
 
 @router.post("/{campaign_id}/pause", response_model=CampaignRead)
@@ -416,14 +455,62 @@ async def get_phase_diagram(campaign_id: str, session: AsyncSession = Depends(ge
     return await _view(views.phase_diagram_view, session, campaign_id)
 
 
+# The live feed tails agent_events from the database rather than an in-process
+# bus, because the campaign loop runs in the Temporal worker. Each tick re-reads
+# the newest rows and skips the ids already sent: ids are random uuids and
+# created_at is written by whichever process emitted the event, so neither is a
+# safe monotonic cursor across processes. The window only has to outrun the
+# emit rate, and a calculation takes tens of seconds.
+EVENT_POLL_INTERVAL_S = 1.0
+EVENT_POLL_WINDOW = 50
+TERMINAL_EVENTS = frozenset({"CAMPAIGN_COMPLETED", "CAMPAIGN_ERROR"})
+
+
+async def _recent_events(session_factory, campaign_id: str) -> list[AgentEvent]:
+    async with session_factory() as session:
+        rows = (
+            await session.execute(
+                select(AgentEvent)
+                .where(AgentEvent.campaign_id == campaign_id)
+                .order_by(AgentEvent.created_at.desc(), AgentEvent.id.desc())
+                .limit(EVENT_POLL_WINDOW)
+            )
+        ).scalars().all()
+    return list(reversed(rows))
+
+
 @router.get("/{campaign_id}/events")
 async def stream_events(campaign_id: str, request: Request):
     """Server-Sent Events: live agent actions, job lifecycle, model updates."""
+    from ..db.base import get_session_factory
 
     async def generator():
-        async for event in event_bus.subscribe(campaign_id):
-            if await request.is_disconnected():
-                break
-            yield sse_format(event)
+        session_factory = get_session_factory()
+        sent: set[str] = set()
+        # The first tick only primes `sent`: the client loads the backlog from
+        # /agent-events, so replaying it here would be pure duplication.
+        priming = True
+        # REPORT_GENERATED is emitted just after CAMPAIGN_COMPLETED, so closing
+        # the moment a terminal event appears can cut off the report. Poll once
+        # more before hanging up.
+        ticks_after_terminal = -1
+        while not await request.is_disconnected():
+            rows = await _recent_events(session_factory, campaign_id)
+            for event in rows:
+                if event.id in sent:
+                    continue
+                if not priming:
+                    yield sse_format(event_payload(event))
+                if event.event_type in TERMINAL_EVENTS and ticks_after_terminal < 0:
+                    ticks_after_terminal = 0
+            # An event that has fallen out of the window cannot reappear, so the
+            # seen-set stays bounded by the window rather than the campaign.
+            sent = {event.id for event in rows}
+            priming = False
+            if ticks_after_terminal >= 0:
+                if ticks_after_terminal >= 1:
+                    break
+                ticks_after_terminal += 1
+            await asyncio.sleep(EVENT_POLL_INTERVAL_S)
 
     return EventSourceResponse(generator())
