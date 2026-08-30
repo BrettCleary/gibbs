@@ -1,135 +1,17 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import Link from "next/link";
+import { useState } from "react";
 import { ChevronRight, Eye, Hand, Loader2, PencilLine } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   FIELD_LABELS,
   TOOL_LABELS,
-  openCalculationLog,
   type AssistantPart,
   type PatchPart,
   type ToolPart,
   type Turn,
 } from "@/lib/copilot";
-
-/* ------------------------------------------------------------ inline text */
-
-const TOKEN = /(\[calc:[0-9a-f]+\]|\[campaign:[0-9a-f]+\]|`[^`]+`|\*\*[^*]+\*\*)/g;
-
-function CalcChip({ id }: { id: string }) {
-  const [state, setState] = useState<"idle" | "opening" | "missing">("idle");
-  return (
-    <button
-      type="button"
-      title={state === "missing" ? "no engine log for this calculation" : `open log ${id}`}
-      onClick={async () => {
-        setState("opening");
-        const ok = await openCalculationLog(id);
-        setState(ok ? "idle" : "missing");
-      }}
-      className={cn(
-        "mx-0.5 inline-flex items-center rounded-xs border px-1 font-mono text-[11px] align-baseline transition-colors",
-        state === "missing"
-          ? "border-line text-text-muted"
-          : "border-accent/30 bg-accent/10 text-accent-bright hover:border-accent/60",
-      )}
-    >
-      calc {id.slice(0, 8)}
-    </button>
-  );
-}
-
-function inline(text: string): ReactNode[] {
-  return text.split(TOKEN).map((chunk, i) => {
-    if (!chunk) return null;
-    const calc = chunk.match(/^\[calc:([0-9a-f]+)\]$/);
-    if (calc) return <CalcChip key={i} id={calc[1]} />;
-    const camp = chunk.match(/^\[campaign:([0-9a-f]+)\]$/);
-    if (camp)
-      return (
-        <Link
-          key={i}
-          href={`/campaigns/${camp[1]}`}
-          className="mx-0.5 inline-flex items-center rounded-xs border border-verdigris/30 bg-verdigris/10 px-1 font-mono text-[11px] text-verdigris hover:border-verdigris/60"
-        >
-          campaign {camp[1].slice(0, 8)}
-        </Link>
-      );
-    if (chunk.startsWith("`"))
-      return (
-        <code key={i} className="rounded-xs bg-white/[0.06] px-1 font-mono text-[12px]">
-          {chunk.slice(1, -1)}
-        </code>
-      );
-    if (chunk.startsWith("**"))
-      return (
-        <strong key={i} className="font-medium text-text">
-          {chunk.slice(2, -2)}
-        </strong>
-      );
-    return chunk;
-  });
-}
-
-/** Minimal markdown: paragraphs, `-`/`*`/numbered lists, inline code/bold, citations. */
-export function RichText({ text, className }: { text: string; className?: string }) {
-  const blocks: ReactNode[] = [];
-  const lines = text.split("\n");
-  let list: { ordered: boolean; items: string[] } | null = null;
-  let para: string[] = [];
-  const flushPara = () => {
-    if (para.length) {
-      blocks.push(
-        <p key={blocks.length} className="leading-relaxed">
-          {inline(para.join(" "))}
-        </p>,
-      );
-      para = [];
-    }
-  };
-  const flushList = () => {
-    if (list) {
-      const Tag = list.ordered ? "ol" : "ul";
-      blocks.push(
-        <Tag
-          key={blocks.length}
-          className={cn("space-y-1 pl-4", list.ordered ? "list-decimal" : "list-disc")}
-        >
-          {list.items.map((item, i) => (
-            <li key={i} className="leading-relaxed marker:text-text-muted">
-              {inline(item)}
-            </li>
-          ))}
-        </Tag>,
-      );
-      list = null;
-    }
-  };
-  for (const raw of lines) {
-    const line = raw.replace(/^#{1,6}\s+/, "");
-    const m = line.match(/^\s*(?:[-*•]|(\d+)[.)])\s+(.*)$/);
-    if (m) {
-      flushPara();
-      const ordered = m[1] != null;
-      if (!list || list.ordered !== ordered) {
-        flushList();
-        list = { ordered, items: [] };
-      }
-      list.items.push(m[2]);
-    } else if (line.trim() === "") {
-      flushPara();
-      flushList();
-    } else {
-      flushList();
-      para.push(line.trim());
-    }
-  }
-  flushPara();
-  flushList();
-  return <div className={cn("space-y-2 text-[13px] text-text-secondary", className)}>{blocks}</div>;
-}
+import { RichText } from "@/components/ui/RichText";
 
 /* ------------------------------------------------------------- tool cards */
 
@@ -204,7 +86,8 @@ function PatchCard({ part }: { part: PatchPart }) {
 }
 
 function Part({ part }: { part: AssistantPart }) {
-  if (part.type === "text") return <RichText text={part.text} />;
+  if (part.type === "text")
+    return <RichText text={part.text} className="text-[13px] text-text-secondary" />;
   if (part.type === "patch") return <PatchCard part={part} />;
   return <ToolCard part={part} />;
 }

@@ -9,6 +9,8 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/cn";
+import { RichText } from "@/components/ui/RichText";
 import {
   DataValue,
   ErrorNote,
@@ -42,7 +44,12 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
   }
 
   const cand = r.recommendation?.candidate as Record<string, unknown> | null | undefined;
-  const narrative = (r.llm_narrative ?? r.narrative ?? "").split("\n\n").filter(Boolean);
+  const narrative = (r.llm_narrative ?? r.narrative ?? "").trim();
+  // The FINAL_RECOMMENDATION action text is self-describing for the decision
+  // trail ("RECOMMENDATION: …"); this card supplies that label itself.
+  const recommendation = String(r.recommendation?.text ?? "")
+    .replace(/^\s*RECOMMENDATION:\s*/i, "")
+    .trim();
   const failures = Object.entries((r.failures.by_category ?? {}) as Record<string, unknown>);
 
   return (
@@ -74,9 +81,20 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
           className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-verdigris/10 blur-3xl"
         />
         <SectionLabel className="text-verdigris/80">Recommendation</SectionLabel>
-        {r.recommendation?.text ? (
-          <p className="mt-3 max-w-2xl text-[17px] leading-relaxed text-text md:text-[19px]">
-            {String(r.recommendation.text)}
+        {recommendation ? (
+          <p
+            className={cn(
+              "mt-3 max-w-2xl leading-relaxed text-text",
+              // The card is a headline. A short verdict (property search) gets the
+              // full display size; a long one (a hull's stable set, a phase
+              // diagram's per-slice boundary) steps down so it stays readable
+              // instead of wrapping to four oversized lines.
+              recommendation.length > 120
+                ? "text-[15px] md:text-[16px]"
+                : "text-[17px] md:text-[19px]",
+            )}
+          >
+            {recommendation}
           </p>
         ) : (
           <p className="mt-3 text-[14px] text-text-secondary">
@@ -116,12 +134,14 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
 
       {/* --------------------------------------------------------- summary */}
       <Section title="Summary">
-        <div className="max-w-2xl space-y-3 text-[14.5px] leading-relaxed text-text">
-          {narrative.map((p, i) => (
-            <p key={i}>{p}</p>
-          ))}
-          {narrative.length === 0 && <p className="text-text-secondary">No narrative yet.</p>}
-        </div>
+        {narrative ? (
+          <RichText
+            text={narrative}
+            className="max-w-2xl space-y-3 text-[14.5px] leading-relaxed text-text"
+          />
+        ) : (
+          <p className="text-[14.5px] text-text-secondary">No narrative yet.</p>
+        )}
         {r.llm_narrative && (
           <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.14em] text-text-muted">
             prose written by the LLM from the structured facts below

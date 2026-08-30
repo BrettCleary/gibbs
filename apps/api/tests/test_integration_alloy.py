@@ -134,3 +134,39 @@ async def test_alloy_benchmark_endpoint(client):
     for stats in per.values():
         assert stats["n_runs"] == 2
         assert stats["mean_hull_rmse"] >= 0
+
+
+async def test_completed_hull_campaign_report_carries_a_recommendation(client):
+    """A finished hull campaign must record what it found.
+
+    The report's recommendation comes from a FINAL_RECOMMENDATION event emitted
+    by Problem.finalize(). Only the property problem emitted one for a while, so
+    every hull campaign persisted a report whose recommendation was null and the
+    report view rendered an empty card on a COMPLETED campaign.
+    """
+    r = await client.post(
+        "/campaigns",
+        json={
+            "name": "hull recommendation",
+            "problem_type": "alloy_v1",
+            "strategy": "uncertainty",
+            "simulation_budget": 8,
+        },
+    )
+    assert r.status_code == 201, r.text
+    campaign_id = r.json()["id"]
+    campaign = await _run_to_completion(client, campaign_id)
+    assert campaign["status"] == "COMPLETED"
+
+    events = (await client.get(f"/campaigns/{campaign_id}/agent-events")).json()
+    final = [e for e in events if e["event_type"] == "FINAL_RECOMMENDATION"]
+    assert len(final) == 1, "a completed hull campaign emits exactly one FINAL_RECOMMENDATION"
+
+    report = (await client.get(f"/campaigns/{campaign_id}/report")).json()
+    text = report["recommendation"]["text"]
+    assert text, "the persisted report must carry the recommendation, not None"
+    assert "hull" in text.lower()
+    # The recommendation names the structures the campaign actually predicted stable.
+    stable = final[0]["payload"]["stable_labels"]
+    assert stable, "the event payload carries the predicted stable set"
+    assert stable[0] in text

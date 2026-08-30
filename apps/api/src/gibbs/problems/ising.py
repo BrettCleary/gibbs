@@ -202,6 +202,30 @@ class IsingProblem:
             payload={"tc_mean": est.mean, "tc_std": est.std, "version": model.version},
         )
 
+    async def finalize(self, session: AsyncSession, campaign: Campaign, agent_run_id: str | None) -> None:
+        """Record the located critical-temperature region as a FINAL_RECOMMENDATION."""
+        latest = (
+            await session.execute(
+                select(SurrogateModel)
+                .where(SurrogateModel.campaign_id == campaign.id)
+                .order_by(SurrogateModel.version.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        metrics = latest.validation_metrics if latest else {}
+        tc, tc_std = metrics.get("tc_mean"), metrics.get("tc_std")
+        if tc is None:
+            action = "No critical-temperature estimate could be fitted within the budget."
+        else:
+            action = (
+                f"RECOMMENDATION: critical temperature Tc = {tc:.4f} ± {tc_std:.4f} J/k_B "
+                f"(surrogate v{latest.version} on {metrics.get('n_training_points', 0)} measurements)"
+            )
+        await emit_agent_event(
+            session, campaign.id, "FINAL_RECOMMENDATION", agent_run_id=agent_run_id, action=action,
+            payload={"tc_mean": tc, "tc_std": tc_std},
+        )
+
     def describe_action(self, decision: ScientificDecision) -> str:
         if decision.action_type == ActionType.RUN_MONTE_CARLO:
             temps = ", ".join(f"{t:.3f}" for t in decision.temperatures)

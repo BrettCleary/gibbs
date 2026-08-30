@@ -623,6 +623,32 @@ class AlloyProblem:
             },
         )
 
+    async def finalize(self, session: AsyncSession, campaign: Campaign, agent_run_id: str | None) -> None:
+        """Record the hull campaign's answer as a FINAL_RECOMMENDATION.
+
+        Inherited by FccProblem and DftProblem; PropertyProblem overrides it with
+        its own single-candidate recommendation. Without this the report's
+        recommendation card renders empty on a completed hull campaign even
+        though the hull is exactly what the campaign was asked to find.
+        """
+        latest = await latest_surrogate_model(session, campaign.id)
+        art = latest.artifact if latest else {}
+        stable = list(art.get("stable_labels", []))
+        if not stable:
+            action = "No structures could be placed on the formation-energy hull within the budget."
+        else:
+            shown = ", ".join(stable[:8]) + ("…" if len(stable) > 8 else "")
+            # Model version and LOOCV are shown beside this in the report's
+            # "Model & confidence" panel, so the headline does not repeat them.
+            action = (
+                f"RECOMMENDATION: {len(stable)} structures predicted on or near the "
+                f"formation-energy hull — {shown}"
+            )
+        await emit_agent_event(
+            session, campaign.id, "FINAL_RECOMMENDATION", agent_run_id=agent_run_id, action=action,
+            payload={"stable_labels": stable, "hull_x": art.get("hull_x"), "hull_e": art.get("hull_e")},
+        )
+
     def describe_action(self, decision: ScientificDecision) -> str:
         if decision.action_type == ActionType.RUN_STRUCTURE_ENERGY:
             labels = ", ".join(decision.structure_labels)

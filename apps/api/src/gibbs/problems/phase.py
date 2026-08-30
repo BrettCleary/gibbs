@@ -497,6 +497,34 @@ class PhaseProblem:
             },
         )
 
+    async def finalize(self, session: AsyncSession, campaign: Campaign, agent_run_id: str | None) -> None:
+        """Record the mapped order/disorder boundary as a FINAL_RECOMMENDATION.
+
+        Edge-pinned slices are reported as bounds rather than locations, the same
+        way the dashboard and the report's key results present them.
+        """
+        latest = await latest_surrogate_model(session, campaign.id)
+        art = latest.artifact if latest else {}
+        fitted = [s for s in art.get("slices", []) if s.get("tc_mean") is not None]
+        if not fitted:
+            action = "No order/disorder boundary could be located within the budget."
+        else:
+            parts = [
+                f"x={s['x']:.2f}: Tc {'<' if s.get('tc_edge_pinned') else '='} "
+                f"{s['tc_mean']:.0f} ± {s['tc_std']:.0f} K"
+                for s in fitted
+            ]
+            n_pinned = sum(1 for s in fitted if s.get("tc_edge_pinned"))
+            caveat = f" ({n_pinned} at a window edge — bounds, not locations)" if n_pinned else ""
+            action = (
+                f"RECOMMENDATION: order/disorder boundary mapped at {len(fitted)} "
+                f"composition slices — {'; '.join(parts)}{caveat}"
+            )
+        await emit_agent_event(
+            session, campaign.id, "FINAL_RECOMMENDATION", agent_run_id=agent_run_id, action=action,
+            payload={"slices": fitted},
+        )
+
     def describe_action(self, decision: ScientificDecision) -> str:
         if decision.action_type == ActionType.RUN_MONTE_CARLO:
             temps = ", ".join(f"{t:.0f}" for t in decision.temperatures)
