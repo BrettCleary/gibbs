@@ -312,3 +312,7 @@ Note: on Postgres the schema comes from the Drizzle migrations in
 `apps/web/supabase/migrations` (`pnpm --filter @gibbs/web db:migrate`); the
 SQLite test/dev path is `create_all`-managed, so after pulling schema changes
 delete the local `gibbs.db` file.
+
+## License
+
+[MIT](LICENSE) © 2026 Brett Cleary
