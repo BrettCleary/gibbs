@@ -319,7 +319,18 @@ def _execute_ase_calculator(
     engine = problem_config.get("engine", "emt")
     a_parent = float(problem_config.get("a_parent", 3.52))
     if engine == "espresso":
-        config = EspressoConfig.from_dict(problem_config.get("espresso", {}))
+        # pw_command and pseudo_dir describe the machine running the SCF, not
+        # the campaign. Under Temporal the API that wrote problem_config is a
+        # web container with no QE, so its values are meaningless here — take
+        # them from this host's settings and keep everything else (cutoffs,
+        # k-spacing, pseudopotential filenames) as the campaign recorded it.
+        config = EspressoConfig.from_dict(
+            {
+                **problem_config.get("espresso", {}),
+                "pw_command": settings.pw_command,
+                "pseudo_dir": settings.pseudo_dir,
+            }
+        )
         overrides = {
             k: params[k] for k in ("electron_maxstep", "mixing_beta") if k in params
         }
@@ -347,6 +358,8 @@ def _execute_ase_calculator(
         "calculator_details": result.details,
         "log_path": result.log_path,
     }
+    if engine == "espresso":
+        provenance["pw_command"] = config.pw_command
     return output, provenance
 
 
