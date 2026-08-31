@@ -68,9 +68,15 @@ async def _owned_chat(session: AsyncSession, chat_id: str, user: AuthUser) -> Co
 
 
 @router.get("/status", response_model=CopilotStatus)
-async def copilot_status():
-    """Whether the copilot can answer (its model's provider key is configured)."""
-    model = get_settings().agent_model
+async def copilot_status(session: AsyncSession = Depends(get_session)):
+    """Whether the copilot can answer (its model's provider key is configured).
+
+    Resolves the model the same way send_message does — the agent row's
+    foundation_model, falling back to settings.agent_model — so the status the
+    UI shows is the model that actually answers.
+    """
+    definition = await load_agent_definition(session, COPILOT_AGENT_NAME, INSTRUCTIONS)
+    model = definition.model or get_settings().agent_model
     ok, reason = model_available(model)
     return CopilotStatus(available=ok, model=model, reason=reason)
 
