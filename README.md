@@ -19,9 +19,10 @@ with `pw.x` is connected.
 convex hull with per-structure uncertainty, the predicted stable structures, a 3D view
 of the ordering on the hull, and the campaign activity feed.](screenshots/campaign.png)
 
-<!-- TODO(video): 60-90s screen capture — create a campaign, press Start, watch
-     decisions stream in, land on the final report. Embed as a link to a GIF or
-     an uploaded .mp4 (GitHub renders drag-and-dropped video inline). -->
+![The copilot proposes a Cu-Au hull campaign, the scientist presses Create, and the
+agent spends its budget: structures chosen, DFT jobs run, the cluster expansion refit,
+the convex hull filling in, and a final recommendation naming the stable
+set.](screenshots/demo.gif)
 
 ## The loop
 
