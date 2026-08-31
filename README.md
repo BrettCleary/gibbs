@@ -10,6 +10,11 @@ Not a chatbot. Every number on screen traces back to a typed job row with
 provenance; the LLM decides *what to compute next* and *how to explain it*, and never
 computes a quantity itself.
 
+**Live at [gibbs.app](https://gibbs.app)** — sign up with any email and password, then
+create a campaign and press Start. Calculations run on Temporal workers rather than in
+the API, so a campaign is durable across restarts and real DFT runs wherever a worker
+with `pw.x` is connected.
+
 ![A completed Cu-Au formation-energy hull campaign: the measured-vs-cluster-expansion
 convex hull with per-structure uncertainty, the predicted stable structures, a 3D view
 of the ordering on the hull, and the campaign activity feed.](screenshots/campaign.png)
@@ -408,15 +413,23 @@ on every push and pull request.
 
 ## Limitations
 
-Stated plainly, because the report states them too:
+**[LIMITATIONS.md](LIMITATIONS.md)** is the full account — what the physics settings
+actually are, what the models can and cannot support, and what would have to change
+before any of this produced a research result. The short version:
 
-- **Physics settings are demo-grade.** Non-spin-polarised, modest k-mesh, no ionic
-  relaxation. Ordered Ni-Al compounds do come out stable, but the numbers are not
-  publication-quality.
+- **Physics settings are demo-grade.** Non-spin-polarised (Ni is ferromagnetic — this
+  matters), modest k-mesh, no ionic relaxation, no convergence study. Ordered
+  compounds do come out stable, but the numbers are qualitative.
+- **The cluster expansion is pair-only**, on cells of at most 5 atoms, typically fitted
+  to 10-20 points. Predictions for unmeasured structures are extrapolation, and the
+  reported ensemble spread is the honest uncertainty on that.
 - **Non-FCC elements are hypothetical.** Fe, Ti and friends are placed on an
   equal-atomic-volume FCC lattice and flagged as such wherever they appear.
-- **The benchmark scores acquisition strategies, not the LLM.** An LLM-driven run is
-  evaluated by reading its campaign report, not by averaging it into the baseline table.
+- **The benchmark scores acquisition strategies, not the LLM**, and at the settings run
+  so far it has not shown active selection beating random.
+
+Every campaign report also generates its own limitations section from its persisted
+record, so a run always states its own caveats rather than relying on this page.
 
 ## What's next
 
