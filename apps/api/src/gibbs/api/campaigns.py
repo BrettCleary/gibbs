@@ -10,9 +10,18 @@ from sse_starlette.sse import EventSourceResponse
 
 from ..agent.loop import runner_registry
 from ..config import get_settings
-from ..db.models import AgentEvent, AgentRun, Calculation, Campaign, Structure, SurrogateModel
+from ..db.models import (
+    AgentEvent,
+    AgentRun,
+    AuthUser,
+    Calculation,
+    Campaign,
+    Structure,
+    SurrogateModel,
+)
 from ..events import event_payload, sse_format
 from .. import views
+from .auth import require_user
 from .deps import get_session
 from ..schemas import (
     AgentEventRead,
@@ -35,15 +44,21 @@ from ..schemas import (
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 
 
-async def _get_campaign(session: AsyncSession, campaign_id: str) -> Campaign:
+async def _get_campaign(session: AsyncSession, campaign_id: str, user: AuthUser) -> Campaign:
+    """The campaign, if this user owns it.
+
+    Someone else's campaign is reported as missing rather than forbidden, so an
+    id cannot be probed for existence. Campaigns written before the owner column
+    existed have ``user_id is None`` and belong to nobody.
+    """
     campaign = await session.get(Campaign, campaign_id)
-    if campaign is None:
+    if campaign is None or campaign.user_id != user.id:
         raise HTTPException(status_code=404, detail="campaign not found")
     return campaign
 
 
-async def _view(builder, session: AsyncSession, campaign_id: str):
-    campaign = await _get_campaign(session, campaign_id)
+async def _view(builder, session: AsyncSession, campaign_id: str, user: AuthUser):
+    campaign = await _get_campaign(session, campaign_id, user)
     try:
         return await builder(session, campaign)
     except views.ViewNotApplicable as exc:
@@ -51,7 +66,11 @@ async def _view(builder, session: AsyncSession, campaign_id: str):
 
 
 @router.post("", response_model=CampaignRead, status_code=201)
-async def create_campaign(body: CampaignCreate, session: AsyncSession = Depends(get_session)):
+async def create_campaign(
+    body: CampaignCreate,
+    session: AsyncSession = Depends(get_session),
+    user: AuthUser = Depends(require_user),
+):
     is_alloy = body.problem_type.value in ("alloy_v1", "fcc_v2", "dft_v3", "property_v3")
     is_phase = body.problem_type.value == "phase_v2"
     # Element pair for the FCC problems (default Ni-Al): parent lattice = element A.
@@ -79,6 +98,7 @@ async def create_campaign(body: CampaignCreate, session: AsyncSession = Depends(
         # The window brackets the Tc range of the hidden-ECI distribution.
         t_min, t_max = 100.0, 1200.0
     campaign = Campaign(
+        user_id=user.id,
         name=body.name,
         objective=body.objective,
         problem_type=body.problem_type.value,
@@ -258,19 +278,31 @@ async def list_elements():
 
 
 @router.get("", response_model=list[CampaignRead])
-async def list_campaigns(session: AsyncSession = Depends(get_session)):
-    rows = await session.execute(select(Campaign).order_by(Campaign.created_at.desc()))
+async def list_campaigns(
+    session: AsyncSession = Depends(get_session), user: AuthUser = Depends(require_user)
+):
+    rows = await session.execute(
+        select(Campaign).where(Campaign.user_id == user.id).order_by(Campaign.created_at.desc())
+    )
     return rows.scalars().all()
 
 
 @router.get("/{campaign_id}", response_model=CampaignRead)
-async def get_campaign(campaign_id: str, session: AsyncSession = Depends(get_session)):
-    return await _get_campaign(session, campaign_id)
+async def get_campaign(
+    campaign_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: AuthUser = Depends(require_user),
+):
+    return await _get_campaign(session, campaign_id, user)
 
 
 @router.post("/{campaign_id}/start", response_model=StartResponse)
-async def start_campaign(campaign_id: str, session: AsyncSession = Depends(get_session)):
-    campaign = await _get_campaign(session, campaign_id)
+async def start_campaign(
+    campaign_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: AuthUser = Depends(require_user),
+):
+    campaign = await _get_campaign(session, campaign_id, user)
     if campaign.status in ("COMPLETED", "FAILED"):
         raise HTTPException(status_code=409, detail=f"campaign is {campaign.status}")
     if runner_registry.is_running(campaign_id):
@@ -330,8 +362,12 @@ async def _abandon_start(
 
 
 @router.post("/{campaign_id}/pause", response_model=CampaignRead)
-async def pause_campaign(campaign_id: str, session: AsyncSession = Depends(get_session)):
-    campaign = await _get_campaign(session, campaign_id)
+async def pause_campaign(
+    campaign_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: AuthUser = Depends(require_user),
+):
+    campaign = await _get_campaign(session, campaign_id, user)
     if campaign.status != "RUNNING":
         raise HTTPException(status_code=409, detail="campaign is not running")
     campaign.status = "PAUSED"
@@ -340,8 +376,12 @@ async def pause_campaign(campaign_id: str, session: AsyncSession = Depends(get_s
 
 
 @router.get("/{campaign_id}/calculations", response_model=list[CalculationRead])
-async def list_calculations(campaign_id: str, session: AsyncSession = Depends(get_session)):
-    await _get_campaign(session, campaign_id)
+async def list_calculations(
+    campaign_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: AuthUser = Depends(require_user),
+):
+    await _get_campaign(session, campaign_id, user)
     rows = await session.execute(
         select(Calculation)
         .where(Calculation.campaign_id == campaign_id)
@@ -351,8 +391,12 @@ async def list_calculations(campaign_id: str, session: AsyncSession = Depends(ge
 
 
 @router.get("/{campaign_id}/models", response_model=list[SurrogateModelRead])
-async def list_models(campaign_id: str, session: AsyncSession = Depends(get_session)):
-    await _get_campaign(session, campaign_id)
+async def list_models(
+    campaign_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: AuthUser = Depends(require_user),
+):
+    await _get_campaign(session, campaign_id, user)
     rows = await session.execute(
         select(SurrogateModel)
         .where(SurrogateModel.campaign_id == campaign_id)
@@ -363,9 +407,12 @@ async def list_models(campaign_id: str, session: AsyncSession = Depends(get_sess
 
 @router.get("/{campaign_id}/agent-events", response_model=list[AgentEventRead])
 async def list_agent_events(
-    campaign_id: str, limit: int = 200, session: AsyncSession = Depends(get_session)
+    campaign_id: str,
+    limit: int = 200,
+    session: AsyncSession = Depends(get_session),
+    user: AuthUser = Depends(require_user),
 ):
-    await _get_campaign(session, campaign_id)
+    await _get_campaign(session, campaign_id, user)
     rows = await session.execute(
         select(AgentEvent)
         .where(AgentEvent.campaign_id == campaign_id)
@@ -376,9 +423,13 @@ async def list_agent_events(
 
 
 @router.get("/{campaign_id}/surrogate", response_model=CampaignSurrogateView)
-async def get_surrogate_view(campaign_id: str, session: AsyncSession = Depends(get_session)):
+async def get_surrogate_view(
+    campaign_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: AuthUser = Depends(require_user),
+):
     """Latest surrogate curve plus the measured points it was trained on."""
-    await _get_campaign(session, campaign_id)
+    await _get_campaign(session, campaign_id, user)
     model = (
         await session.execute(
             select(SurrogateModel)
@@ -417,8 +468,12 @@ async def get_surrogate_view(campaign_id: str, session: AsyncSession = Depends(g
 
 
 @router.get("/{campaign_id}/structures", response_model=list[StructureRead])
-async def list_structures(campaign_id: str, session: AsyncSession = Depends(get_session)):
-    await _get_campaign(session, campaign_id)
+async def list_structures(
+    campaign_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: AuthUser = Depends(require_user),
+):
+    await _get_campaign(session, campaign_id, user)
     rows = await session.execute(
         select(Structure).where(Structure.campaign_id == campaign_id).order_by(Structure.label)
     )
@@ -426,16 +481,24 @@ async def list_structures(campaign_id: str, session: AsyncSession = Depends(get_
 
 
 @router.get("/{campaign_id}/hull", response_model=AlloyHullView)
-async def get_hull_view(campaign_id: str, session: AsyncSession = Depends(get_session)):
+async def get_hull_view(
+    campaign_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: AuthUser = Depends(require_user),
+):
     """Formation-energy hull view for alloy campaigns: measurements, predictions, hull."""
-    return await _view(views.hull_view, session, campaign_id)
+    return await _view(views.hull_view, session, campaign_id, user)
 
 
 @router.get("/{campaign_id}/report", response_model=CampaignReport)
-async def get_report(campaign_id: str, session: AsyncSession = Depends(get_session)):
+async def get_report(
+    campaign_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: AuthUser = Depends(require_user),
+):
     """Final scientific report (plan section 16). Persisted at completion;
     generated on the fly for campaigns still in progress."""
-    campaign = await _get_campaign(session, campaign_id)
+    campaign = await _get_campaign(session, campaign_id, user)
     if campaign.report:
         return CampaignReport(**campaign.report)
     from ..report import build_report
@@ -444,15 +507,23 @@ async def get_report(campaign_id: str, session: AsyncSession = Depends(get_sessi
 
 
 @router.get("/{campaign_id}/candidates", response_model=CandidatesView)
-async def get_candidates(campaign_id: str, session: AsyncSession = Depends(get_session)):
+async def get_candidates(
+    campaign_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: AuthUser = Depends(require_user),
+):
     """Ranked candidates for property campaigns (plan section 14)."""
-    return await _view(views.candidates_view, session, campaign_id)
+    return await _view(views.candidates_view, session, campaign_id, user)
 
 
 @router.get("/{campaign_id}/phase-diagram", response_model=PhaseDiagramView)
-async def get_phase_diagram(campaign_id: str, session: AsyncSession = Depends(get_session)):
+async def get_phase_diagram(
+    campaign_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: AuthUser = Depends(require_user),
+):
     """T-x phase-diagram view: per-slice boundary estimates, curves, measurements."""
-    return await _view(views.phase_diagram_view, session, campaign_id)
+    return await _view(views.phase_diagram_view, session, campaign_id, user)
 
 
 # The live feed tails agent_events from the database rather than an in-process
@@ -480,9 +551,17 @@ async def _recent_events(session_factory, campaign_id: str) -> list[AgentEvent]:
 
 
 @router.get("/{campaign_id}/events")
-async def stream_events(campaign_id: str, request: Request):
+async def stream_events(
+    campaign_id: str,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    user: AuthUser = Depends(require_user),
+):
     """Server-Sent Events: live agent actions, job lifecycle, model updates."""
     from ..db.base import get_session_factory
+
+    # Checked before the stream opens; the generator below outlives this session.
+    await _get_campaign(session, campaign_id, user)
 
     async def generator():
         session_factory = get_session_factory()

@@ -176,8 +176,9 @@ def _r(value: Any, nd: int = 4) -> Any:
 
 
 async def _campaign(ctx: RunContext[CopilotDeps], campaign_id: str) -> Campaign:
+    """A campaign the chat's user owns. Someone else's is simply not found."""
     campaign = await ctx.deps.session.get(Campaign, campaign_id)
-    if campaign is None:
+    if campaign is None or campaign.user_id != ctx.deps.user_id:
         raise ModelRetry(f"campaign {campaign_id!r} not found")
     return campaign
 
@@ -261,9 +262,14 @@ def build_copilot_agent(model, definition: AgentDefinition | None = None) -> Age
 
     @tools.tool
     async def list_campaigns(ctx: RunContext[CopilotDeps]) -> str:
-        """All campaigns (most recent first): id, name, problem type, status, elements, budget."""
+        """The user's campaigns (most recent first): id, name, problem type, status,
+        elements, budget."""
         rows = (
-            await ctx.deps.session.execute(select(Campaign).order_by(Campaign.created_at.desc()))
+            await ctx.deps.session.execute(
+                select(Campaign)
+                .where(Campaign.user_id == ctx.deps.user_id)
+                .order_by(Campaign.created_at.desc())
+            )
         ).scalars().all()
         return _dump(
             [
@@ -408,7 +414,16 @@ def build_copilot_agent(model, definition: AgentDefinition | None = None) -> Age
     async def get_calculation(ctx: RunContext[CopilotDeps], calculation_id: str) -> str:
         """Full detail of one calculation: inputs, outputs, provenance, failure metadata,
         retry lineage, and the tail of its engine log if one exists."""
-        c = await ctx.deps.session.get(Calculation, calculation_id)
+        c = (
+            await ctx.deps.session.execute(
+                select(Calculation)
+                .join(Campaign, Campaign.id == Calculation.campaign_id)
+                .where(
+                    Calculation.id == calculation_id,
+                    Campaign.user_id == ctx.deps.user_id,
+                )
+            )
+        ).scalar_one_or_none()
         if c is None:
             raise ModelRetry(f"calculation {calculation_id!r} not found")
         data = {

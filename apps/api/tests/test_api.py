@@ -44,3 +44,25 @@ async def test_agent_strategy_requires_key(client, monkeypatch):
     r = await client.post(f"/campaigns/{cid}/start")
     assert r.status_code == 400
     assert "OPENAI_API_KEY" in r.json()["detail"]
+
+
+async def test_campaigns_are_private_to_their_owner(client):
+    """A second account must not see, read, or drive the first account's campaigns."""
+    from gibbs.api.auth import require_user
+    from gibbs.db.models import AuthUser
+
+    r = await client.post("/campaigns", json={"name": "mine", "strategy": "grid"})
+    assert r.status_code == 201, r.text
+    cid = r.json()["id"]
+
+    # Same client, different signed-in user.
+    client._transport.app.dependency_overrides[require_user] = lambda: AuthUser(
+        id="other-user", name="Other", email="other@example.com"
+    )
+
+    assert (await client.get("/campaigns")).json() == []
+    for path in ("", "/report", "/calculations", "/agent-events", "/structures"):
+        r = await client.get(f"/campaigns/{cid}{path}")
+        assert r.status_code == 404, (path, r.status_code)
+    assert (await client.post(f"/campaigns/{cid}/start")).status_code == 404
+    assert (await client.post(f"/campaigns/{cid}/pause")).status_code == 404

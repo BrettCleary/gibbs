@@ -36,6 +36,11 @@ class Campaign(Base):
     __table_args__ = {"schema": "science"}
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    # Owner. Nullable only because campaigns predate ownership: rows written
+    # before the column existed have no owner and are visible to nobody.
+    user_id: Mapped[str | None] = mapped_column(
+        Text, ForeignKey("app_auth.user.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     name: Mapped[str] = mapped_column(String(200))
     objective: Mapped[str] = mapped_column(Text)
     problem_type: Mapped[str] = mapped_column(String(50), default="ising_v0")
