@@ -17,9 +17,32 @@ const plexMono = IBM_Plex_Mono({
   display: "swap",
 });
 
+const title = "Gibbs — Autonomous Materials Science";
+const description = "Mission control for an autonomous computational materials scientist.";
+// Same origin the auth layer resolves; metadata needs it to make /og.png absolute.
+const siteUrl =
+  process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+
 export const metadata: Metadata = {
-  title: "Gibbs — Autonomous Materials Science",
-  description: "Mission control for an autonomous computational materials scientist.",
+  metadataBase: new URL(siteUrl),
+  title,
+  description,
+  openGraph: {
+    title,
+    description,
+    url: siteUrl,
+    siteName: "Gibbs",
+    type: "website",
+    images: [
+      { url: "/og.png", width: 1200, height: 630, alt: "Gibbs — AI materials science copilot" },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+    images: ["/og.png"],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
