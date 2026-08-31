@@ -45,6 +45,10 @@ class AgentDefinition:
     max_output_tokens: int | None = None
     temperature: float | None = None
     top_p: float | None = None
+    # Provider-specific Pydantic AI model settings from agent_config.provider_options,
+    # e.g. {"openai_reasoning_effort": "high"}. Merged last, so a config row can reach
+    # any setting its provider's ModelSettings supports.
+    provider_options: dict = field(default_factory=dict)
 
     def model_settings(self) -> dict | None:
         settings: dict = {}
@@ -54,6 +58,7 @@ class AgentDefinition:
             settings["temperature"] = self.temperature
         if self.top_p is not None:
             settings["top_p"] = self.top_p
+        settings.update(self.provider_options)
         return settings or None
 
 
@@ -101,6 +106,7 @@ async def load_agent_definition(
         max_output_tokens=config.max_output_tokens if config else None,
         temperature=(config.temperature / 100) if config and config.temperature is not None else None,
         top_p=(config.top_p / 100) if config and config.top_p is not None else None,
+        provider_options=dict(config.provider_options or {}) if config else {},
     )
 
 
