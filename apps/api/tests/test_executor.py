@@ -101,13 +101,15 @@ async def test_temporal_round_trip_campaign(client, monkeypatch):
     import asyncio
 
     from temporalio.testing import WorkflowEnvironment
-    from temporalio.worker import UnsandboxedWorkflowRunner, Worker
+    from temporalio.worker import Worker
+    from temporalio.worker.workflow_sandbox import SandboxedWorkflowRunner
 
     from gibbs.agent.loop import runner_registry
     from gibbs.config import Settings
     from gibbs.temporal import TemporalJobExecutor
     from gibbs.temporal.activities import execute_calculation
     from gibbs.temporal.workflows import RunCalculationWorkflow
+    from gibbs.worker import SANDBOX_RESTRICTIONS
 
     env = await WorkflowEnvironment.start_local()
     try:
@@ -120,10 +122,8 @@ async def test_temporal_round_trip_campaign(client, monkeypatch):
             task_queue="test-queue",
             workflows=[RunCalculationWorkflow],
             activities=[execute_calculation],
-            # See test_campaign_loop_runs_on_the_worker: beartype's import hook
-            # breaks Temporal's workflow sandbox under pytest, so validation
-            # fails here for reasons unrelated to the workflow.
-            workflow_runner=UnsandboxedWorkflowRunner(),
+            # Sandboxed exactly like gibbs.worker, beartype passthrough included.
+            workflow_runner=SandboxedWorkflowRunner(restrictions=SANDBOX_RESTRICTIONS),
         ):
             monkeypatch.setattr(runner_registry, "_executor", executor)
             r = await client.post(
@@ -172,13 +172,15 @@ async def test_campaign_loop_runs_on_the_worker(client, monkeypatch):
     import asyncio
 
     from temporalio.testing import WorkflowEnvironment
-    from temporalio.worker import UnsandboxedWorkflowRunner, Worker
+    from temporalio.worker import Worker
+    from temporalio.worker.workflow_sandbox import SandboxedWorkflowRunner
 
     from gibbs.agent.loop import runner_registry
     from gibbs.config import get_settings
     from gibbs.temporal.activities import run_campaign
     from gibbs.temporal.campaign import campaign_workflow_id
     from gibbs.temporal.workflows import RunCampaignWorkflow
+    from gibbs.worker import SANDBOX_RESTRICTIONS
 
     env = await WorkflowEnvironment.start_local()
     try:
@@ -196,11 +198,8 @@ async def test_campaign_loop_runs_on_the_worker(client, monkeypatch):
             task_queue="test-campaign-queue",
             workflows=[RunCampaignWorkflow],
             activities=[run_campaign],
-            # Unsandboxed under pytest only: beartype's import hook cannot be
-            # re-imported inside Temporal's workflow sandbox, so validation
-            # fails here for reasons unrelated to the workflow itself. The
-            # deployed worker (gibbs.worker) still runs sandboxed.
-            workflow_runner=UnsandboxedWorkflowRunner(),
+            # Sandboxed exactly like gibbs.worker, beartype passthrough included.
+            workflow_runner=SandboxedWorkflowRunner(restrictions=SANDBOX_RESTRICTIONS),
         ):
             r = await client.post(
                 "/campaigns",
@@ -235,3 +234,34 @@ async def test_campaign_loop_runs_on_the_worker(client, monkeypatch):
 
 async def _resolved(value):
     return value
+
+
+def test_workflow_sandbox_survives_beartype_import_hook():
+    """The worker's sandbox must import workflows with beartype's claw hook live.
+
+    Pydantic AI (via fastmcp -> py-key-value-aio) installs that hook process-wide
+    the moment the agent is imported, i.e. as soon as the first campaign activity
+    runs. Without `beartype` passed through, every workflow instance created
+    after that died in the sandbox with "cannot import name 'claw_state' from
+    partially initialized module 'beartype.claw._clawstate'".
+    """
+    import importlib
+    import importlib.machinery
+
+    import pydantic_ai  # noqa: F401 — imported for its beartype claw hook
+    from temporalio.worker.workflow_sandbox._importer import Importer
+    from temporalio.worker.workflow_sandbox._restrictions import RestrictionContext
+
+    import gibbs.temporal
+    from gibbs.worker import SANDBOX_RESTRICTIONS
+
+    # The hook is what makes this test meaningful, so assert it is really armed:
+    # a module loaded from here on is loaded by beartype, not by CPython.
+    spec = importlib.machinery.PathFinder.find_spec(
+        "gibbs.temporal.client", gibbs.temporal.__path__
+    )
+    assert type(spec.loader).__module__.startswith("beartype")
+
+    importer = Importer(SANDBOX_RESTRICTIONS, RestrictionContext())
+    with importer.applied():
+        importlib.import_module("gibbs.temporal.workflows")
