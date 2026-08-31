@@ -2,7 +2,7 @@
 
 This document records where the platform sits today, what the *actual* top-level
 objectives look like, and how we intend to build toward them. It is a direction,
-not a schedule. `project_description.md` is the original nine-milestone plan
+not a schedule. `docs/project_description.md` is the original nine-milestone plan
 (implemented); this is what comes after it.
 
 ## 1. The hierarchy of objectives

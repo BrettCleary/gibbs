@@ -443,7 +443,7 @@ record, so a run always states its own caveats rather than relying on this page.
 **[LONG_TERM_GOAL.md](LONG_TERM_GOAL.md)** lays out the hierarchy of objectives
 (application goal → figures of merit → candidate systems → stability → experiments),
 which decisions belong to tools versus the agent, and the build order beyond the
-current scope. **[project_description.md](project_description.md)** is the original
+current scope. **[docs/project_description.md](docs/project_description.md)** is the original
 nine-milestone design document; all nine are implemented.
 
 Note: on Postgres the schema comes from the Drizzle migrations in
